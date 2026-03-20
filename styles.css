@@ -473,7 +473,24 @@
 }
 
 .dash-health-btn-row {
+  display: flex;
+  gap: 8px;
   margin-top: 8px;
+}
+
+.dash-btn-fix {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ff9800;
+  border-color: rgba(255, 152, 0, 0.3);
+}
+
+.dash-btn-fix:hover {
+  background: rgba(255, 152, 0, 0.25);
+}
+
+.dash-btn-disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 /* Health status badges */

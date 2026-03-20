@@ -458,6 +458,13 @@ class DashboardView extends ItemView {
 			name: "Smart Connections",
 			description: "Semantic search over vault content. Required for search_vault_smart.",
 			checkFn: () => this.checkSmartConnections(),
+			fixFn: async () => {
+				// Call the mcp-fix plugin's command
+				await (this.app as any).commands.executeCommandById("mcp-fix:fix-mcp-tools");
+				// Wait for re-registration
+				await new Promise(r => setTimeout(r, 2500));
+			},
+			fixLabel: "Fix (re-toggle MCP Tools)",
 		});
 
 		this.renderHealthCard(grid, {
@@ -476,6 +483,8 @@ class DashboardView extends ItemView {
 	private renderHealthCard(parent: HTMLElement, config: {
 		name: string; description: string;
 		checkFn: () => Promise<{ status: "up" | "down" | "degraded"; detail: string }>;
+		fixFn?: () => Promise<void>;
+		fixLabel?: string;
 	}): void {
 		const card = parent.createDiv({ cls: "dash-card dash-health-card" });
 		const header = card.createDiv({ cls: "dash-card-header" });
@@ -488,21 +497,44 @@ class DashboardView extends ItemView {
 		const btnRow = card.createDiv({ cls: "dash-health-btn-row" });
 		const checkBtn = btnRow.createEl("button", { text: "Run Check", cls: "dash-btn dash-btn-primary" });
 
+		let lastStatus: string | null = null;
+
 		const runCheck = async () => {
 			badge.setText("checking...");
 			badge.className = "dash-badge dash-badge-unknown";
 			detailEl.empty();
 			try {
 				const result = await config.checkFn();
+				lastStatus = result.status;
 				badge.setText(result.status);
 				badge.className = `dash-badge dash-badge-${result.status === "up" ? "active" : result.status === "degraded" ? "warning" : "down"}`;
 				detailEl.createEl("span", { text: result.detail, cls: "dash-health-detail-text" });
 			} catch (e) {
+				lastStatus = "error";
 				badge.setText("error");
 				badge.className = "dash-badge dash-badge-down";
 				detailEl.createEl("span", { text: String(e), cls: "dash-health-detail-text" });
 			}
+
+			// Show fix button if degraded/down and a fix function exists
+			fixBtn.style.display = (lastStatus !== "up" && config.fixFn) ? "inline-block" : "none";
 		};
+
+		// Fix button (hidden by default)
+		const fixBtn = btnRow.createEl("button", {
+			text: config.fixLabel ?? "Fix",
+			cls: "dash-btn dash-btn-fix"
+		});
+		fixBtn.style.display = "none";
+		fixBtn.addEventListener("click", async () => {
+			if (!config.fixFn) return;
+			fixBtn.setText("Fixing...");
+			fixBtn.toggleClass("dash-btn-disabled", true);
+			await config.fixFn();
+			fixBtn.setText(config.fixLabel ?? "Fix");
+			fixBtn.toggleClass("dash-btn-disabled", false);
+			await runCheck();
+		});
 
 		checkBtn.addEventListener("click", runCheck);
 		runCheck();
