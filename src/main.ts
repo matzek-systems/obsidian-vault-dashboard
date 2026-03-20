@@ -1,4 +1,4 @@
-import { Plugin, ItemView, WorkspaceLeaf, TFile, requestUrl, setIcon } from "obsidian";
+import { Plugin, ItemView, WorkspaceLeaf, TFile, setIcon } from "obsidian";
 
 const VIEW_TYPE = "vault-dashboard";
 const ICON = "layout-dashboard";
@@ -8,16 +8,13 @@ const AREAS_FOLDER = "03_Areas";
 const SYSTEM_HOME = "00_System/AI/Claude/00_Home.md";
 const DISCORD_BOT_PID = "00_System/AI/Claude/tools/discord-bot/bot.pid";
 const SESSION_RAM_FOLDER = "00_System/AI/Claude/Scratchpad";
-const MCP_URL = "https://127.0.0.1:27124";
 
-type Section = "projects" | "areas" | "system" | "capture" | "status";
+type Section = "projects" | "capture" | "status";
 
 const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
 	{ id: "projects", label: "Roadmaps", icon: "map" },
-	{ id: "areas", label: "Areas", icon: "layers" },
-	{ id: "system", label: "System", icon: "cpu" },
-	{ id: "capture", label: "Capture", icon: "inbox" },
 	{ id: "status", label: "Status", icon: "activity" },
+	{ id: "capture", label: "Capture", icon: "inbox" },
 ];
 
 export default class DashboardPlugin extends Plugin {
@@ -31,7 +28,7 @@ export default class DashboardPlugin extends Plugin {
 		const { workspace } = this.app;
 		const existing = workspace.getLeavesOfType(VIEW_TYPE);
 		if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
-		const leaf = workspace.getLeaf(false);
+		const leaf = workspace.getLeaf("tab");
 		await leaf.setViewState({ type: VIEW_TYPE, active: true });
 	}
 }
@@ -86,6 +83,17 @@ class DashboardView extends ItemView {
 			.map(l => l.trim().replace(/^-\s*\[.\]\s*/, "").replace(/^-\s*/, ""));
 	}
 
+	// Strip markdown formatting for plain text display
+	private stripMd(text: string): string {
+		return text
+			.replace(/\*\*(.+?)\*\*/g, "$1")   // bold
+			.replace(/\*(.+?)\*/g, "$1")         // italic
+			.replace(/`(.+?)`/g, "$1")           // inline code
+			.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2") // wikilinks with alias
+			.replace(/\[\[([^\]]+)\]\]/g, "$1")  // wikilinks
+			.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"); // md links
+	}
+
 	private parseStartupTable(content: string): { id: string; status: string; summary: string }[] {
 		const items: { id: string; status: string; summary: string }[] = [];
 		const tableMatch = content.match(/<!-- STARTUP_START[\s\S]*?<!-- STARTUP_END -->/);
@@ -124,8 +132,6 @@ class DashboardView extends ItemView {
 
 		switch (this.activeSection) {
 			case "projects": await this.renderRoadmapsPage(main); break;
-			case "areas": await this.renderAreasPage(main); break;
-			case "system": await this.renderSystemPage(main); break;
 			case "capture": await this.renderCapturePage(main); break;
 			case "status": await this.renderStatusPage(main); break;
 		}
@@ -169,9 +175,10 @@ class DashboardView extends ItemView {
 	// ── Roadmaps Page ───────────────────────────────────────
 
 	private async renderRoadmapsPage(parent: HTMLElement): Promise<void> {
-		parent.createEl("h2", { text: "Active Roadmaps", cls: "dash-page-title" });
+		parent.createEl("h2", { text: "Roadmaps", cls: "dash-page-title" });
 
 		const roadmapFiles = this.discoverRoadmaps();
+
 		let hasActive = false;
 		const pausedCards: HTMLElement[] = [];
 
@@ -309,64 +316,6 @@ class DashboardView extends ItemView {
 		}
 	}
 
-	// ── System Page ─────────────────────────────────────────
-
-	private async renderSystemPage(parent: HTMLElement): Promise<void> {
-		parent.createEl("h2", { text: "System Infrastructure", cls: "dash-page-title" });
-
-		const roadmapFiles = this.discoverRoadmaps();
-		const counts: Record<string, number> = { active: 0, "needs-testing": 0, ready: 0, blocked: 0, waiting: 0, deferred: 0 };
-
-		for (const rf of roadmapFiles) {
-			const rc = await this.app.vault.cachedRead(rf);
-			for (const status of Object.keys(counts)) {
-				counts[status] += (rc.match(new RegExp("`status: " + status + "`", "g")) || []).length;
-			}
-		}
-
-		const chips = parent.createDiv({ cls: "dash-card-counts dash-system-counts" });
-		this.addCount(chips, counts["active"].toString(), "active", "dash-count-active");
-		this.addCount(chips, counts["needs-testing"].toString(), "testing", "dash-count-testing");
-		this.addCount(chips, counts["ready"].toString(), "ready", "dash-count-ready");
-		this.addCount(chips, counts["waiting"].toString(), "waiting", "dash-count-waiting");
-		this.addCount(chips, counts["deferred"].toString(), "deferred", "dash-count-deferred");
-
-		const sysFile = this.app.vault.getFileByPath(SYSTEM_HOME);
-		if (sysFile) {
-			const content = await this.app.vault.cachedRead(sysFile);
-			const systemSection = this.extractSection(content, "System");
-			const fields = this.extractFields(systemSection);
-			if (fields["current state"]) {
-				const card = parent.createDiv({ cls: "dash-card dash-card-system dash-active" });
-				const stateEl = card.createDiv({ cls: "dash-card-state" });
-				stateEl.createEl("span", { text: fields["current state"] });
-			}
-			if (fields["apps"]) {
-				const card = parent.createDiv({ cls: "dash-card dash-card-system dash-active" });
-				card.createDiv({ cls: "dash-card-header" }).createEl("h3", { text: "Apps & Tools" });
-				card.createEl("p", { text: fields["apps"], cls: "dash-card-desc" });
-			}
-		}
-
-		for (const rf of roadmapFiles) {
-			const rc = await this.app.vault.cachedRead(rf);
-			const title = rf.basename.replace(" Roadmap", "").replace(/^_/, "");
-			const a = (rc.match(/`status: active`/g) || []).length;
-			const t = (rc.match(/`status: needs-testing`/g) || []).length;
-			const r = (rc.match(/`status: ready`/g) || []).length;
-			if (a + t + r === 0) continue;
-
-			const card = parent.createDiv({ cls: "dash-card dash-card-system dash-active" });
-			card.createDiv({ cls: "dash-card-header" }).createEl("h3", { text: title });
-			const mini = card.createDiv({ cls: "dash-card-counts" });
-			if (a > 0) this.addCount(mini, a.toString(), "active", "dash-count-active");
-			if (t > 0) this.addCount(mini, t.toString(), "testing", "dash-count-testing");
-			if (r > 0) this.addCount(mini, r.toString(), "ready", "dash-count-ready");
-			card.addEventListener("click", () => this.app.workspace.getLeaf(false).openFile(rf));
-			card.style.cursor = "pointer";
-		}
-	}
-
 	private addCount(parent: HTMLElement, value: string, label: string, cls: string): void {
 		const el = parent.createDiv({ cls: `dash-count ${cls}` });
 		el.createEl("span", { text: value, cls: "dash-count-value" });
@@ -384,6 +333,11 @@ class DashboardView extends ItemView {
 		const content = await this.app.vault.cachedRead(file);
 		const captureSection = this.extractSection(content, "Capture Zone");
 
+		// Strip the counter line (*N items pending.*) — only show actual items in editor
+		const captureItems = captureSection.split("\n")
+			.filter(l => !l.match(/^\*\d+ items? pending\.\*$/) && l.trim())
+			.join("\n");
+
 		const editorWrap = parent.createDiv({ cls: "dash-capture-editor" });
 		editorWrap.createEl("p", {
 			text: "Edit the capture zone below. Use markdown bullet syntax (- item). Changes save to 00_Home.md.",
@@ -391,7 +345,7 @@ class DashboardView extends ItemView {
 		});
 
 		this.captureTextarea = editorWrap.createEl("textarea", { cls: "dash-capture-textarea" });
-		this.captureTextarea.value = captureSection;
+		this.captureTextarea.value = captureItems;
 		this.captureTextarea.rows = Math.max(10, captureSection.split("\n").length + 3);
 		this.captureTextarea.placeholder = "- New capture item\n- Another item";
 		this.captureTextarea.addEventListener("input", () => { this.captureDirty = true; });
@@ -540,6 +494,13 @@ class DashboardView extends ItemView {
 		runCheck();
 	}
 
+	// Read apiExtensions directly from REST API plugin internals (no HTTP)
+	private getApiExtensions(): any[] | null {
+		const restApi = (this.app as any).plugins?.plugins?.["obsidian-local-rest-api"];
+		if (!restApi) return null;
+		return restApi.requestHandler?.apiExtensions ?? null;
+	}
+
 	private async checkMCP(): Promise<{ status: "up" | "down" | "degraded"; detail: string }> {
 		const plugins = (this.app as any).plugins;
 		const restApi = plugins?.plugins?.["obsidian-local-rest-api"];
@@ -549,23 +510,18 @@ class DashboardView extends ItemView {
 		}
 
 		const version = restApi.manifest?.version ?? "unknown";
+		const extensions = this.getApiExtensions();
+		const extCount = extensions ? extensions.length : 0;
+		const hasHandler = !!restApi.requestHandler;
 
-		// Try HTTP check — may fail due to self-signed cert
-		try {
-			const resp = await requestUrl({ url: MCP_URL + "/", method: "GET" });
-			const data = resp.json;
-			const extensions = data?.apiExtensions ?? [];
-			const extCount = Array.isArray(extensions) ? extensions.length : 0;
-			return {
-				status: "up",
-				detail: `v${version}, Obsidian ${data?.versions?.obsidian ?? "?"}, ${extCount} API extension(s). HTTP endpoint responding.`
-			};
-		} catch {
-			return {
-				status: "up",
-				detail: `Plugin loaded (v${version}). HTTP check failed (self-signed cert) — this is normal. MCP tools work independently of HTTP.`
-			};
+		if (!hasHandler) {
+			return { status: "degraded", detail: `Plugin loaded (v${version}) but requestHandler not initialized.` };
 		}
+
+		return {
+			status: "up",
+			detail: `v${version}, ${extCount} API extension(s) registered.${extCount === 0 ? " search_vault_smart will 404." : ""}`
+		};
 	}
 
 	private async checkSmartConnections(): Promise<{ status: "up" | "down" | "degraded"; detail: string }> {
@@ -577,24 +533,23 @@ class DashboardView extends ItemView {
 		}
 
 		const version = sc.manifest?.version ?? "unknown";
+		const mcpTools = plugins?.plugins?.["mcp-tools"];
 
-		// Check if MCP Tools plugin is also loaded (needed for API extension)
-		const mcpTools = plugins?.plugins?.["smart-connections-mcp-tools"];
-		if (mcpTools) {
-			return { status: "up", detail: `Plugin loaded (v${version}). MCP Tools extension loaded.` };
+		if (!mcpTools) {
+			return { status: "degraded", detail: `SC loaded (v${version}) but MCP Tools plugin not found. search_vault_smart unavailable.` };
 		}
 
-		// Check apiExtensions via REST API if possible
-		try {
-			const resp = await requestUrl({ url: MCP_URL + "/", method: "GET" });
-			const extensions = resp.json?.apiExtensions ?? [];
-			if (Array.isArray(extensions) && extensions.length > 0) {
-				return { status: "up", detail: `Plugin loaded (v${version}). API extension registered.` };
-			}
-			return { status: "degraded", detail: `Plugin loaded (v${version}) but apiExtensions is empty. search_vault_smart will 404. Restart Obsidian to fix.` };
-		} catch {
-			return { status: "degraded", detail: `Plugin loaded (v${version}). Cannot verify API extension (cert error). If search_vault_smart 404s, restart Obsidian.` };
+		const mcpVersion = mcpTools.manifest?.version ?? "?";
+		const extensions = this.getApiExtensions();
+
+		if (extensions && extensions.length > 0) {
+			return { status: "up", detail: `SC v${version}, MCP Tools v${mcpVersion}. API extension registered. search_vault_smart available.` };
 		}
+
+		return {
+			status: "degraded",
+			detail: `SC v${version}, MCP Tools v${mcpVersion}. apiExtensions empty — search_vault_smart will 404. Click Fix to re-toggle.`
+		};
 	}
 
 	private async checkDiscordBot(): Promise<{ status: "up" | "down" | "degraded"; detail: string }> {
@@ -625,33 +580,34 @@ class DashboardView extends ItemView {
 			return;
 		}
 
+		const grid = section.createDiv({ cls: "dash-session-grid" });
+
 		for (const rf of ramFiles) {
 			const content = await this.app.vault.cachedRead(rf);
 			const cache = this.app.metadataCache.getFileCache(rf);
 			const fm = cache?.frontmatter;
 
 			const sessionNum = rf.name.match(/session-(\d+)-ram/)?.[1] ?? "?";
-			const card = section.createDiv({ cls: "dash-card dash-session-card" });
+			const card = grid.createDiv({ cls: "dash-card dash-session-card" });
 
 			const header = card.createDiv({ cls: "dash-card-header" });
 			header.createEl("h3", { text: `Session ${sessionNum}` });
 			header.createEl("span", { text: fm?.["created"] ?? "", cls: "dash-session-date" });
 
-			// Extract focus and current state
+			// Focus — one line, stripped of markdown
 			const fields = this.extractFields(content);
-			if (fields["focus"]) {
-				card.createEl("p", { text: fields["focus"], cls: "dash-card-desc" });
+			const focus = fields["focus"];
+			if (focus && focus !== "TBD (awaiting user task)") {
+				card.createEl("p", { text: this.stripMd(focus), cls: "dash-session-focus" });
 			}
 
-			// Current State section
+			// Current State — just the first bullet, clean
 			const stateSection = this.extractSection(content, "Current State RIGHT NOW");
 			if (stateSection) {
 				const bullets = this.extractBullets(stateSection);
 				if (bullets.length > 0) {
-					const stateEl = card.createDiv({ cls: "dash-card-state" });
-					for (const b of bullets) {
-						stateEl.createEl("p", { text: b, cls: "dash-state-line" });
-					}
+					const stateEl = card.createDiv({ cls: "dash-session-state" });
+					stateEl.textContent = this.stripMd(bullets[0]);
 				}
 			}
 

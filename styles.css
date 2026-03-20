@@ -3,7 +3,8 @@
 .vault-dashboard {
   padding: 0;
   overflow-y: auto;
-  font-family: var(--font-interface);
+  font-family: var(--font-text);
+  font-size: var(--font-text-size);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -548,6 +549,12 @@
   border-top: 1px solid var(--background-modifier-border);
 }
 
+.dash-session-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
 .dash-session-card {
   border-left: 4px solid var(--interactive-accent);
 }
@@ -555,6 +562,29 @@
 .dash-session-date {
   font-size: 0.78em;
   color: var(--text-faint);
+}
+
+.dash-session-focus {
+  font-size: 0.88em;
+  color: var(--text-muted);
+  margin: 4px 0 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-session-state {
+  font-size: 0.85em;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--background-secondary);
+  border-radius: 4px;
+  line-height: 1.4;
+  /* Clamp to 3 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ── Capture Zone Editor ────────────────────── */
