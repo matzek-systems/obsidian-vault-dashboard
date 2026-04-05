@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import path from "path";
+import { copyFileSync } from "fs";
 
 const VAULT_PLUGIN_DIR = path.join(
   "C:", "All Vault", ".obsidian", "plugins", "vault-dashboard"
@@ -22,4 +23,9 @@ esbuild.build({
   sourcemap: "inline",
   treeShaking: true,
   outfile: path.join(VAULT_PLUGIN_DIR, "main.js"),
+}).then(() => {
+  copyFileSync("styles.css", path.join(VAULT_PLUGIN_DIR, "styles.css"));
+  console.log("Copied styles.css to plugin dir");
+  copyFileSync("manifest.json", path.join(VAULT_PLUGIN_DIR, "manifest.json"));
+  console.log("Copied manifest.json to plugin dir");
 }).catch(() => process.exit(1));
