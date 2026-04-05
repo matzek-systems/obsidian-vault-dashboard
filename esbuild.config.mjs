@@ -3,9 +3,8 @@ import process from "process";
 import path from "path";
 import { copyFileSync } from "fs";
 
-const VAULT_PLUGIN_DIR = path.join(
-  "C:", "All Vault", ".obsidian", "plugins", "vault-dashboard"
-);
+const VAULT_PATH = process.env.VAULT_PATH || path.join("C:", "All Vault");
+const VAULT_PLUGIN_DIR = path.join(VAULT_PATH, ".obsidian", "plugins", "vault-dashboard");
 
 esbuild.build({
   entryPoints: ["src/main.ts"],
