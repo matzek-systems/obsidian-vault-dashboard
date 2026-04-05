@@ -1,7 +1,7 @@
 {
   "id": "vault-dashboard",
   "name": "Vault Dashboard",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "minAppVersion": "1.0.0",
   "description": "Locked-grid project dashboard with live vault data.",
   "author": "Grae",

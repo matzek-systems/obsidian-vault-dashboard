@@ -1,6 +1,6 @@
 {
   "name": "vault-dashboard",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Project dashboard with locked grid layout",
   "main": "main.js",
   "scripts": {

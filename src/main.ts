@@ -1,27 +1,53 @@
-import { Plugin, ItemView, WorkspaceLeaf, TFile, setIcon } from "obsidian";
+import { Plugin, ItemView, WorkspaceLeaf, TFile, setIcon, PluginSettingTab, Setting, App } from "obsidian";
 
 const VIEW_TYPE = "vault-dashboard";
 const ICON = "layout-dashboard";
 
 const ROADMAPS_FOLDER = "00_System/AI/Claude/Roadmaps";
-const AREAS_FOLDER = "03_Areas";
 const SYSTEM_HOME = "00_System/AI/Claude/00_Home.md";
-const DISCORD_BOT_PID = "00_System/AI/Claude/tools/discord-bot/bot.pid";
 const SESSION_RAM_FOLDER = "00_System/AI/Claude/Scratchpad";
 
-type Section = "projects" | "capture" | "status";
+interface DashboardSettings {
+	tabs: [string, string, string];
+	openOnStartup: boolean;
+}
 
-const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
-	{ id: "projects", label: "Roadmaps", icon: "map" },
-	{ id: "status", label: "Status", icon: "activity" },
-	{ id: "capture", label: "Capture", icon: "inbox" },
-];
+const DEFAULT_SETTINGS: DashboardSettings = {
+	tabs: ["", "", ""],
+	openOnStartup: false,
+};
+
+interface WI {
+	id: string;
+	status: string;
+	summary: string;
+	depends?: string;
+	stale?: boolean;
+}
+
+interface ProjectData {
+	file: TFile;
+	label: string;
+	content: string;
+	wis: WI[];
+	whereImAt: string;
+	liveSession: string | null;
+	recentlyDone: { id: string; summary: string; date: string }[];
+}
 
 export default class DashboardPlugin extends Plugin {
+	settings: DashboardSettings = DEFAULT_SETTINGS;
+
 	async onload() {
-		this.registerView(VIEW_TYPE, (leaf: WorkspaceLeaf) => new DashboardView(leaf));
+		await this.loadSettings();
+		this.registerView(VIEW_TYPE, (leaf: WorkspaceLeaf) => new DashboardView(leaf, this));
 		this.addRibbonIcon(ICON, "Open Dashboard", () => this.activateDashboard());
 		this.addCommand({ id: "open-dashboard", name: "Open Dashboard", callback: () => this.activateDashboard() });
+		this.addSettingTab(new DashboardSettingTab(this.app, this));
+
+		if (this.settings.openOnStartup) {
+			this.app.workspace.onLayoutReady(() => this.activateDashboard());
+		}
 	}
 
 	async activateDashboard() {
@@ -31,13 +57,90 @@ export default class DashboardPlugin extends Plugin {
 		const leaf = workspace.getLeaf("tab");
 		await leaf.setViewState({ type: VIEW_TYPE, active: true });
 	}
+
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+			(leaf.view as DashboardView).render();
+		}
+	}
+
+	discoverRoadmaps(): TFile[] {
+		return this.app.vault.getFiles().filter(f =>
+			f.path.startsWith(ROADMAPS_FOLDER + "/") && f.extension === "md"
+		);
+	}
 }
 
+// ── Settings Tab ────────────────────────────────────────
+
+class DashboardSettingTab extends PluginSettingTab {
+	plugin: DashboardPlugin;
+
+	constructor(app: App, plugin: DashboardPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+		containerEl.empty();
+		containerEl.createEl("h2", { text: "Dashboard Tabs" });
+		containerEl.createEl("p", {
+			text: "Select up to 3 projects for your dashboard tabs. Leave empty to auto-discover active roadmaps.",
+			cls: "setting-item-description",
+		});
+
+		const roadmaps = this.plugin.discoverRoadmaps();
+		const options: Record<string, string> = { "": "(none)" };
+		for (const rf of roadmaps) {
+			options[rf.basename] = rf.basename.replace(" Roadmap", "").replace(/^_/, "");
+		}
+
+		for (let i = 0; i < 3; i++) {
+			new Setting(containerEl)
+				.setName(`Tab ${i + 1}`)
+				.addDropdown(drop => {
+					for (const [value, display] of Object.entries(options)) {
+						drop.addOption(value, display);
+					}
+					drop.setValue(this.plugin.settings.tabs[i]);
+					drop.onChange(async (value) => {
+						this.plugin.settings.tabs[i] = value;
+						await this.plugin.saveSettings();
+					});
+				});
+		}
+
+		new Setting(containerEl)
+			.setName("Open dashboard on startup")
+			.setDesc("Open the dashboard tab when Obsidian launches (instead of or alongside the home note).")
+			.addToggle(t => {
+				t.setValue(this.plugin.settings.openOnStartup);
+				t.onChange(async v => {
+					this.plugin.settings.openOnStartup = v;
+					await this.plugin.saveSettings();
+				});
+			});
+	}
+}
+
+// ── Dashboard View ──────────────────────────────────────
+
 class DashboardView extends ItemView {
+	private plugin: DashboardPlugin;
 	private refreshTimer: ReturnType<typeof setTimeout> | null = null;
-	private activeSection: Section = "projects";
-	private captureTextarea: HTMLTextAreaElement | null = null;
-	private captureDirty = false;
+	private activeTab = 0;
+	private projectCache: Map<string, ProjectData> = new Map();
+
+	constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
+		super(leaf);
+		this.plugin = plugin;
+	}
 
 	getViewType(): string { return VIEW_TYPE; }
 	getDisplayText(): string { return "Dashboard"; }
@@ -48,9 +151,11 @@ class DashboardView extends ItemView {
 		this.contentEl.addClass("vault-dashboard");
 		this.registerEvent(
 			this.app.metadataCache.on("resolved", () => {
-				if (this.captureDirty) return;
 				if (this.refreshTimer) clearTimeout(this.refreshTimer);
-				this.refreshTimer = setTimeout(() => this.render(), 500);
+				this.refreshTimer = setTimeout(() => {
+					this.projectCache.clear();
+					this.render();
+				}, 500);
 			})
 		);
 		this.app.workspace.onLayoutReady(() => this.render());
@@ -60,42 +165,20 @@ class DashboardView extends ItemView {
 		if (this.refreshTimer) clearTimeout(this.refreshTimer);
 	}
 
-	// ── Helpers ──────────────────────────────────────────────
+	// ── Helpers ──────────────────────────────────────────
 
-	private extractSection(content: string, heading: string): string {
-		const regex = new RegExp(`## ${heading}[\\s\\S]*?\\n([\\s\\S]*?)(?=\\n---\\n|\\n## |$)`, "i");
-		const match = content.match(regex);
-		return match ? match[1].trim() : "";
-	}
-
-	private extractFields(content: string): Record<string, string> {
-		const fields: Record<string, string> = {};
-		for (const line of content.split("\n")) {
-			const m = line.match(/^\*\*(.+?):\*\*\s*(.+)/);
-			if (m) fields[m[1].toLowerCase().trim()] = m[2].trim();
-		}
-		return fields;
-	}
-
-	private extractBullets(content: string): string[] {
-		return content.split("\n")
-			.filter(l => l.trim().startsWith("-"))
-			.map(l => l.trim().replace(/^-\s*\[.\]\s*/, "").replace(/^-\s*/, ""));
-	}
-
-	// Strip markdown formatting for plain text display
 	private stripMd(text: string): string {
 		return text
-			.replace(/\*\*(.+?)\*\*/g, "$1")   // bold
-			.replace(/\*(.+?)\*/g, "$1")         // italic
-			.replace(/`(.+?)`/g, "$1")           // inline code
-			.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2") // wikilinks with alias
-			.replace(/\[\[([^\]]+)\]\]/g, "$1")  // wikilinks
-			.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"); // md links
+			.replace(/\*\*(.+?)\*\*/g, "$1")
+			.replace(/\*(.+?)\*/g, "$1")
+			.replace(/`(.+?)`/g, "$1")
+			.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")
+			.replace(/\[\[([^\]]+)\]\]/g, "$1")
+			.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 	}
 
-	private parseStartupTable(content: string): { id: string; status: string; summary: string }[] {
-		const items: { id: string; status: string; summary: string }[] = [];
+	private parseStartupTable(content: string): WI[] {
+		const items: WI[] = [];
 		const tableMatch = content.match(/<!-- STARTUP_START[\s\S]*?<!-- STARTUP_END -->/);
 		if (!tableMatch) return items;
 		for (const line of tableMatch[0].split("\n")) {
@@ -105,536 +188,555 @@ class DashboardView extends ItemView {
 		return items;
 	}
 
-	// Auto-discover roadmap files
-	private discoverRoadmaps(): TFile[] {
-		return this.app.vault.getFiles().filter(f =>
-			f.path.startsWith(ROADMAPS_FOLDER + "/") && f.extension === "md"
-		);
+	private parseDependencies(content: string, wiId: string): string | undefined {
+		// Match: ### WI-98: ... \n `status: blocked` | `depends: WI-102, WI-104`
+		const sectionRegex = new RegExp("### " + wiId + ":[\\s\\S]*?(?=\\n### |\\n---\\n|$)", "i");
+		const section = content.match(sectionRegex);
+		if (!section) return undefined;
+		const depMatch = section[0].match(/`depends:\s*([^`]+)`/);
+		return depMatch ? depMatch[1].trim() : undefined;
 	}
 
-	// Auto-discover area home files
-	private discoverAreaHomes(): TFile[] {
-		return this.app.vault.getFiles().filter(f =>
-			f.path.startsWith(AREAS_FOLDER + "/") && f.name === "00_Home.md"
-			&& f.path.split("/").length === 3 // Only top-level area homes
-		);
+	private extractSection(content: string, heading: string): string {
+		const regex = new RegExp("## " + heading + "[\\s\\S]*?\\n([\\s\\S]*?)(?=\\n---\\n|\\n## |$)", "i");
+		const match = content.match(regex);
+		return match ? match[1].trim() : "";
 	}
 
-	// ── Render ──────────────────────────────────────────────
+	private extractBullets(content: string): string[] {
+		return content.split("\n")
+			.filter(l => l.trim().startsWith("-"))
+			.map(l => l.trim().replace(/^-\s*\[.\]\s*/, "").replace(/^-\s*/, ""));
+	}
 
-	private async render(): Promise<void> {
-		const { contentEl } = this;
-		const scrollTop = contentEl.scrollTop;
-		contentEl.empty();
+	private extractWISection(content: string, wiId: string): string {
+		// Match ### WI-73: Title through next ### or --- or EOF
+		const regex = new RegExp("### " + wiId + ":[\\s\\S]*?(?=\\n### |\\n---\\n|$)", "i");
+		const m = content.match(regex);
+		return m ? m[0] : "";
+	}
 
-		this.renderNavBar(contentEl);
-		const main = contentEl.createDiv({ cls: "dash-main" });
+	private parseRecentlyDone(content: string): { id: string; summary: string; date: string }[] {
+		const results: { id: string; summary: string; date: string }[] = [];
+		// Actual format:
+		// ### WI-73: Deliverable 05 The System
+		// `status: done` | `completed: 2026-03-02 (session 55)`
+		const lines = content.split("\n");
+		for (let i = 0; i < lines.length - 1; i++) {
+			const headingMatch = lines[i].match(/^### ([\w-]+):\s*(.+)/);
+			if (!headingMatch) continue;
 
-		switch (this.activeSection) {
-			case "projects": await this.renderRoadmapsPage(main); break;
-			case "capture": await this.renderCapturePage(main); break;
-			case "status": await this.renderStatusPage(main); break;
+			const nextLine = lines[i + 1];
+			const doneMatch = nextLine.match(/`status: done`\s*\|\s*`completed:\s*([^`]+)`/);
+			if (!doneMatch) continue;
+
+			const id = headingMatch[1];
+			const summary = headingMatch[2].trim();
+			const date = doneMatch[1].replace(/\s*\(session.*\)/, "").trim();
+			results.push({ id, summary, date });
 		}
-
-		contentEl.scrollTop = scrollTop;
+		results.sort((a, b) => b.date.localeCompare(a.date));
+		return results.slice(0, 5);
 	}
 
-	private renderNavBar(parent: HTMLElement): void {
-		const nav = parent.createDiv({ cls: "dash-nav" });
-		const title = nav.createDiv({ cls: "dash-nav-title" });
-		title.createEl("span", { text: "Command Center" });
+	// ── Load project data ───────────────────────────────
 
-		const tabs = nav.createDiv({ cls: "dash-nav-tabs" });
-		for (const item of NAV_ITEMS) {
-			const tab = tabs.createDiv({
-				cls: `dash-nav-tab ${this.activeSection === item.id ? "dash-nav-active" : ""}`,
-			});
-			const iconSpan = tab.createSpan({ cls: "dash-nav-icon" });
-			setIcon(iconSpan, item.icon);
-			tab.createEl("span", { text: item.label });
+	private async loadProject(basename: string): Promise<ProjectData | null> {
+		if (this.projectCache.has(basename)) return this.projectCache.get(basename)!;
 
-			if (item.id === "capture") this.addCaptureBadge(tab);
-
-			tab.addEventListener("click", () => {
-				this.activeSection = item.id;
-				this.render();
-			});
-		}
-	}
-
-	private async addCaptureBadge(tab: HTMLElement): Promise<void> {
-		const file = this.app.vault.getFileByPath(SYSTEM_HOME);
-		if (!file) return;
-		const content = await this.app.vault.cachedRead(file);
-		const items = this.extractBullets(this.extractSection(content, "Capture Zone"));
-		if (items.length > 0) {
-			tab.createEl("span", { text: items.length.toString(), cls: "dash-badge-count" });
-		}
-	}
-
-	// ── Roadmaps Page ───────────────────────────────────────
-
-	private async renderRoadmapsPage(parent: HTMLElement): Promise<void> {
-		parent.createEl("h2", { text: "Roadmaps", cls: "dash-page-title" });
-
-		const roadmapFiles = this.discoverRoadmaps();
-
-		let hasActive = false;
-		const pausedCards: HTMLElement[] = [];
-
-		for (const rf of roadmapFiles) {
-			const content = await this.app.vault.cachedRead(rf);
-			const cache = this.app.metadataCache.getFileCache(rf);
-			const fmStatus = cache?.frontmatter?.["status"] ?? "active";
-			const allWIs = this.parseStartupTable(content);
-			const liveWIs = allWIs.filter(wi => wi.status !== "deferred" && wi.status !== "done");
-
-			const label = rf.basename.replace(" Roadmap", "").replace(/^_/, "");
-			const isPaused = fmStatus === "paused" || fmStatus === "inactive";
-
-			if (liveWIs.length === 0 && !isPaused) continue;
-
-			const el = parent.createDiv({
-				cls: `dash-card dash-card-project ${isPaused ? "dash-paused" : "dash-active"}`
-			});
-
-			// Header with chips
-			const header = el.createDiv({ cls: "dash-card-header" });
-			header.createEl("h3", { text: label });
-
-			if (isPaused) {
-				header.createEl("span", { text: "paused", cls: "dash-badge dash-badge-paused" });
-			}
-
-			const chipWrap = header.createDiv({ cls: "dash-header-chips" });
-			const counts: Record<string, number> = {};
-			for (const wi of allWIs) {
-				if (wi.status === "done" || wi.status === "deferred") continue;
-				counts[wi.status] = (counts[wi.status] || 0) + 1;
-			}
-			for (const [status, count] of Object.entries(counts)) {
-				const cls = status === "needs-testing" ? "testing" : status;
-				chipWrap.createEl("span", { text: `${count} ${status}`, cls: `dash-inline-chip dash-chip-${cls}` });
-			}
-
-			// Where I'm at — supports multi-line
-			const whereSection = this.extractSection(content, "Where I'm At");
-			if (whereSection) {
-				const stateEl = el.createDiv({ cls: "dash-card-state" });
-				stateEl.createEl("strong", { text: "Where I'm at: " });
-				const lines = whereSection.split("\n").filter(l => l.trim());
-				for (const line of lines) {
-					stateEl.createEl("p", { text: line.trim(), cls: "dash-state-line" });
-				}
-			}
-
-			// Top WIs — clickable rows
-			const priority = ["active", "ready", "needs-testing", "blocked", "waiting"];
-			const sorted = liveWIs.sort((a, b) =>
-				(priority.indexOf(a.status) ?? 99) - (priority.indexOf(b.status) ?? 99)
-			);
-			const topWIs = sorted.slice(0, 7);
-
-			if (topWIs.length > 0) {
-				const wiSection = el.createDiv({ cls: "dash-card-wis" });
-				wiSection.createEl("span", { text: "Top Work Items", cls: "dash-field-label" });
-
-				for (const wi of topWIs) {
-					const row = wiSection.createDiv({ cls: "dash-wi-row" });
-					const cls = wi.status === "needs-testing" ? "testing" : wi.status;
-					row.createEl("span", { text: wi.id, cls: "dash-wi-id" });
-					row.createEl("span", { text: wi.status, cls: `dash-wi-status dash-wis-${cls}` });
-					row.createEl("span", { text: wi.summary, cls: "dash-wi-summary" });
-
-					// Click WI row to open roadmap at that heading
-					row.addEventListener("click", (e) => {
-						e.stopPropagation();
-						this.app.workspace.openLinkText(rf.path + "#" + wi.id, "", false);
-					});
-				}
-			}
-
-			// Deferred count
-			const deferredCount = allWIs.filter(wi => wi.status === "deferred").length;
-			if (deferredCount > 0) {
-				el.createEl("p", { text: `+ ${deferredCount} deferred`, cls: "dash-deferred-note" });
-			}
-
-			// Click card to open roadmap
-			el.addEventListener("click", () => {
-				this.app.workspace.getLeaf(false).openFile(rf);
-			});
-
-			if (isPaused) {
-				pausedCards.push(el);
-				hasActive = hasActive; // don't toggle
-			} else {
-				hasActive = true;
-			}
-		}
-
-		if (!hasActive) {
-			parent.createEl("p", { text: "No active roadmaps found.", cls: "dash-empty" });
-		}
-	}
-
-	// ── Areas Page ──────────────────────────────────────────
-
-	private async renderAreasPage(parent: HTMLElement): Promise<void> {
-		parent.createEl("h2", { text: "Areas", cls: "dash-page-title" });
-
-		const areaHomes = this.discoverAreaHomes();
-		for (const file of areaHomes) {
-			const content = await this.app.vault.cachedRead(file);
-			const cache = this.app.metadataCache.getFileCache(file);
-			const fm = cache?.frontmatter;
-			const status = fm?.["status"] ?? "unknown";
-			const isActive = status === "active";
-			const title = file.path.split("/")[1]; // e.g., "MatzekMedia" from "03_Areas/MatzekMedia/00_Home.md"
-
-			const el = parent.createDiv({ cls: `dash-card dash-card-area ${isActive ? "dash-active" : "dash-inactive"}` });
-
-			const header = el.createDiv({ cls: "dash-card-header" });
-			header.createEl("h3", { text: title });
-			header.createEl("span", { text: status, cls: `dash-badge dash-badge-${status}` });
-
-			const desc = fm?.["description"];
-			if (desc) el.createEl("p", { text: String(desc).replace(/^"|"$/g, ""), cls: "dash-card-desc" });
-
-			const focusSection = this.extractSection(content, "Current Focus");
-			if (focusSection) {
-				const bullets = this.extractBullets(focusSection);
-				if (bullets.length > 0) {
-					const listEl = el.createEl("ul", { cls: "dash-card-bullets" });
-					for (const b of bullets) listEl.createEl("li", { text: b });
-				}
-			}
-
-			el.addEventListener("click", () => {
-				this.app.workspace.getLeaf(false).openFile(file);
-			});
-		}
-	}
-
-	private addCount(parent: HTMLElement, value: string, label: string, cls: string): void {
-		const el = parent.createDiv({ cls: `dash-count ${cls}` });
-		el.createEl("span", { text: value, cls: "dash-count-value" });
-		el.createEl("span", { text: label, cls: "dash-count-label" });
-	}
-
-	// ── Capture Page ────────────────────────────────────────
-
-	private async renderCapturePage(parent: HTMLElement): Promise<void> {
-		parent.createEl("h2", { text: "Capture Zone", cls: "dash-page-title" });
-
-		const file = this.app.vault.getFileByPath(SYSTEM_HOME);
-		if (!file) { parent.createEl("p", { text: "Could not find 00_Home.md" }); return; }
+		const roadmaps = this.plugin.discoverRoadmaps();
+		const file = roadmaps.find(f => f.basename === basename);
+		if (!file) return null;
 
 		const content = await this.app.vault.cachedRead(file);
-		const captureSection = this.extractSection(content, "Capture Zone");
+		const label = file.basename.replace(" Roadmap", "").replace(/^_/, "");
+		const allWIs = this.parseStartupTable(content);
 
-		// Strip the counter line (*N items pending.*) — only show actual items in editor
-		const captureItems = captureSection.split("\n")
-			.filter(l => !l.match(/^\*\d+ items? pending\.\*$/) && l.trim())
-			.join("\n");
-
-		const editorWrap = parent.createDiv({ cls: "dash-capture-editor" });
-		editorWrap.createEl("p", {
-			text: "Edit the capture zone below. Use markdown bullet syntax (- item). Changes save to 00_Home.md.",
-			cls: "dash-capture-help"
-		});
-
-		this.captureTextarea = editorWrap.createEl("textarea", { cls: "dash-capture-textarea" });
-		this.captureTextarea.value = captureItems;
-		this.captureTextarea.rows = Math.max(10, captureSection.split("\n").length + 3);
-		this.captureTextarea.placeholder = "- New capture item\n- Another item";
-		this.captureTextarea.addEventListener("input", () => { this.captureDirty = true; });
-
-		const buttons = editorWrap.createDiv({ cls: "dash-capture-buttons" });
-		const saveBtn = buttons.createEl("button", { text: "Save", cls: "dash-btn dash-btn-primary" });
-		saveBtn.addEventListener("click", () => this.saveCaptureZone());
-		const cancelBtn = buttons.createEl("button", { text: "Cancel", cls: "dash-btn" });
-		cancelBtn.addEventListener("click", () => { this.captureDirty = false; this.render(); });
-
-		const items = this.extractBullets(captureSection);
-		if (items.length > 0) {
-			const preview = parent.createDiv({ cls: "dash-capture-preview" });
-			preview.createEl("h3", { text: `Current Items (${items.length})` });
-			const list = preview.createEl("ul");
-			for (const item of items) list.createEl("li", { text: item });
-		}
-	}
-
-	private async saveCaptureZone(): Promise<void> {
-		if (!this.captureTextarea) return;
-		const file = this.app.vault.getFileByPath(SYSTEM_HOME);
-		if (!file || !(file instanceof TFile)) return;
-
-		const content = await this.app.vault.read(file);
-		const newCapture = this.captureTextarea.value;
-		const itemCount = newCapture.split("\n").filter(l => l.trim().startsWith("-")).length;
-		const counterLine = `*${itemCount} item${itemCount !== 1 ? "s" : ""} pending.*`;
-
-		// Handle both mid-file and EOF capture zones
-		let updated: string;
-		if (/## Capture Zone[\s\S]*?(?=\n---\n|\n## )/.test(content)) {
-			updated = content.replace(
-				/## Capture Zone[\s\S]*?(?=\n---\n|\n## )/,
-				`## Capture Zone\n\n${counterLine}\n\n${newCapture}\n\n`
-			);
-		} else {
-			// Capture zone is at EOF
-			updated = content.replace(
-				/## Capture Zone[\s\S]*$/,
-				`## Capture Zone\n\n${counterLine}\n\n${newCapture}\n`
-			);
-		}
-
-		await this.app.vault.modify(file, updated);
-		this.captureDirty = false;
-	}
-
-	// ── Status Page ─────────────────────────────────────────
-
-	private async renderStatusPage(parent: HTMLElement): Promise<void> {
-		parent.createEl("h2", { text: "Status", cls: "dash-page-title" });
-
-		// Service health cards
-		const grid = parent.createDiv({ cls: "dash-health-grid" });
-
-		this.renderHealthCard(grid, {
-			name: "MCP (Local REST API)",
-			description: "Obsidian REST API for reading/writing vault files via MCP tools.",
-			checkFn: () => this.checkMCP(),
-		});
-
-		this.renderHealthCard(grid, {
-			name: "Smart Connections",
-			description: "Semantic search over vault content. Required for search_vault_smart.",
-			checkFn: () => this.checkSmartConnections(),
-			fixFn: async () => {
-				// Call the mcp-fix plugin's command
-				await (this.app as any).commands.executeCommandById("mcp-fix:fix-mcp-tools");
-				// Wait for re-registration
-				await new Promise(r => setTimeout(r, 2500));
-			},
-			fixLabel: "Fix (re-toggle MCP Tools)",
-		});
-
-		this.renderHealthCard(grid, {
-			name: "Discord Vault Bot",
-			description: "Voice + text bot for mobile vault access.",
-			checkFn: () => this.checkDiscordBot(),
-		});
-
-		// Active sessions
-		await this.renderSessionRAMs(parent);
-
-		// Loaded plugins
-		this.renderPluginsList(parent);
-	}
-
-	private renderHealthCard(parent: HTMLElement, config: {
-		name: string; description: string;
-		checkFn: () => Promise<{ status: "up" | "down" | "degraded"; detail: string }>;
-		fixFn?: () => Promise<void>;
-		fixLabel?: string;
-	}): void {
-		const card = parent.createDiv({ cls: "dash-card dash-health-card" });
-		const header = card.createDiv({ cls: "dash-card-header" });
-		header.createEl("h3", { text: config.name });
-		const badge = header.createEl("span", { text: "checking...", cls: "dash-badge dash-badge-unknown" });
-
-		card.createEl("p", { text: config.description, cls: "dash-card-desc" });
-		const detailEl = card.createDiv({ cls: "dash-health-detail" });
-
-		const btnRow = card.createDiv({ cls: "dash-health-btn-row" });
-		const checkBtn = btnRow.createEl("button", { text: "Run Check", cls: "dash-btn dash-btn-primary" });
-
-		let lastStatus: string | null = null;
-
-		const runCheck = async () => {
-			badge.setText("checking...");
-			badge.className = "dash-badge dash-badge-unknown";
-			detailEl.empty();
-			try {
-				const result = await config.checkFn();
-				lastStatus = result.status;
-				badge.setText(result.status);
-				badge.className = `dash-badge dash-badge-${result.status === "up" ? "active" : result.status === "degraded" ? "warning" : "down"}`;
-				detailEl.createEl("span", { text: result.detail, cls: "dash-health-detail-text" });
-			} catch (e) {
-				lastStatus = "error";
-				badge.setText("error");
-				badge.className = "dash-badge dash-badge-down";
-				detailEl.createEl("span", { text: String(e), cls: "dash-health-detail-text" });
+		for (const wi of allWIs) {
+			wi.depends = this.parseDependencies(content, wi.id);
+			// Staleness detection: if active/needs-testing and all tasks are checked
+			if (wi.status === "active" || wi.status === "needs-testing") {
+				const section = this.extractWISection(content, wi.id);
+				const unchecked = section.split("\n").filter(l => /^- \[ \]/.test(l));
+				const checked = section.split("\n").filter(l => /^- \[x\]/i.test(l));
+				if (unchecked.length === 0 && checked.length > 0) {
+					wi.stale = true;
+				}
 			}
+		}
 
-			// Show fix button if degraded/down and a fix function exists
-			fixBtn.style.display = (lastStatus !== "up" && config.fixFn) ? "inline-block" : "none";
-		};
+		const whereImAt = this.extractSection(content, "Where I'm At");
+		const recentlyDone = this.parseRecentlyDone(content);
+		const liveSession = await this.findLiveSession(label, file.basename);
 
-		// Fix button (hidden by default)
-		const fixBtn = btnRow.createEl("button", {
-			text: config.fixLabel ?? "Fix",
-			cls: "dash-btn dash-btn-fix"
-		});
-		fixBtn.style.display = "none";
-		fixBtn.addEventListener("click", async () => {
-			if (!config.fixFn) return;
-			fixBtn.setText("Fixing...");
-			fixBtn.toggleClass("dash-btn-disabled", true);
-			await config.fixFn();
-			fixBtn.setText(config.fixLabel ?? "Fix");
-			fixBtn.toggleClass("dash-btn-disabled", false);
-			await runCheck();
-		});
-
-		checkBtn.addEventListener("click", runCheck);
-		runCheck();
+		const data: ProjectData = { file, label, content, wis: allWIs, whereImAt, liveSession, recentlyDone };
+		this.projectCache.set(basename, data);
+		return data;
 	}
 
-	// Read apiExtensions directly from REST API plugin internals (no HTTP)
-	private getApiExtensions(): any[] | null {
-		const restApi = (this.app as any).plugins?.plugins?.["obsidian-local-rest-api"];
-		if (!restApi) return null;
-		return restApi.requestHandler?.apiExtensions ?? null;
-	}
-
-	private async checkMCP(): Promise<{ status: "up" | "down" | "degraded"; detail: string }> {
-		const plugins = (this.app as any).plugins;
-		const restApi = plugins?.plugins?.["obsidian-local-rest-api"];
-
-		if (!restApi) {
-			return { status: "down", detail: "Local REST API plugin not found or not enabled." };
-		}
-
-		const version = restApi.manifest?.version ?? "unknown";
-		const extensions = this.getApiExtensions();
-		const extCount = extensions ? extensions.length : 0;
-		const hasHandler = !!restApi.requestHandler;
-
-		if (!hasHandler) {
-			return { status: "degraded", detail: `Plugin loaded (v${version}) but requestHandler not initialized.` };
-		}
-
-		return {
-			status: "up",
-			detail: `v${version}, ${extCount} API extension(s) registered.${extCount === 0 ? " search_vault_smart will 404." : ""}`
-		};
-	}
-
-	private async checkSmartConnections(): Promise<{ status: "up" | "down" | "degraded"; detail: string }> {
-		const plugins = (this.app as any).plugins;
-		const sc = plugins?.plugins?.["smart-connections"];
-
-		if (!sc) {
-			return { status: "down", detail: "Smart Connections plugin not found or not enabled." };
-		}
-
-		const version = sc.manifest?.version ?? "unknown";
-		const mcpTools = plugins?.plugins?.["mcp-tools"];
-
-		if (!mcpTools) {
-			return { status: "degraded", detail: `SC loaded (v${version}) but MCP Tools plugin not found. search_vault_smart unavailable.` };
-		}
-
-		const mcpVersion = mcpTools.manifest?.version ?? "?";
-		const extensions = this.getApiExtensions();
-
-		if (extensions && extensions.length > 0) {
-			return { status: "up", detail: `SC v${version}, MCP Tools v${mcpVersion}. API extension registered. search_vault_smart available.` };
-		}
-
-		return {
-			status: "degraded",
-			detail: `SC v${version}, MCP Tools v${mcpVersion}. apiExtensions empty — search_vault_smart will 404. Click Fix to re-toggle.`
-		};
-	}
-
-	private async checkDiscordBot(): Promise<{ status: "up" | "down" | "degraded"; detail: string }> {
-		const pidExists = await this.app.vault.adapter.exists(DISCORD_BOT_PID);
-		if (!pidExists) return { status: "down", detail: "No bot.pid file — bot is not running." };
-
-		try {
-			const pidContent = await this.app.vault.adapter.read(DISCORD_BOT_PID);
-			const pid = pidContent.trim();
-			return { status: "up", detail: `Bot running (PID ${pid}). Verify via task manager if unsure.` };
-		} catch {
-			return { status: "degraded", detail: "bot.pid exists but couldn't read it." };
-		}
-	}
-
-	// ── Session RAMs ────────────────────────────────────────
-
-	private async renderSessionRAMs(parent: HTMLElement): Promise<void> {
+	private async findLiveSession(projectLabel: string, basename: string): Promise<string | null> {
 		const ramFiles = this.app.vault.getFiles().filter(f =>
 			f.path.startsWith(SESSION_RAM_FOLDER + "/") && /^session-\d+-ram\.md$/.test(f.name)
 		);
 
-		const section = parent.createDiv({ cls: "dash-sessions" });
-		section.createEl("h3", { text: `Active Sessions (${ramFiles.length})`, cls: "dash-page-title" });
-
-		if (ramFiles.length === 0) {
-			section.createEl("p", { text: "No active session RAMs found.", cls: "dash-empty" });
-			return;
-		}
-
-		const grid = section.createDiv({ cls: "dash-session-grid" });
+		// Use multiple search strategies to avoid false positives
+		// "System" is too generic — also match on roadmap filename patterns
+		const labelLower = projectLabel.toLowerCase();
+		const basenameTerms = basename.toLowerCase().replace(" roadmap", "").replace(/^_/, "").split(/\s+/);
 
 		for (const rf of ramFiles) {
 			const content = await this.app.vault.cachedRead(rf);
-			const cache = this.app.metadataCache.getFileCache(rf);
-			const fm = cache?.frontmatter;
 
-			const sessionNum = rf.name.match(/session-(\d+)-ram/)?.[1] ?? "?";
-			const card = grid.createDiv({ cls: "dash-card dash-session-card" });
+			// Look specifically in Focus and Write zone lines
+			const focusMatch = content.match(/\*\*Focus:\*\*\s*(.+)/);
+			const writeZoneMatch = content.match(/\*\*Write zone:\*\*\s*(.+)/);
+			const focusLine = (focusMatch?.[1] ?? "").toLowerCase();
+			const writeZoneLine = (writeZoneMatch?.[1] ?? "").toLowerCase();
+			const searchArea = focusLine + " " + writeZoneLine;
 
-			const header = card.createDiv({ cls: "dash-card-header" });
-			header.createEl("h3", { text: `Session ${sessionNum}` });
-			header.createEl("span", { text: fm?.["created"] ?? "", cls: "dash-session-date" });
+			// Check if this project is mentioned in focus or write zone
+			const isMatch = basenameTerms.some(term =>
+				term.length > 3 && searchArea.includes(term)
+			) || searchArea.includes(labelLower);
 
-			// Focus — one line, stripped of markdown
-			const fields = this.extractFields(content);
-			const focus = fields["focus"];
-			if (focus && focus !== "TBD (awaiting user task)") {
-				card.createEl("p", { text: this.stripMd(focus), cls: "dash-session-focus" });
+			if (isMatch) {
+				const num = rf.name.match(/session-(\d+)-ram/)?.[1] ?? "?";
+				const focus = focusMatch ? this.stripMd(focusMatch[1].trim()) : "active";
+				if (focus === "TBD (awaiting user task)") continue; // Skip idle sessions
+				return `Session ${num} — ${focus}`;
 			}
+		}
+		return null;
+	}
 
-			// Current State — just the first bullet, clean
-			const stateSection = this.extractSection(content, "Current State RIGHT NOW");
-			if (stateSection) {
-				const bullets = this.extractBullets(stateSection);
-				if (bullets.length > 0) {
-					const stateEl = card.createDiv({ cls: "dash-session-state" });
-					stateEl.textContent = this.stripMd(bullets[0]);
+	// ── Render ──────────────────────────────────────────
+
+	async render(): Promise<void> {
+		const { contentEl } = this;
+		const scrollTop = contentEl.scrollTop;
+		contentEl.empty();
+
+		let activeTabs = this.plugin.settings.tabs.filter(t => t !== "");
+
+		// Auto-discover if no tabs configured
+		if (activeTabs.length === 0) {
+			const roadmaps = this.plugin.discoverRoadmaps();
+			for (const rf of roadmaps) {
+				const cache = this.app.metadataCache.getFileCache(rf);
+				const status = cache?.frontmatter?.["status"] ?? "active";
+				if (status === "active" && activeTabs.length < 3) {
+					activeTabs.push(rf.basename);
 				}
 			}
+		}
 
-			card.addEventListener("click", () => {
-				this.app.workspace.getLeaf(false).openFile(rf);
+		if (activeTabs.length === 0) {
+			contentEl.createEl("p", { text: "No roadmaps found. Add roadmap files to Roadmaps/ or configure in settings.", cls: "dash-empty" });
+			return;
+		}
+
+		if (this.activeTab >= activeTabs.length) this.activeTab = 0;
+
+		this.renderTabBar(contentEl, activeTabs);
+
+		const main = contentEl.createDiv({ cls: "dash-main" });
+		const project = await this.loadProject(activeTabs[this.activeTab]);
+
+		if (!project) {
+			main.createEl("p", { text: "Could not load roadmap.", cls: "dash-empty" });
+		} else {
+			await this.renderProject(main, project);
+		}
+
+		await this.renderStatusBar(contentEl, activeTabs);
+		contentEl.scrollTop = scrollTop;
+	}
+
+	// ── Tab Bar ─────────────────────────────────────────
+
+	private renderTabBar(parent: HTMLElement, tabs: string[]): void {
+		const nav = parent.createDiv({ cls: "dash-nav" });
+
+		const tabWrap = nav.createDiv({ cls: "dash-nav-tabs" });
+		for (let i = 0; i < tabs.length; i++) {
+			const label = tabs[i].replace(" Roadmap", "").replace(/^_/, "");
+			const tab = tabWrap.createDiv({
+				cls: `dash-nav-tab ${this.activeTab === i ? "dash-nav-active" : ""}`,
 			});
-			card.style.cursor = "pointer";
+			tab.createEl("span", { text: label });
+			tab.addEventListener("click", () => {
+				this.activeTab = i;
+				this.render();
+			});
+		}
+
+		const actions = nav.createDiv({ cls: "dash-nav-actions" });
+
+		const refresh = actions.createDiv({ cls: "dash-nav-action" });
+		const refreshIcon = refresh.createSpan();
+		setIcon(refreshIcon, "refresh-cw");
+		refresh.setAttribute("aria-label", "Refresh");
+		refresh.addEventListener("click", () => {
+			this.projectCache.clear();
+			this.render();
+		});
+
+		const gear = actions.createDiv({ cls: "dash-nav-action" });
+		const gearIcon = gear.createSpan();
+		setIcon(gearIcon, "settings");
+		gear.addEventListener("click", () => {
+			(this.app as any).setting.open();
+			(this.app as any).setting.openTabById("vault-dashboard");
+		});
+	}
+
+	// ── Project Page ────────────────────────────────────
+
+	private async renderProject(parent: HTMLElement, project: ProjectData): Promise<void> {
+		const { wis, content } = project;
+
+		// ── State Block
+		const stateBlock = parent.createDiv({ cls: "dash-state-block" });
+
+		if (project.whereImAt) {
+			const stateText = stateBlock.createDiv({ cls: "dash-state-text" });
+			for (const line of project.whereImAt.split("\n").filter(l => l.trim())) {
+				stateText.createEl("p", { text: this.stripMd(line.trim()) });
+			}
+		} else {
+			stateBlock.createEl("p", { text: "No project state yet. Add a note below or run /close.", cls: "dash-empty" });
+		}
+
+		if (project.liveSession) {
+			const live = stateBlock.createDiv({ cls: "dash-live-badge" });
+			const iconEl = live.createSpan({ cls: "dash-live-icon" });
+			setIcon(iconEl, "radio");
+			live.createEl("span", { text: project.liveSession });
+		}
+
+		// Quick-append
+		const appendRow = stateBlock.createDiv({ cls: "dash-append-row" });
+		const input = appendRow.createEl("input", {
+			cls: "dash-append-input",
+			attr: { type: "text", placeholder: "+ add note..." },
+		});
+		input.addEventListener("keydown", async (e: KeyboardEvent) => {
+			if (e.key === "Enter" && input.value.trim()) {
+				await this.appendToWhereImAt(project.file, input.value.trim());
+				input.value = "";
+				this.projectCache.clear();
+				this.render();
+			}
+		});
+
+		// Click state block to open roadmap
+		stateBlock.addEventListener("click", (e) => {
+			if ((e.target as HTMLElement).tagName === "INPUT") return;
+			this.app.workspace.getLeaf(false).openFile(project.file);
+		});
+
+		// ── WI Sections
+		const active = wis.filter(w => w.status === "active");
+		const blocked = wis.filter(w => w.status === "blocked");
+		const testing = wis.filter(w => w.status === "needs-testing");
+		const ready = wis.filter(w => w.status === "ready");
+		const waiting = wis.filter(w => w.status === "waiting");
+		const deferred = wis.filter(w => w.status === "deferred");
+
+		if (active.length > 0) {
+			this.renderSectionHeader(parent, "Active", "zap", active.length.toString(), "active");
+			for (const wi of active) this.renderHeroCard(parent, wi, content, project.file);
+		}
+
+		if (blocked.length > 0) {
+			this.renderSectionHeader(parent, "Blocked", "alert-circle", blocked.length.toString(), "blocked");
+			for (const wi of blocked) this.renderBlockedRow(parent, wi, project.file);
+		}
+
+		if (testing.length > 0) {
+			this.renderSectionHeader(parent, "Needs Testing", "flask-conical", testing.length.toString(), "testing");
+			for (const wi of testing) this.renderCompactRow(parent, wi, "testing", project.file);
+		}
+
+		if (ready.length > 0) {
+			this.renderSectionHeader(parent, "Ready", "circle-dot", ready.length.toString(), "ready");
+			const visible = ready.slice(0, 8);
+			for (const wi of visible) this.renderCompactRow(parent, wi, "ready", project.file);
+			if (ready.length > 8) parent.createEl("p", { text: `+ ${ready.length - 8} more`, cls: "dash-more-note" });
+		}
+
+		if (waiting.length > 0) {
+			this.renderSectionHeader(parent, "Waiting", "clock", waiting.length.toString(), "waiting");
+			for (const wi of waiting) this.renderCompactRow(parent, wi, "waiting", project.file);
+		}
+
+		if (project.recentlyDone.length > 0) {
+			this.renderSectionHeader(parent, "Recently Done", "check-circle", project.recentlyDone.length.toString(), "done");
+			const doneList = parent.createDiv({ cls: "dash-done-list" });
+			for (const item of project.recentlyDone) {
+				const row = doneList.createDiv({ cls: "dash-done-row" });
+				row.createEl("span", { text: item.id, cls: "dash-wi-id" });
+				row.createEl("span", { text: this.stripMd(item.summary), cls: "dash-done-summary" });
+				row.createEl("span", { text: item.date, cls: "dash-done-date" });
+			}
+		}
+
+		if (deferred.length > 0) {
+			parent.createEl("p", { text: `${deferred.length} deferred`, cls: "dash-deferred-note" });
 		}
 	}
 
-	// ── Plugin List ─────────────────────────────────────────
+	// ── Quick Append ────────────────────────────────────
 
-	private renderPluginsList(parent: HTMLElement): void {
-		const section = parent.createDiv({ cls: "dash-health-plugins" });
-		section.createEl("h3", { text: "Loaded Plugins", cls: "dash-page-title" });
+	private async appendToWhereImAt(file: TFile, note: string): Promise<void> {
+		const content = await this.app.vault.read(file);
+		const bullet = `- ${note}`;
 
-		const plugins = (this.app as any).plugins;
-		if (!plugins?.plugins) return;
-
-		const pluginNames = Object.keys(plugins.plugins).sort();
-		const grid = section.createDiv({ cls: "dash-plugin-grid" });
-		for (const name of pluginNames) {
-			const plugin = plugins.plugins[name];
-			const manifest = plugin?.manifest;
-			const row = grid.createDiv({ cls: "dash-plugin-row" });
-			row.createEl("span", { text: manifest?.name ?? name, cls: "dash-plugin-name" });
-			row.createEl("span", { text: `v${manifest?.version ?? "?"}`, cls: "dash-plugin-version" });
+		if (content.includes("## Where I'm At")) {
+			// Try mid-file match first (section followed by --- or ##)
+			const midFileRegex = /(## Where I'm At\n[\s\S]*?)(\n---\n|\n## )/;
+			const midMatch = content.match(midFileRegex);
+			if (midMatch) {
+				const updated = content.replace(midFileRegex,
+					(_, section, terminator) => `${section.trimEnd()}\n${bullet}\n${terminator}`
+				);
+				await this.app.vault.modify(file, updated);
+				return;
+			}
+			// EOF case
+			const updated = content.replace(
+				/(## Where I'm At\n[\s\S]*?)$/,
+				(match) => `${match.trimEnd()}\n${bullet}\n`
+			);
+			await this.app.vault.modify(file, updated);
+		} else {
+			// Create section after startup table or at end
+			const endTag = "<!-- STARTUP_END -->";
+			const insertIdx = content.indexOf(endTag);
+			if (insertIdx !== -1) {
+				const lineEnd = content.indexOf("\n", insertIdx);
+				const pos = lineEnd !== -1 ? lineEnd + 1 : content.length;
+				const before = content.slice(0, pos);
+				const after = content.slice(pos);
+				await this.app.vault.modify(file, `${before}\n## Where I'm At\n\n${bullet}\n\n${after}`);
+			} else {
+				await this.app.vault.modify(file, `${content.trimEnd()}\n\n## Where I'm At\n\n${bullet}\n`);
+			}
 		}
+	}
+
+	// ── WI Note Append ──────────────────────────────────
+
+	private async appendNoteToWI(file: TFile, wiId: string, note: string): Promise<void> {
+		const content = await this.app.vault.read(file);
+		const bullet = `- ${note}`;
+		const sectionRegex = new RegExp("(### " + wiId + ":[\\s\\S]*?)(\\n### |\\n---\\n|$)", "i");
+		const match = content.match(sectionRegex);
+		if (match) {
+			const updated = content.replace(sectionRegex,
+				(_, section, terminator) => `${section.trimEnd()}\n${bullet}\n${terminator}`
+			);
+			await this.app.vault.modify(file, updated);
+			this.projectCache.clear();
+			this.render();
+		}
+	}
+
+	private async markWIDone(file: TFile, wiId: string): Promise<void> {
+		let content = await this.app.vault.read(file);
+		const today = new Date().toISOString().slice(0, 10);
+
+		// Update detail block: status line
+		const statusRegex = new RegExp("(### " + wiId + ":[^\\n]*\\n)`status: [^`]+`", "i");
+		const statusMatch = content.match(statusRegex);
+		if (statusMatch) {
+			content = content.replace(statusRegex,
+				`$1\`status: done\` | \`completed: ${today}\``
+			);
+		}
+
+		// Update startup table row
+		const tableRowRegex = new RegExp("^(\\|\\s*" + wiId + "\\s*\\|\\s*)\\w[\\w-]*(\\s*\\|)", "m");
+		content = content.replace(tableRowRegex, `$1done$2`);
+
+		await this.app.vault.modify(file, content);
+		this.projectCache.clear();
+		this.render();
+	}
+
+	private renderWIActions(parent: HTMLElement, file: TFile, wi: WI): void {
+		const actions = parent.createDiv({ cls: "dash-wi-actions" });
+
+		// Plus: add note
+		const plus = actions.createDiv({ cls: "dash-wi-btn dash-wi-btn-add" });
+		const plusIcon = plus.createSpan();
+		setIcon(plusIcon, "plus");
+		plus.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const card = parent.closest(".dash-card, .dash-blocked-row, .dash-compact-row");
+			if (!card) return;
+			const existing = card.querySelector(".dash-wi-add-input") as HTMLInputElement;
+			if (existing) { existing.remove(); return; }
+			const input = card.createEl("input", {
+				cls: "dash-wi-add-input",
+				attr: { type: "text", placeholder: "Add note..." },
+			});
+			input.focus();
+			input.addEventListener("keydown", async (ev: KeyboardEvent) => {
+				if (ev.key === "Enter" && input.value.trim()) {
+					await this.appendNoteToWI(file, wi.id, input.value.trim());
+				}
+				if (ev.key === "Escape") input.remove();
+			});
+			input.addEventListener("blur", () => {
+				setTimeout(() => input.remove(), 200);
+			});
+		});
+
+		// Check: mark done (glows when stale)
+		const checkCls = wi.stale ? "dash-wi-btn dash-wi-btn-done dash-wi-stale" : "dash-wi-btn dash-wi-btn-done";
+		const check = actions.createDiv({ cls: checkCls });
+		const checkIcon = check.createSpan();
+		setIcon(checkIcon, "check");
+		check.addEventListener("click", async (e) => {
+			e.stopPropagation();
+			await this.markWIDone(file, wi.id);
+		});
+	}
+
+	// ── Section Header ──────────────────────────────────
+
+	private renderSectionHeader(parent: HTMLElement, title: string, icon: string, count: string, colorCls: string): void {
+		const header = parent.createDiv({ cls: "dash-section-header" });
+		const left = header.createDiv({ cls: "dash-section-left" });
+		const iconEl = left.createSpan({ cls: "dash-section-icon" });
+		setIcon(iconEl, icon);
+		left.createEl("h2", { text: title });
+		header.createEl("span", { text: count, cls: `dash-section-count dash-sc-${colorCls}` });
+	}
+
+	// ── Hero Card ───────────────────────────────────────
+
+	private renderHeroCard(parent: HTMLElement, wi: WI, content: string, file: TFile): void {
+		const card = parent.createDiv({ cls: "dash-card dash-card-hero" });
+		const header = card.createDiv({ cls: "dash-card-header" });
+		header.createEl("span", { text: wi.id, cls: "dash-wi-id" });
+		header.createEl("h3", { text: this.stripMd(wi.summary) });
+		this.renderWIActions(header, file, wi);
+
+		const wiSection = this.extractWISection(content, wi.id);
+		const unchecked = wiSection.split("\n")
+			.filter(l => /^- \[ \]/.test(l))
+			.map(l => l.replace(/^- \[ \]\s*/, "").trim());
+
+		if (unchecked.length > 0) {
+			const taskList = card.createDiv({ cls: "dash-hero-tasks" });
+			for (const task of unchecked.slice(0, 5)) {
+				const row = taskList.createDiv({ cls: "dash-hero-task-row" });
+				row.createEl("span", { text: "\u25CB", cls: "dash-task-bullet" });
+				row.createEl("span", { text: this.stripMd(task) });
+			}
+			if (unchecked.length > 5) {
+				taskList.createEl("p", { text: `+ ${unchecked.length - 5} more`, cls: "dash-more-note" });
+			}
+		}
+
+		card.addEventListener("click", () => {
+			this.app.workspace.openLinkText(file.path + "#" + wi.id, "", false);
+		});
+	}
+
+	// ── Blocked Row ─────────────────────────────────────
+
+	private renderBlockedRow(parent: HTMLElement, wi: WI, file: TFile): void {
+		const row = parent.createDiv({ cls: "dash-blocked-row" });
+		const left = row.createDiv({ cls: "dash-blocked-left" });
+		left.createEl("span", { text: wi.id, cls: "dash-wi-id" });
+		left.createEl("span", { text: this.stripMd(wi.summary), cls: "dash-blocked-summary" });
+		this.renderWIActions(left, file, wi);
+
+		if (wi.depends) {
+			const depEl = row.createDiv({ cls: "dash-blocked-deps" });
+			const iconEl = depEl.createSpan({ cls: "dash-dep-icon" });
+			setIcon(iconEl, "arrow-left");
+			for (const dep of wi.depends.split(",").map(d => d.trim())) {
+				depEl.createEl("span", { text: dep, cls: "dash-dep-link" });
+			}
+		}
+
+		row.addEventListener("click", () => {
+			this.app.workspace.openLinkText(file.path + "#" + wi.id, "", false);
+		});
+	}
+
+	// ── Compact Row ─────────────────────────────────────
+
+	private renderCompactRow(parent: HTMLElement, wi: WI, statusCls: string, file: TFile): void {
+		const row = parent.createDiv({ cls: "dash-compact-row" });
+		row.createEl("span", { text: wi.id, cls: "dash-wi-id" });
+		row.createEl("span", { text: wi.status, cls: `dash-wi-badge dash-wb-${statusCls}` });
+		row.createEl("span", { text: this.stripMd(wi.summary), cls: "dash-compact-summary" });
+		this.renderWIActions(row, file, wi);
+		row.addEventListener("click", () => {
+			this.app.workspace.openLinkText(file.path + "#" + wi.id, "", false);
+		});
+	}
+
+	// ── Status Bar ──────────────────────────────────────
+
+	private async renderStatusBar(parent: HTMLElement, allTabNames: string[]): Promise<void> {
+		const bar = parent.createDiv({ cls: "dash-status-bar" });
+
+		let totalActive = 0, totalBlocked = 0, totalReady = 0, totalTesting = 0;
+		for (const tabName of allTabNames) {
+			const project = await this.loadProject(tabName); // uses cache
+			if (!project) continue;
+			for (const wi of project.wis) {
+				if (wi.status === "active") totalActive++;
+				else if (wi.status === "blocked") totalBlocked++;
+				else if (wi.status === "ready") totalReady++;
+				else if (wi.status === "needs-testing") totalTesting++;
+			}
+		}
+
+		const counts = bar.createDiv({ cls: "dash-bar-counts" });
+		this.addBarChip(counts, totalActive, "active", "active");
+		this.addBarChip(counts, totalBlocked, "blocked", "blocked");
+		this.addBarChip(counts, totalReady, "ready", "ready");
+		this.addBarChip(counts, totalTesting, "testing", "testing");
+
+		const alerts = bar.createDiv({ cls: "dash-bar-alerts" });
+
+		const homeFile = this.app.vault.getFileByPath(SYSTEM_HOME);
+		if (homeFile) {
+			const homeContent = await this.app.vault.cachedRead(homeFile);
+			const items = this.extractBullets(this.extractSection(homeContent, "Capture Zone"));
+			if (items.length > 0) {
+				const alert = alerts.createEl("span", { cls: "dash-alert dash-alert-capture" });
+				const iconEl = alert.createSpan({ cls: "dash-alert-icon" });
+				setIcon(iconEl, "inbox");
+				alert.createEl("span", { text: `${items.length} capture` });
+				alert.addEventListener("click", () => {
+					this.app.workspace.openLinkText(SYSTEM_HOME, "", false);
+				});
+			}
+		}
+
+		const ramFiles = this.app.vault.getFiles().filter(f =>
+			f.path.startsWith(SESSION_RAM_FOLDER + "/") && /^session-\d+-ram\.md$/.test(f.name)
+		);
+		if (ramFiles.length > 0) {
+			const sessionEl = bar.createEl("span", { cls: "dash-bar-sessions-info" });
+			const sIcon = sessionEl.createSpan({ cls: "dash-bar-session-icon" });
+			setIcon(sIcon, "terminal");
+			sessionEl.createEl("span", { text: `${ramFiles.length}` });
+		}
+	}
+
+	private addBarChip(parent: HTMLElement, count: number, label: string, cls: string): void {
+		if (count === 0) return;
+		const el = parent.createEl("span", { cls: `dash-bar-chip dash-bc-${cls}` });
+		el.createEl("span", { text: count.toString(), cls: "dash-bar-chip-num" });
+		el.createEl("span", { text: label });
 	}
 }
