@@ -6,6 +6,28 @@ const ICON = "layout-dashboard";
 const ROADMAPS_FOLDER = "00_System/AI/Claude/Roadmaps";
 const SYSTEM_HOME = "00_System/AI/Claude/00_Home.md";
 const SESSION_RAM_FOLDER = "00_System/AI/Claude/Scratchpad";
+const PROCESS_STATUS_FILE = "00_System/AI/Claude/System Operations/state/process-status.json";
+const PROCESS_STATUS_REFRESH_MS = 3000;
+
+interface ProcessEntry {
+	label: string;
+	pid: number | null;
+	ram_mb: number | null;
+	uptime_seconds: number | null;
+	port: number | null;
+	port_listening: boolean | null;
+	cmd_short: string | null;
+	status: "running" | "stopped";
+	instance_count?: number;
+}
+
+interface ProcessStatusPayload {
+	collected_at: number;
+	collector_pid?: number;
+	total_ram_mb?: number;
+	error?: string;
+	processes: ProcessEntry[];
+}
 
 interface DashboardSettings {
 	tabs: [string, string, string];
@@ -134,6 +156,8 @@ class DashboardSettingTab extends PluginSettingTab {
 class DashboardView extends ItemView {
 	private plugin: DashboardPlugin;
 	private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+	private processStatusTimer: ReturnType<typeof setInterval> | null = null;
+	private processStatusEl: HTMLElement | null = null;
 	private activeTab = 0;
 	private projectCache: Map<string, ProjectData> = new Map();
 
@@ -159,10 +183,15 @@ class DashboardView extends ItemView {
 			})
 		);
 		this.app.workspace.onLayoutReady(() => this.render());
+		this.processStatusTimer = setInterval(
+			() => this.refreshProcessStatus(),
+			PROCESS_STATUS_REFRESH_MS,
+		);
 	}
 
 	async onClose(): Promise<void> {
 		if (this.refreshTimer) clearTimeout(this.refreshTimer);
+		if (this.processStatusTimer) clearInterval(this.processStatusTimer);
 	}
 
 	// ── Helpers ──────────────────────────────────────────
@@ -348,8 +377,120 @@ class DashboardView extends ItemView {
 			await this.renderProject(main, project);
 		}
 
+		this.processStatusEl = contentEl.createDiv({ cls: "dash-process-status" });
+		await this.refreshProcessStatus();
+
 		await this.renderStatusBar(contentEl, activeTabs);
 		contentEl.scrollTop = scrollTop;
+	}
+
+	// ── Process Status Panel ────────────────────────────
+
+	private async refreshProcessStatus(): Promise<void> {
+		if (!this.processStatusEl || !this.processStatusEl.isConnected) return;
+		let payload: ProcessStatusPayload | null = null;
+		try {
+			const raw = await this.app.vault.adapter.read(PROCESS_STATUS_FILE);
+			payload = JSON.parse(raw);
+		} catch (_) {
+			// File missing or unreadable — render an empty stub
+		}
+		const el = this.processStatusEl;
+		el.empty();
+
+		const header = el.createDiv({ cls: "dash-ps-header" });
+		const left = header.createDiv({ cls: "dash-ps-header-left" });
+		const titleIcon = left.createSpan({ cls: "dash-ps-title-icon" });
+		setIcon(titleIcon, "activity");
+		left.createEl("h2", { text: "Processes" });
+
+		if (!payload) {
+			el.createEl("p", {
+				text: "Status file missing. Run: python tools/process-status-collector.py --daemon",
+				cls: "dash-empty",
+			});
+			return;
+		}
+
+		if (payload.error) {
+			el.createEl("p", { text: `Collector error: ${payload.error}`, cls: "dash-empty" });
+			return;
+		}
+
+		const total = payload.total_ram_mb ?? 0;
+		header.createEl("span", {
+			text: `${total.toFixed(0)} MB`,
+			cls: `dash-ps-total ${this.ramSeverity(total, 800, 2000)}`,
+		});
+
+		const stale = (Date.now() / 1000) - payload.collected_at > 15;
+		if (stale) {
+			header.createEl("span", {
+				text: "stale",
+				cls: "dash-ps-stale-badge",
+			});
+		}
+
+		const table = el.createDiv({ cls: "dash-ps-table" });
+		const head = table.createDiv({ cls: "dash-ps-row dash-ps-head" });
+		head.createEl("span", { text: "process" });
+		head.createEl("span", { text: "pid" });
+		head.createEl("span", { text: "ram" });
+		head.createEl("span", { text: "port" });
+		head.createEl("span", { text: "uptime" });
+
+		for (const p of payload.processes) {
+			const isDup = p.label.includes("(dup)");
+			const rowCls = `dash-ps-row dash-ps-${p.status}${isDup ? " dash-ps-dup-row" : ""}`;
+			const row = table.createDiv({ cls: rowCls });
+			const labelEl = row.createDiv({ cls: "dash-ps-label" });
+			const dot = labelEl.createSpan({ cls: `dash-ps-dot dash-ps-dot-${p.status}${isDup ? "-dup" : ""}` });
+			dot.textContent = "•";
+			labelEl.createEl("span", { text: p.label });
+			if (p.instance_count && p.instance_count > 1 && !isDup) {
+				labelEl.createEl("span", {
+					text: `×${p.instance_count}`,
+					cls: "dash-ps-instance-count",
+				});
+			}
+
+			row.createEl("span", { text: p.pid != null ? String(p.pid) : "—", cls: "dash-ps-pid" });
+
+			const ramText = p.ram_mb != null ? `${Math.round(p.ram_mb)} MB` : "—";
+			row.createEl("span", {
+				text: ramText,
+				cls: `dash-ps-ram ${p.ram_mb != null ? this.ramSeverity(p.ram_mb, 300, 1000) : ""}`,
+			});
+
+			const portEl = row.createDiv({ cls: "dash-ps-port" });
+			if (p.port == null) {
+				portEl.createEl("span", { text: "—" });
+			} else {
+				portEl.createEl("span", { text: String(p.port) });
+				const listenCls = p.port_listening ? "dash-ps-port-up" : "dash-ps-port-down";
+				const indicator = portEl.createSpan({ cls: `dash-ps-port-indicator ${listenCls}` });
+				indicator.textContent = p.port_listening ? "●" : "○";
+			}
+
+			row.createEl("span", {
+				text: this.formatUptime(p.uptime_seconds),
+				cls: "dash-ps-uptime",
+			});
+		}
+	}
+
+	private ramSeverity(mb: number, warn: number, high: number): string {
+		if (mb >= high) return "dash-ps-ram-high";
+		if (mb >= warn) return "dash-ps-ram-warn";
+		return "dash-ps-ram-ok";
+	}
+
+	private formatUptime(seconds: number | null): string {
+		if (seconds == null) return "—";
+		if (seconds < 60) return `${Math.round(seconds)}s`;
+		if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+		if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
+		return `${(seconds / 86400).toFixed(1)}d`;
 	}
 
 	// ── Tab Bar ─────────────────────────────────────────
@@ -448,11 +589,6 @@ class DashboardView extends ItemView {
 			for (const wi of active) this.renderHeroCard(parent, wi, content, project.file);
 		}
 
-		if (blocked.length > 0) {
-			this.renderSectionHeader(parent, "Blocked", "alert-circle", blocked.length.toString(), "blocked");
-			for (const wi of blocked) this.renderBlockedRow(parent, wi, project.file);
-		}
-
 		if (testing.length > 0) {
 			this.renderSectionHeader(parent, "Needs Testing", "flask-conical", testing.length.toString(), "testing");
 			for (const wi of testing) this.renderCompactRow(parent, wi, "testing", project.file);
@@ -463,6 +599,11 @@ class DashboardView extends ItemView {
 			const visible = ready.slice(0, 8);
 			for (const wi of visible) this.renderCompactRow(parent, wi, "ready", project.file);
 			if (ready.length > 8) parent.createEl("p", { text: `+ ${ready.length - 8} more`, cls: "dash-more-note" });
+		}
+
+		if (blocked.length > 0) {
+			this.renderSectionHeader(parent, "Blocked", "alert-circle", blocked.length.toString(), "blocked");
+			for (const wi of blocked) this.renderBlockedRow(parent, wi, project.file);
 		}
 
 		if (waiting.length > 0) {
@@ -559,9 +700,48 @@ class DashboardView extends ItemView {
 		const tableRowRegex = new RegExp("^(\\|\\s*" + wiId + "\\s*\\|\\s*)\\w[\\w-]*(\\s*\\|)", "m");
 		content = content.replace(tableRowRegex, `$1done$2`);
 
+		// Unlock blockers: promote blocked -> ready if all dependencies are now done
+		content = this.unlockDependents(content, wiId);
+
 		await this.app.vault.modify(file, content);
 		this.projectCache.clear();
 		this.render();
+	}
+
+	private unlockDependents(content: string, completedId: string): string {
+		const headings = [...content.matchAll(/### ([\w-]+):/g)];
+		for (const heading of headings) {
+			const wiId = heading[1];
+			const sectionRegex = new RegExp("### " + wiId + ":[\\s\\S]*?(?=\\n### |\\n---\\n|$)", "i");
+			const sectionMatch = content.match(sectionRegex);
+			if (!sectionMatch) continue;
+			const section = sectionMatch[0];
+
+			if (!/`status: blocked`/.test(section)) continue;
+			const depMatch = section.match(/`depends:\s*([^`]+)`/);
+			if (!depMatch) continue;
+
+			const deps = depMatch[1].split(",").map((d: string) => d.trim());
+			if (!deps.includes(completedId)) continue;
+
+			const allDone = deps.every((dep: string) => {
+				if (dep === completedId) return true;
+				const depRegex = new RegExp("### " + dep + ":[^\\n]*\\n`status: done`");
+				return depRegex.test(content);
+			});
+
+			if (allDone) {
+				content = content.replace(
+					new RegExp("(### " + wiId + ":[^\\n]*\\n)`status: blocked`", "i"),
+					`$1\`status: ready\``
+				);
+				content = content.replace(
+					new RegExp("^(\\|\\s*" + wiId + "\\s*\\|\\s*)blocked(\\s*\\|)", "m"),
+					`$1ready$2`
+				);
+			}
+		}
+		return content;
 	}
 
 	private renderWIActions(parent: HTMLElement, file: TFile, wi: WI): void {
