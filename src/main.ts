@@ -3,6 +3,9 @@ import { Plugin, ItemView, WorkspaceLeaf, TFile, setIcon, PluginSettingTab, Sett
 const VIEW_TYPE = "vault-dashboard";
 const ICON = "layout-dashboard";
 
+const PROCESS_VIEW_TYPE = "vault-process-status";
+const PROCESS_ICON = "activity";
+
 const ROADMAPS_FOLDER = "00_System/AI/Claude/Roadmaps";
 const SYSTEM_HOME = "00_System/AI/Claude/00_Home.md";
 const SESSION_RAM_FOLDER = "00_System/AI/Claude/Scratchpad";
@@ -65,6 +68,11 @@ export default class DashboardPlugin extends Plugin {
 		this.registerView(VIEW_TYPE, (leaf: WorkspaceLeaf) => new DashboardView(leaf, this));
 		this.addRibbonIcon(ICON, "Open Dashboard", () => this.activateDashboard());
 		this.addCommand({ id: "open-dashboard", name: "Open Dashboard", callback: () => this.activateDashboard() });
+
+		this.registerView(PROCESS_VIEW_TYPE, (leaf: WorkspaceLeaf) => new ProcessStatusView(leaf, this));
+		this.addRibbonIcon(PROCESS_ICON, "Open Process Status", () => this.activateProcessStatus());
+		this.addCommand({ id: "open-process-status", name: "Open Process Status", callback: () => this.activateProcessStatus() });
+
 		this.addSettingTab(new DashboardSettingTab(this.app, this));
 
 		if (this.settings.openOnStartup) {
@@ -78,6 +86,14 @@ export default class DashboardPlugin extends Plugin {
 		if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
 		const leaf = workspace.getLeaf("tab");
 		await leaf.setViewState({ type: VIEW_TYPE, active: true });
+	}
+
+	async activateProcessStatus() {
+		const { workspace } = this.app;
+		const existing = workspace.getLeavesOfType(PROCESS_VIEW_TYPE);
+		if (existing.length > 0) { workspace.revealLeaf(existing[0]); return; }
+		const leaf = workspace.getLeaf("tab");
+		await leaf.setViewState({ type: PROCESS_VIEW_TYPE, active: true });
 	}
 
 	async loadSettings() {
@@ -156,8 +172,6 @@ class DashboardSettingTab extends PluginSettingTab {
 class DashboardView extends ItemView {
 	private plugin: DashboardPlugin;
 	private refreshTimer: ReturnType<typeof setTimeout> | null = null;
-	private processStatusTimer: ReturnType<typeof setInterval> | null = null;
-	private processStatusEl: HTMLElement | null = null;
 	private activeTab = 0;
 	private projectCache: Map<string, ProjectData> = new Map();
 
@@ -183,15 +197,10 @@ class DashboardView extends ItemView {
 			})
 		);
 		this.app.workspace.onLayoutReady(() => this.render());
-		this.processStatusTimer = setInterval(
-			() => this.refreshProcessStatus(),
-			PROCESS_STATUS_REFRESH_MS,
-		);
 	}
 
 	async onClose(): Promise<void> {
 		if (this.refreshTimer) clearTimeout(this.refreshTimer);
-		if (this.processStatusTimer) clearInterval(this.processStatusTimer);
 	}
 
 	// ── Helpers ──────────────────────────────────────────
@@ -377,120 +386,8 @@ class DashboardView extends ItemView {
 			await this.renderProject(main, project);
 		}
 
-		this.processStatusEl = contentEl.createDiv({ cls: "dash-process-status" });
-		await this.refreshProcessStatus();
-
 		await this.renderStatusBar(contentEl, activeTabs);
 		contentEl.scrollTop = scrollTop;
-	}
-
-	// ── Process Status Panel ────────────────────────────
-
-	private async refreshProcessStatus(): Promise<void> {
-		if (!this.processStatusEl || !this.processStatusEl.isConnected) return;
-		let payload: ProcessStatusPayload | null = null;
-		try {
-			const raw = await this.app.vault.adapter.read(PROCESS_STATUS_FILE);
-			payload = JSON.parse(raw);
-		} catch (_) {
-			// File missing or unreadable — render an empty stub
-		}
-		const el = this.processStatusEl;
-		el.empty();
-
-		const header = el.createDiv({ cls: "dash-ps-header" });
-		const left = header.createDiv({ cls: "dash-ps-header-left" });
-		const titleIcon = left.createSpan({ cls: "dash-ps-title-icon" });
-		setIcon(titleIcon, "activity");
-		left.createEl("h2", { text: "Processes" });
-
-		if (!payload) {
-			el.createEl("p", {
-				text: "Status file missing. Run: python tools/process-status-collector.py --daemon",
-				cls: "dash-empty",
-			});
-			return;
-		}
-
-		if (payload.error) {
-			el.createEl("p", { text: `Collector error: ${payload.error}`, cls: "dash-empty" });
-			return;
-		}
-
-		const total = payload.total_ram_mb ?? 0;
-		header.createEl("span", {
-			text: `${total.toFixed(0)} MB`,
-			cls: `dash-ps-total ${this.ramSeverity(total, 800, 2000)}`,
-		});
-
-		const stale = (Date.now() / 1000) - payload.collected_at > 15;
-		if (stale) {
-			header.createEl("span", {
-				text: "stale",
-				cls: "dash-ps-stale-badge",
-			});
-		}
-
-		const table = el.createDiv({ cls: "dash-ps-table" });
-		const head = table.createDiv({ cls: "dash-ps-row dash-ps-head" });
-		head.createEl("span", { text: "process" });
-		head.createEl("span", { text: "pid" });
-		head.createEl("span", { text: "ram" });
-		head.createEl("span", { text: "port" });
-		head.createEl("span", { text: "uptime" });
-
-		for (const p of payload.processes) {
-			const isDup = p.label.includes("(dup)");
-			const rowCls = `dash-ps-row dash-ps-${p.status}${isDup ? " dash-ps-dup-row" : ""}`;
-			const row = table.createDiv({ cls: rowCls });
-			const labelEl = row.createDiv({ cls: "dash-ps-label" });
-			const dot = labelEl.createSpan({ cls: `dash-ps-dot dash-ps-dot-${p.status}${isDup ? "-dup" : ""}` });
-			dot.textContent = "•";
-			labelEl.createEl("span", { text: p.label });
-			if (p.instance_count && p.instance_count > 1 && !isDup) {
-				labelEl.createEl("span", {
-					text: `×${p.instance_count}`,
-					cls: "dash-ps-instance-count",
-				});
-			}
-
-			row.createEl("span", { text: p.pid != null ? String(p.pid) : "—", cls: "dash-ps-pid" });
-
-			const ramText = p.ram_mb != null ? `${Math.round(p.ram_mb)} MB` : "—";
-			row.createEl("span", {
-				text: ramText,
-				cls: `dash-ps-ram ${p.ram_mb != null ? this.ramSeverity(p.ram_mb, 300, 1000) : ""}`,
-			});
-
-			const portEl = row.createDiv({ cls: "dash-ps-port" });
-			if (p.port == null) {
-				portEl.createEl("span", { text: "—" });
-			} else {
-				portEl.createEl("span", { text: String(p.port) });
-				const listenCls = p.port_listening ? "dash-ps-port-up" : "dash-ps-port-down";
-				const indicator = portEl.createSpan({ cls: `dash-ps-port-indicator ${listenCls}` });
-				indicator.textContent = p.port_listening ? "●" : "○";
-			}
-
-			row.createEl("span", {
-				text: this.formatUptime(p.uptime_seconds),
-				cls: "dash-ps-uptime",
-			});
-		}
-	}
-
-	private ramSeverity(mb: number, warn: number, high: number): string {
-		if (mb >= high) return "dash-ps-ram-high";
-		if (mb >= warn) return "dash-ps-ram-warn";
-		return "dash-ps-ram-ok";
-	}
-
-	private formatUptime(seconds: number | null): string {
-		if (seconds == null) return "—";
-		if (seconds < 60) return `${Math.round(seconds)}s`;
-		if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-		if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
-		return `${(seconds / 86400).toFixed(1)}d`;
 	}
 
 	// ── Tab Bar ─────────────────────────────────────────
@@ -918,5 +815,143 @@ class DashboardView extends ItemView {
 		const el = parent.createEl("span", { cls: `dash-bar-chip dash-bc-${cls}` });
 		el.createEl("span", { text: count.toString(), cls: "dash-bar-chip-num" });
 		el.createEl("span", { text: label });
+	}
+}
+
+// ── Process Status View ─────────────────────────────────
+// Dedicated pane (own ribbon icon) for the live process monitor.
+// Extracted from DashboardView so the dashboard stays roadmap-focused.
+
+class ProcessStatusView extends ItemView {
+	private plugin: DashboardPlugin;
+	private timer: ReturnType<typeof setInterval> | null = null;
+	private panelEl: HTMLElement | null = null;
+
+	constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
+		super(leaf);
+		this.plugin = plugin;
+	}
+
+	getViewType(): string { return PROCESS_VIEW_TYPE; }
+	getDisplayText(): string { return "Process Status"; }
+	getIcon(): string { return PROCESS_ICON; }
+
+	async onOpen(): Promise<void> {
+		this.navigation = false;
+		this.contentEl.addClass("vault-process-status-view");
+		this.panelEl = this.contentEl.createDiv({ cls: "dash-process-status" });
+		await this.refresh();
+		this.timer = setInterval(() => this.refresh(), PROCESS_STATUS_REFRESH_MS);
+	}
+
+	async onClose(): Promise<void> {
+		if (this.timer) clearInterval(this.timer);
+	}
+
+	private async refresh(): Promise<void> {
+		if (!this.panelEl || !this.panelEl.isConnected) return;
+		let payload: ProcessStatusPayload | null = null;
+		try {
+			const raw = await this.app.vault.adapter.read(PROCESS_STATUS_FILE);
+			payload = JSON.parse(raw);
+		} catch (_) {
+			// File missing or unreadable — render an empty stub
+		}
+		const el = this.panelEl;
+		el.empty();
+
+		const header = el.createDiv({ cls: "dash-ps-header" });
+		const left = header.createDiv({ cls: "dash-ps-header-left" });
+		const titleIcon = left.createSpan({ cls: "dash-ps-title-icon" });
+		setIcon(titleIcon, "activity");
+		left.createEl("h2", { text: "Processes" });
+
+		if (!payload) {
+			el.createEl("p", {
+				text: "Status file missing. Run: python tools/process-status-collector.py --daemon",
+				cls: "dash-empty",
+			});
+			return;
+		}
+
+		if (payload.error) {
+			el.createEl("p", { text: `Collector error: ${payload.error}`, cls: "dash-empty" });
+			return;
+		}
+
+		const total = payload.total_ram_mb ?? 0;
+		header.createEl("span", {
+			text: `${total.toFixed(0)} MB`,
+			cls: `dash-ps-total ${this.ramSeverity(total, 800, 2000)}`,
+		});
+
+		const stale = (Date.now() / 1000) - payload.collected_at > 15;
+		if (stale) {
+			header.createEl("span", {
+				text: "stale",
+				cls: "dash-ps-stale-badge",
+			});
+		}
+
+		const table = el.createDiv({ cls: "dash-ps-table" });
+		const head = table.createDiv({ cls: "dash-ps-row dash-ps-head" });
+		head.createEl("span", { text: "process" });
+		head.createEl("span", { text: "pid" });
+		head.createEl("span", { text: "ram" });
+		head.createEl("span", { text: "port" });
+		head.createEl("span", { text: "uptime" });
+
+		for (const p of payload.processes) {
+			const isDup = p.label.includes("(dup)");
+			const rowCls = `dash-ps-row dash-ps-${p.status}${isDup ? " dash-ps-dup-row" : ""}`;
+			const row = table.createDiv({ cls: rowCls });
+			const labelEl = row.createDiv({ cls: "dash-ps-label" });
+			const dot = labelEl.createSpan({ cls: `dash-ps-dot dash-ps-dot-${p.status}${isDup ? "-dup" : ""}` });
+			dot.textContent = "•";
+			labelEl.createEl("span", { text: p.label });
+			if (p.instance_count && p.instance_count > 1 && !isDup) {
+				labelEl.createEl("span", {
+					text: `×${p.instance_count}`,
+					cls: "dash-ps-instance-count",
+				});
+			}
+
+			row.createEl("span", { text: p.pid != null ? String(p.pid) : "—", cls: "dash-ps-pid" });
+
+			const ramText = p.ram_mb != null ? `${Math.round(p.ram_mb)} MB` : "—";
+			row.createEl("span", {
+				text: ramText,
+				cls: `dash-ps-ram ${p.ram_mb != null ? this.ramSeverity(p.ram_mb, 300, 1000) : ""}`,
+			});
+
+			const portEl = row.createDiv({ cls: "dash-ps-port" });
+			if (p.port == null) {
+				portEl.createEl("span", { text: "—" });
+			} else {
+				portEl.createEl("span", { text: String(p.port) });
+				const listenCls = p.port_listening ? "dash-ps-port-up" : "dash-ps-port-down";
+				const indicator = portEl.createSpan({ cls: `dash-ps-port-indicator ${listenCls}` });
+				indicator.textContent = p.port_listening ? "●" : "○";
+			}
+
+			row.createEl("span", {
+				text: this.formatUptime(p.uptime_seconds),
+				cls: "dash-ps-uptime",
+			});
+		}
+	}
+
+	private ramSeverity(mb: number, warn: number, high: number): string {
+		if (mb >= high) return "dash-ps-ram-high";
+		if (mb >= warn) return "dash-ps-ram-warn";
+		return "dash-ps-ram-ok";
+	}
+
+	private formatUptime(seconds: number | null): string {
+		if (seconds == null) return "—";
+		if (seconds < 60) return `${Math.round(seconds)}s`;
+		if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+		if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
+		return `${(seconds / 86400).toFixed(1)}d`;
 	}
 }
