@@ -11,6 +11,7 @@ const SYSTEM_HOME = "00_System/AI/Claude/00_Home.md";
 const SESSION_RAM_FOLDER = "00_System/AI/Claude/Scratchpad";
 const PROCESS_STATUS_FILE = "00_System/AI/Claude/System Operations/state/process-status.json";
 const PROCESS_STATUS_REFRESH_MS = 3000;
+const SESSION_REGISTRY_FILE = "00_System/AI/Claude/System Operations/session-registry.json";
 
 interface ProcessEntry {
 	label: string;
@@ -30,6 +31,21 @@ interface ProcessStatusPayload {
 	total_ram_mb?: number;
 	error?: string;
 	processes: ProcessEntry[];
+}
+
+interface SessionEntry {
+	uuid: string;
+	jsonl?: string;
+	date?: string;
+	focus?: string;
+	write_zone?: string;
+	status?: string;
+}
+
+interface SessionRegistry {
+	next_session?: number;
+	last_close?: string;
+	sessions: Record<string, SessionEntry>;
 }
 
 interface DashboardSettings {
@@ -826,6 +842,7 @@ class ProcessStatusView extends ItemView {
 	private plugin: DashboardPlugin;
 	private timer: ReturnType<typeof setInterval> | null = null;
 	private panelEl: HTMLElement | null = null;
+	private sessEl: HTMLElement | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
 		super(leaf);
@@ -840,6 +857,7 @@ class ProcessStatusView extends ItemView {
 		this.navigation = false;
 		this.contentEl.addClass("vault-process-status-view");
 		this.panelEl = this.contentEl.createDiv({ cls: "dash-process-status" });
+		this.sessEl = this.contentEl.createDiv({ cls: "dash-process-status dash-sessions" });
 		await this.refresh();
 		this.timer = setInterval(() => this.refresh(), PROCESS_STATUS_REFRESH_MS);
 	}
@@ -849,6 +867,11 @@ class ProcessStatusView extends ItemView {
 	}
 
 	private async refresh(): Promise<void> {
+		await this.renderProcesses();
+		await this.renderSessions();
+	}
+
+	private async renderProcesses(): Promise<void> {
 		if (!this.panelEl || !this.panelEl.isConnected) return;
 		let payload: ProcessStatusPayload | null = null;
 		try {
@@ -938,6 +961,72 @@ class ProcessStatusView extends ItemView {
 				text: this.formatUptime(p.uptime_seconds),
 				cls: "dash-ps-uptime",
 			});
+		}
+	}
+
+	// ── Sessions tracker (lives in the Process area, not a dashboard tab) ──
+
+	private async renderSessions(): Promise<void> {
+		if (!this.sessEl || !this.sessEl.isConnected) return;
+		let registry: SessionRegistry | null = null;
+		try {
+			const raw = await this.app.vault.adapter.read(SESSION_REGISTRY_FILE);
+			registry = JSON.parse(raw);
+		} catch (_) {
+			// Registry missing or unreadable
+		}
+		const el = this.sessEl;
+		el.empty();
+
+		const header = el.createDiv({ cls: "dash-ps-header" });
+		const left = header.createDiv({ cls: "dash-ps-header-left" });
+		const titleIcon = left.createSpan({ cls: "dash-ps-title-icon" });
+		setIcon(titleIcon, "terminal");
+		left.createEl("h2", { text: "Sessions" });
+
+		if (!registry || !registry.sessions) {
+			el.createEl("p", { text: "Session registry not found.", cls: "dash-empty" });
+			return;
+		}
+
+		const entries = Object.entries(registry.sessions).map(([num, s]) => ({ num, ...s }));
+		const active = entries.filter(s => (s.status ?? "active") === "active");
+		active.sort((a, b) => Number(b.num) - Number(a.num)); // newest session first
+
+		header.createEl("span", {
+			text: `${active.length} active · ${entries.length} total`,
+			cls: "dash-ps-total dash-sess-summary",
+		});
+
+		if (active.length === 0) {
+			el.createEl("p", { text: "No active sessions.", cls: "dash-empty" });
+			return;
+		}
+
+		const table = el.createDiv({ cls: "dash-ps-table dash-sess-table" });
+		const head = table.createDiv({ cls: "dash-ps-row dash-ps-head" });
+		head.createEl("span", { text: "session" });
+		head.createEl("span", { text: "focus" });
+		head.createEl("span", { text: "write zone" });
+		head.createEl("span", { text: "date" });
+
+		for (const s of active) {
+			const row = table.createDiv({ cls: "dash-ps-row dash-ps-running" });
+			const labelEl = row.createDiv({ cls: "dash-ps-label" });
+			const dot = labelEl.createSpan({ cls: "dash-ps-dot dash-ps-dot-running" });
+			dot.textContent = "•";
+			labelEl.createEl("span", { text: s.num });
+
+			const focus = (s.focus ?? "").trim();
+			const isIdle = !focus || focus === "TBD (awaiting user task)";
+			row.createEl("span", {
+				text: isIdle ? "—" : focus,
+				cls: `dash-sess-focus${isIdle ? " dash-sess-idle" : ""}`,
+			});
+
+			const wz = (s.write_zone ?? "").trim();
+			row.createEl("span", { text: wz || "—", cls: "dash-sess-zone" });
+			row.createEl("span", { text: s.date ?? "—", cls: "dash-ps-uptime" });
 		}
 	}
 

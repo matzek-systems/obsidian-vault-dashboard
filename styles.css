@@ -802,3 +802,36 @@
 }
 
 .dash-ps-dot-running-dup { color: #f44336; }
+
+/* ── Sessions tracker (Process Status view) ───────────── */
+
+.dash-sessions {
+  margin-top: 0;
+}
+
+.dash-sess-summary {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* 4-column layout: session / focus / write zone / date */
+.dash-sess-table .dash-ps-row {
+  grid-template-columns: minmax(80px, 0.5fr) minmax(160px, 1.6fr) minmax(120px, 1fr) 96px;
+}
+
+.dash-sess-focus {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-sess-idle {
+  color: var(--text-faint);
+}
+
+.dash-sess-zone {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
