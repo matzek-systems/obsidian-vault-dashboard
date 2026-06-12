@@ -1,4 +1,7 @@
 /* Vault Dashboard v2 — Project-tab redesign */
+/* Base colors come from the active Obsidian theme (the Mesenchyme
+   terminal-black theme supplies them globally). Status accents below
+   are the plugin's own, tuned to harmonize with that theme. */
 
 .vault-dashboard {
   padding: 0;
@@ -121,8 +124,8 @@
   margin-top: 10px;
   padding: 4px 12px;
   border-radius: 6px;
-  background: rgba(0, 200, 83, 0.1);
-  color: #00c853;
+  background: rgba(126, 199, 126, 0.1);
+  color: #7ec77e;
   font-size: 0.8em;
   font-weight: 600;
 }
@@ -216,11 +219,11 @@
   border-radius: 10px;
 }
 
-.dash-sc-active { background: rgba(0, 200, 83, 0.12); color: #00c853; }
-.dash-sc-blocked { background: rgba(244, 67, 54, 0.12); color: #f44336; }
-.dash-sc-testing { background: rgba(255, 152, 0, 0.12); color: #ff9800; }
+.dash-sc-active { background: rgba(126, 199, 126, 0.12); color: #7ec77e; }
+.dash-sc-blocked { background: rgba(199, 126, 126, 0.12); color: #c77e7e; }
+.dash-sc-testing { background: rgba(214, 178, 94, 0.12); color: #d6b25e; }
 .dash-sc-ready { background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); color: var(--interactive-accent); }
-.dash-sc-waiting { background: rgba(156, 39, 176, 0.12); color: #9c27b0; }
+.dash-sc-waiting { background: rgba(138, 130, 176, 0.12); color: #8a82b0; }
 .dash-sc-done { background: rgba(150, 150, 150, 0.12); color: var(--text-muted); }
 
 /* ── Hero Cards (Active WIs) ────────────────── */
@@ -241,11 +244,11 @@
 }
 
 .dash-card-hero {
-  border-left: 3px solid #00c853;
+  border-left: 3px solid #7ec77e;
 }
 
 .dash-card-hero:hover {
-  border-left-color: #00e676;
+  border-left-color: #7ec77e;
 }
 
 .dash-card-header {
@@ -305,7 +308,7 @@
   border-radius: 6px;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
-  border-left: 3px solid #f44336;
+  border-left: 3px solid #c77e7e;
   cursor: pointer;
   transition: background 0.12s;
   gap: 12px;
@@ -356,8 +359,8 @@
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(244, 67, 54, 0.08);
-  color: #f44336;
+  background: rgba(199, 126, 126, 0.08);
+  color: #c77e7e;
 }
 
 /* ── Compact Rows (Ready / Testing / Waiting) ─ */
@@ -399,8 +402,8 @@
 }
 
 .dash-wb-ready { background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); color: var(--interactive-accent); }
-.dash-wb-testing { background: rgba(255, 152, 0, 0.12); color: #ff9800; }
-.dash-wb-waiting { background: rgba(156, 39, 176, 0.12); color: #9c27b0; }
+.dash-wb-testing { background: rgba(214, 178, 94, 0.12); color: #d6b25e; }
+.dash-wb-waiting { background: rgba(138, 130, 176, 0.12); color: #8a82b0; }
 
 .dash-more-note {
   font-size: 0.78em;
@@ -455,13 +458,13 @@
 }
 
 .dash-wi-btn-done:hover {
-  color: #00c853;
+  color: #7ec77e;
   background: var(--background-modifier-hover);
 }
 
 .dash-wi-stale {
   opacity: 1 !important;
-  color: #00c853;
+  color: #7ec77e;
   animation: stale-pulse 2s ease-in-out infinite;
 }
 
@@ -578,10 +581,10 @@
   font-weight: 700;
 }
 
-.dash-bc-active { background: rgba(0, 200, 83, 0.1); color: #00c853; }
-.dash-bc-blocked { background: rgba(244, 67, 54, 0.1); color: #f44336; }
+.dash-bc-active { background: rgba(126, 199, 126, 0.1); color: #7ec77e; }
+.dash-bc-blocked { background: rgba(199, 126, 126, 0.1); color: #c77e7e; }
 .dash-bc-ready { background: color-mix(in srgb, var(--interactive-accent) 10%, transparent); color: var(--interactive-accent); }
-.dash-bc-testing { background: rgba(255, 152, 0, 0.1); color: #ff9800; }
+.dash-bc-testing { background: rgba(214, 178, 94, 0.1); color: #d6b25e; }
 
 /* Alerts */
 .dash-bar-alerts {
@@ -612,12 +615,12 @@
 }
 
 .dash-alert-capture {
-  background: rgba(244, 67, 54, 0.08);
-  color: #f44336;
+  background: rgba(199, 126, 126, 0.08);
+  color: #c77e7e;
 }
 
 .dash-alert-capture:hover {
-  background: rgba(244, 67, 54, 0.18);
+  background: rgba(199, 126, 126, 0.18);
 }
 
 /* Sessions */
@@ -694,8 +697,8 @@
   font-size: 0.72em;
   padding: 1px 6px;
   border-radius: 8px;
-  background: rgba(244, 67, 54, 0.15);
-  color: #f44336;
+  background: rgba(199, 126, 126, 0.15);
+  color: #c77e7e;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -750,7 +753,7 @@
   line-height: 1;
 }
 
-.dash-ps-dot-running { color: #00c853; }
+.dash-ps-dot-running { color: #7ec77e; }
 .dash-ps-dot-stopped { color: var(--text-faint); }
 
 .dash-ps-pid {
@@ -762,8 +765,8 @@
 }
 
 .dash-ps-ram-ok   { color: var(--text-normal); }
-.dash-ps-ram-warn { color: #ffa726; }
-.dash-ps-ram-high { color: #f44336; font-weight: 600; }
+.dash-ps-ram-warn { color: #d6b25e; }
+.dash-ps-ram-high { color: #c77e7e; font-weight: 600; }
 
 .dash-ps-port {
   display: flex;
@@ -777,8 +780,8 @@
   line-height: 1;
 }
 
-.dash-ps-port-up   { color: #00c853; }
-.dash-ps-port-down { color: #f44336; }
+.dash-ps-port-up   { color: #7ec77e; }
+.dash-ps-port-down { color: #c77e7e; }
 
 .dash-ps-uptime {
   color: var(--text-muted);
@@ -789,19 +792,19 @@
   font-size: 0.75em;
   padding: 1px 6px;
   border-radius: 8px;
-  background: rgba(244, 67, 54, 0.18);
-  color: #f44336;
+  background: rgba(199, 126, 126, 0.18);
+  color: #c77e7e;
   font-weight: 600;
   margin-left: 6px;
 }
 
 .dash-ps-dup-row {
   opacity: 0.7;
-  border-left: 2px solid #f44336;
+  border-left: 2px solid #c77e7e;
   padding-left: 6px;
 }
 
-.dash-ps-dot-running-dup { color: #f44336; }
+.dash-ps-dot-running-dup { color: #c77e7e; }
 
 /* ── Sessions tracker (Process Status view) ───────────── */
 

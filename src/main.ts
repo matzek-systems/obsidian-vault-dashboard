@@ -232,12 +232,24 @@ class DashboardView extends ItemView {
 	}
 
 	private parseStartupTable(content: string): WI[] {
+		// SYS-330: the WI list is derived from the detail sections, mirroring
+		// roadmap_parser.parse_roadmap + generate_startup_table (no stored table).
 		const items: WI[] = [];
-		const tableMatch = content.match(/<!-- STARTUP_START[\s\S]*?<!-- STARTUP_END -->/);
-		if (!tableMatch) return items;
-		for (const line of tableMatch[0].split("\n")) {
-			const m = line.match(/^\|\s*([\w-]+)\s*\|\s*(\w[\w-]*)\s*\|\s*(.+?)\s*\|$/);
-			if (m && m[1] !== "WI") items.push({ id: m[1], status: m[2], summary: m[3] });
+		const lines = content.split("\n");
+		for (let i = 0; i < lines.length - 1; i++) {
+			const headerMatch = lines[i].match(/^### ([A-Z]+-\d+[a-z]?):\s*(.+)$/);
+			if (!headerMatch) continue;
+			const statusLine = lines[i + 1];
+			const statusMatch = statusLine.match(/^`status:\s*(\S+?)`/);
+			if (!statusMatch) continue;
+			const status = statusMatch[1];
+			if (status === "done" || status === "killed") continue;
+			let summary = headerMatch[2].trim();
+			const triggerMatch = statusLine.match(/`trigger:\s*([^`]+)`/);
+			if (status === "deferred" && triggerMatch) {
+				summary += ` → trigger: ${triggerMatch[1]}`;
+			}
+			items.push({ id: headerMatch[1], status, summary });
 		}
 		return items;
 	}
@@ -564,18 +576,9 @@ class DashboardView extends ItemView {
 			);
 			await this.app.vault.modify(file, updated);
 		} else {
-			// Create section after startup table or at end
-			const endTag = "<!-- STARTUP_END -->";
-			const insertIdx = content.indexOf(endTag);
-			if (insertIdx !== -1) {
-				const lineEnd = content.indexOf("\n", insertIdx);
-				const pos = lineEnd !== -1 ? lineEnd + 1 : content.length;
-				const before = content.slice(0, pos);
-				const after = content.slice(pos);
-				await this.app.vault.modify(file, `${before}\n## Where I'm At\n\n${bullet}\n\n${after}`);
-			} else {
-				await this.app.vault.modify(file, `${content.trimEnd()}\n\n## Where I'm At\n\n${bullet}\n`);
-			}
+			// Create section at EOF (SYS-330: no sentinel anchor; the `---`
+			// terminator establishes the canonical section boundary)
+			await this.app.vault.modify(file, `${content.trimEnd()}\n\n## Where I'm At\n\n${bullet}\n\n---\n`);
 		}
 	}
 
@@ -609,9 +612,8 @@ class DashboardView extends ItemView {
 			);
 		}
 
-		// Update startup table row
-		const tableRowRegex = new RegExp("^(\\|\\s*" + wiId + "\\s*\\|\\s*)\\w[\\w-]*(\\s*\\|)", "m");
-		content = content.replace(tableRowRegex, `$1done$2`);
+		// (SYS-330: no stored startup table — the WI list re-derives from the
+		// status line on next render)
 
 		// Unlock blockers: promote blocked -> ready if all dependencies are now done
 		content = this.unlockDependents(content, wiId);
@@ -647,10 +649,6 @@ class DashboardView extends ItemView {
 				content = content.replace(
 					new RegExp("(### " + wiId + ":[^\\n]*\\n)`status: blocked`", "i"),
 					`$1\`status: ready\``
-				);
-				content = content.replace(
-					new RegExp("^(\\|\\s*" + wiId + "\\s*\\|\\s*)blocked(\\s*\\|)", "m"),
-					`$1ready$2`
 				);
 			}
 		}
