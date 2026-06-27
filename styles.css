@@ -32,6 +32,12 @@
   display: flex;
   flex: 1;
   gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none; /* tabs scroll horizontally in a narrow sidebar */
+}
+
+.dash-nav-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .dash-nav-tab {
@@ -43,6 +49,8 @@
   border-bottom: 2px solid transparent;
   transition: color 0.12s, border-color 0.12s;
   user-select: none;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .dash-nav-tab:hover {
@@ -52,6 +60,22 @@
 .dash-nav-active {
   color: var(--text-normal);
   border-bottom-color: var(--interactive-accent);
+}
+
+.dash-nav-tab-count {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 0.72em;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.dash-nav-active .dash-nav-tab-count {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
 }
 
 .dash-nav-actions {
@@ -103,6 +127,14 @@
   padding: 16px 20px;
   margin-bottom: 20px;
   border: 1px solid var(--background-modifier-border);
+}
+
+/* Clamp height so a long narrative scrolls inside the block instead of
+   filling the pane — the render emits one <p> per paragraph line, so height
+   comes from wrapping; a max-height (not a line slice) is the right bound. */
+.dash-state-text {
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .dash-state-text p {
@@ -837,4 +869,377 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── LWP Call-Day board ────────────────────────────────── */
+.lwp-callday-view .view-content,
+.lwp-callday-view {
+  height: 100%;
+}
+
+.lwp-cd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.lwp-cd-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lwp-cd-header-left h2 {
+  margin: 0;
+  font-size: 1.05em;
+}
+
+.lwp-cd-title-icon {
+  display: inline-flex;
+  color: var(--interactive-accent);
+}
+
+.lwp-cd-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lwp-cd-stat {
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+.lwp-cd-stat-close {
+  color: var(--interactive-accent);
+  font-weight: 600;
+}
+
+.lwp-cd-refresh {
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  padding: 2px 8px;
+}
+
+.lwp-cd-refresh:hover {
+  background: var(--background-modifier-hover);
+}
+
+.lwp-cd-body {
+  display: flex;
+  height: calc(100% - 44px);
+  overflow: hidden;
+}
+
+.lwp-cd-queue {
+  width: 320px;
+  min-width: 240px;
+  border-right: 1px solid var(--background-modifier-border);
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.lwp-cd-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+}
+
+.lwp-cd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.lwp-cd-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.lwp-cd-row-active {
+  background: var(--background-modifier-hover);
+  box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.lwp-cd-row-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.lwp-cd-row-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lwp-cd-row-sub {
+  color: var(--text-muted);
+  font-size: 0.8em;
+}
+
+.lwp-cd-tier {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 0.72em;
+  font-weight: 700;
+  color: var(--text-on-accent);
+  background: var(--text-faint);
+}
+
+.lwp-cd-tier-A { background: #2e7d32; }
+.lwp-cd-tier-B { background: #1565c0; }
+.lwp-cd-tier-C { background: #757575; }
+.lwp-cd-tier-none { background: var(--text-faint); }
+
+.lwp-cd-stale {
+  font-size: 0.65em;
+  font-weight: 700;
+  color: var(--text-on-accent);
+  background: #c62828;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.lwp-cd-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lwp-cd-detail-title h3 {
+  margin: 0;
+}
+
+.lwp-cd-state-badge {
+  font-size: 0.75em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+}
+
+.lwp-cd-state-warm { color: #e65100; }
+.lwp-cd-state-closed { color: #2e7d32; }
+.lwp-cd-state-dropped { color: #c62828; }
+
+.lwp-cd-meta {
+  margin: 8px 0;
+}
+
+.lwp-cd-meta-line {
+  color: var(--text-normal);
+  font-size: 0.9em;
+}
+
+.lwp-cd-meta-dim {
+  color: var(--text-muted);
+  font-size: 0.82em;
+}
+
+.lwp-cd-label {
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 2px;
+}
+
+.lwp-cd-hook,
+.lwp-cd-dm {
+  margin: 10px 0;
+  padding: 8px 10px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+
+.lwp-cd-links {
+  margin: 10px 0;
+}
+
+.lwp-cd-open,
+.lwp-cd-btn {
+  cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  padding: 5px 10px;
+}
+
+.lwp-cd-open:hover,
+.lwp-cd-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.lwp-cd-actions {
+  margin-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 10px;
+}
+
+.lwp-cd-chan-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.lwp-cd-chan {
+  background: var(--background-primary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+.lwp-cd-note {
+  width: 100%;
+  margin-bottom: 8px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.lwp-cd-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lwp-cd-btn-yes {
+  border-color: #2e7d32;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.lwp-cd-btn-no {
+  border-color: #c62828;
+  color: #c62828;
+  font-weight: 600;
+}
+
+.lwp-cd-history {
+  margin-top: 14px;
+}
+
+.lwp-cd-hist-row {
+  display: flex;
+  gap: 10px;
+  font-size: 0.82em;
+  padding: 2px 0;
+  color: var(--text-muted);
+}
+
+.lwp-cd-hist-date {
+  color: var(--text-faint);
+  font-family: var(--font-monospace);
+}
+
+.lwp-cd-hist-note {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.lwp-cd-error {
+  white-space: pre-wrap;
+  font-size: 0.8em;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+/* tab strip + sort */
+.lwp-cd-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.lwp-cd-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.lwp-cd-tab {
+  cursor: pointer;
+  padding: 5px 12px;
+  border-radius: 6px 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  border-bottom: 2px solid transparent;
+}
+
+.lwp-cd-tab:hover {
+  background: var(--background-modifier-hover);
+}
+
+.lwp-cd-tab-active {
+  color: var(--text-normal);
+  font-weight: 600;
+  border-bottom-color: var(--interactive-accent);
+}
+
+.lwp-cd-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* body now sits under header (44) + nav (~37) */
+.lwp-callday-view .lwp-cd-body {
+  height: calc(100% - 81px);
+}
+
+/* group headers in the queue */
+.lwp-cd-group {
+  font-size: 0.68em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  padding: 8px 8px 2px;
+  position: sticky;
+  top: 0;
+  background: var(--background-primary);
+}
+
+/* persistent per-lead notes */
+.lwp-cd-notes {
+  margin: 10px 0;
+}
+
+.lwp-cd-notes-area {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: var(--font-text);
+  font-size: 0.9em;
 }
