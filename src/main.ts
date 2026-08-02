@@ -1,4 +1,4 @@
-import { Plugin, ItemView, WorkspaceLeaf, TFile, setIcon, PluginSettingTab, Setting, App } from "obsidian";
+import { Plugin, ItemView, WorkspaceLeaf, TFile, setIcon, Notice, PluginSettingTab, Setting, App } from "obsidian";
 import { execFile } from "child_process";
 
 const VIEW_TYPE = "vault-dashboard";
@@ -1174,6 +1174,7 @@ class ProcessStatusView extends ItemView {
 		head.createEl("span", { text: "focus" });
 		head.createEl("span", { text: "write zone" });
 		head.createEl("span", { text: "date" });
+		head.createEl("span", { text: "" });
 
 		for (const s of active) {
 			const row = table.createDiv({ cls: "dash-ps-row dash-ps-running" });
@@ -1192,7 +1193,46 @@ class ProcessStatusView extends ItemView {
 			const wz = (s.write_zone ?? "").trim();
 			row.createEl("span", { text: wz || "—", cls: "dash-sess-zone" });
 			row.createEl("span", { text: s.date ?? "—", cls: "dash-ps-uptime" });
+
+			const resumeEl = row.createDiv({ cls: "dash-sess-resume" });
+			const btn = resumeEl.createEl("button", { cls: "dash-sess-resume-btn", text: "resume" });
+			const freshness = this.jsonlFreshness(s.jsonl);
+			if (freshness === "live") {
+				btn.disabled = true;
+				btn.title = "Live in another terminal — resuming would put two writers on one transcript";
+			} else if (freshness === "gone") {
+				btn.disabled = true;
+				btn.title = "Transcript not found — nothing to resume";
+			} else {
+				btn.title = "Reopen this session in a workspace-shell seat (claude --resume)";
+				btn.addEventListener("click", () => this.resumeInSeat(s.uuid, s.num));
+			}
 		}
+	}
+
+	/** Classify a session's JSONL freshness. <2 min mtime = a live writer owns
+	 *  it (two writers on one JSONL corrupt the transcript). UX-level gating
+	 *  only — workspace-shell's pane controller re-checks at spawn time and is
+	 *  the authoritative guard. */
+	private jsonlFreshness(jsonl?: string): "live" | "stale" | "gone" {
+		if (!jsonl) return "gone";
+		try {
+			const fs = require("fs") as typeof import("fs");
+			const mtime = fs.statSync(jsonl).mtimeMs;
+			return Date.now() - mtime < 2 * 60 * 1000 ? "live" : "stale";
+		} catch {
+			return "gone";
+		}
+	}
+
+	private resumeInSeat(uuid: string, num: string): void {
+		const ws = (this.app as any).plugins?.getPlugin?.("workspace-shell");
+		if (!ws?.openResumedSeat) {
+			new Notice("Workspace Shell plugin is not enabled — can't open a seat.");
+			return;
+		}
+		void ws.openResumedSeat(uuid);
+		new Notice(`Resuming session ${num} in a seat`, 2000);
 	}
 
 	private ramSeverity(mb: number, warn: number, high: number): string {

@@ -849,9 +849,24 @@
   font-weight: 500;
 }
 
-/* 4-column layout: session / focus / write zone / date */
+/* 5-column layout: session / focus / write zone / date / resume */
 .dash-sess-table .dash-ps-row {
-  grid-template-columns: minmax(80px, 0.5fr) minmax(160px, 1.6fr) minmax(120px, 1fr) 96px;
+  grid-template-columns: minmax(80px, 0.5fr) minmax(160px, 1.6fr) minmax(120px, 1fr) 96px 72px;
+}
+
+.dash-sess-resume {
+  text-align: right;
+}
+
+.dash-sess-resume-btn {
+  font-size: 0.78em;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.dash-sess-resume-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .dash-sess-focus {
