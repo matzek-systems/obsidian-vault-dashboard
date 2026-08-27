@@ -458,11 +458,15 @@ class ProcessStatusView extends ItemView {
 
 	// ── Sessions (lives in this view, beside the process table) ───
 	// Absorbed from workspace-shell's right-sidebar Sessions panel, which is
-	// retired: sessions and processes belong in one tab. States follow that
-	// panel's doctrine — "live" means an external terminal owns the transcript,
-	// so resume is forbidden there (two writers corrupt a session JSONL).
-	// /close-stamped sessions are history and are deliberately not listed;
-	// "detached" (registry-open, transcript idle) is the resumable class.
+	// retired: sessions and processes belong in one tab. The state dot is
+	// informational (attached / live / detached); every open row offers
+	// resume + uuid, nothing else (operator directive, session 914 — reverses
+	// the earlier "never offer resume for a live session" gating). The
+	// two-writer guard lives where it is authoritative: workspace-shell's pane
+	// controller re-checks the transcript at spawn time and refuses to resume
+	// a session whose JSONL is still advancing. Gating it here too only hid the
+	// button from a wedged-but-attached seat, the one case that needs it most.
+	// /close-stamped sessions are history and are deliberately not listed.
 
 	private async renderSessions(): Promise<void> {
 		if (!this.sessEl || !this.sessEl.isConnected) return;
@@ -499,7 +503,7 @@ class ProcessStatusView extends ItemView {
 				focus: (s.focus ?? "").trim(),
 				zone: (s.write_zone ?? "").trim(),
 				date: s.date ?? "",
-				resumable: freshness === "stale",
+				resumable: freshness !== "gone",
 			});
 		}
 		const rank: Record<SessionState, number> = { attached: 0, live: 1, detached: 2 };
@@ -532,8 +536,8 @@ class ProcessStatusView extends ItemView {
 			dot.title = r.state === "attached"
 				? "Open in a seat in this Obsidian"
 				: r.state === "live"
-					? "Running in another terminal — resuming here would put two writers on one transcript"
-					: "Registry-open, transcript idle — resumable";
+					? "Transcript advancing under another writer — the seat refuses a resume until it goes idle"
+					: "Registry-open, transcript idle";
 			const nameEl = labelEl.createEl("span", { text: `s${r.num}` });
 			nameEl.title = r.uuid || "no uuid on this registry row";
 
@@ -546,21 +550,17 @@ class ProcessStatusView extends ItemView {
 			row.createEl("span", { text: r.date || "—", cls: "dash-ps-uptime" });
 
 			const actions = row.createDiv({ cls: "dash-sess-actions" });
-			if (r.state === "attached" && r.leaf) {
-				const btn = actions.createEl("button", { cls: "dash-sess-btn", text: "focus" });
-				btn.title = "Jump to the seat that owns this session";
-				btn.addEventListener("click", () => this.focusSeat(r.leaf!));
-			} else if (r.state === "detached") {
-				const btn = actions.createEl("button", { cls: "dash-sess-btn dash-sess-resume-btn", text: "resume" });
-				if (!r.resumable) {
-					btn.disabled = true;
-					btn.title = "Transcript not found — nothing to resume";
-				} else {
-					btn.title = "Reopen this session in a workspace-shell seat (claude --resume)";
-					btn.addEventListener("click", () => this.resumeInSeat(r.uuid, r.num));
-				}
+			const btn = actions.createEl("button", { cls: "dash-sess-btn dash-sess-resume-btn", text: "resume" });
+			if (!r.uuid || !r.resumable) {
+				btn.disabled = true;
+				btn.title = r.uuid ? "Transcript not found — nothing to resume" : "No uuid on this registry row";
 			} else {
-				actions.createEl("span", { text: "live", cls: "dash-sess-live-tag" });
+				btn.title = r.state === "live"
+					? "Reopen in a seat. If the transcript is still advancing the seat refuses (two writers corrupt a session JSONL)."
+					: r.state === "attached"
+						? "Reopen in a new seat. If the old seat is wedged, close it (or taskkill its claude) so it can't come back as a second writer."
+						: "Reopen this session in a workspace-shell seat (claude --resume)";
+				btn.addEventListener("click", () => this.resumeInSeat(r.uuid, r.num));
 			}
 
 			const uuidBtn = actions.createEl("button", { cls: "dash-sess-btn", text: "uuid" });
@@ -569,14 +569,6 @@ class ProcessStatusView extends ItemView {
 			uuidBtn.addEventListener("click", (e) => {
 				e.stopPropagation();
 				this.copyText(r.uuid, `s${r.num} uuid`);
-			});
-
-			const cmdBtn = actions.createEl("button", { cls: "dash-sess-btn", text: "cmd" });
-			cmdBtn.disabled = !r.uuid;
-			cmdBtn.title = "Copy a paste-ready resume command (cd + claude --resume)";
-			cmdBtn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				this.copyText(this.launchCommand(r), `s${r.num} resume command`);
 			});
 		}
 	}
@@ -591,23 +583,6 @@ class ProcessStatusView extends ItemView {
 			if (uuid) map.set(uuid, leaf);
 		}
 		return map;
-	}
-
-	private focusSeat(leaf: WorkspaceLeaf): void {
-		this.app.workspace.revealLeaf(leaf);
-		(leaf.view as any)?.focusPane?.();
-	}
-
-	/** Default working dir for a resume command. */
-	private claudeDir(): string {
-		const base = (this.app.vault.adapter as any).basePath || "";
-		// Joined by hand with forward slashes: "path" is not in the esbuild
-		// externals, and both PowerShell and bash cd fine with them.
-		return base + "/00_System/AI/Claude";
-	}
-
-	private launchCommand(r: SessionRow): string {
-		return `cd "${this.claudeDir()}"; claude --resume ${r.uuid}`;
 	}
 
 	private copyText(text: string, what: string): void {
