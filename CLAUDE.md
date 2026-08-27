@@ -16,3 +16,7 @@ Routed from vault MEMORY.md (SYS-326 compression, session 520).
 
 ## CodeMirror
 - `basicSetup` includes `defaultHighlightStyle` (bold+underline headings, token colors). Pass `syntaxHighlighting: false` to basicSetup to disable — omitting the theme is not enough.
+
+## Build (s852)
+- Type-checking after adding a `Notice` import failed with `TS2354: This syntax requires an imported helper but module 'tslib' cannot be found` — resolved by running `npx tsc --noEmit --importHelpers false`.
+- esbuild's external-modules list needs `"fs"` added (alongside `"obsidian"`, `"electron"`, `"child_process"`) for a Node `fs` usage to bundle correctly.

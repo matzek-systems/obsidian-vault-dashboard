@@ -52,6 +52,23 @@ interface SessionRegistry {
 	sessions: Record<string, SessionEntry>;
 }
 
+/** workspace-shell's own view type. Used to tell an "attached" session (a seat
+ *  in this Obsidian owns it) from one that is merely live in another terminal. */
+const WS_SHELL_VIEW_TYPE = "workspace-shell";
+
+type SessionState = "attached" | "live" | "detached";
+
+interface SessionRow {
+	num: string;
+	uuid: string;
+	state: SessionState;
+	focus: string;
+	zone: string;
+	date: string;
+	resumable: boolean;
+	leaf?: WorkspaceLeaf;
+}
+
 interface DashboardSettings {
 	// Pinned roadmap basenames in display order. Empty = auto mode (all active
 	// roadmaps, busiest first). Migrates cleanly from the old ["","",""] tuple
@@ -1129,7 +1146,13 @@ class ProcessStatusView extends ItemView {
 		}
 	}
 
-	// ── Sessions tracker (lives in the Process area, not a dashboard tab) ──
+	// ── Sessions (lives in this view, beside the process table) ───
+	// Absorbed from workspace-shell's right-sidebar Sessions panel, which is
+	// retired: sessions and processes belong in one tab. States follow that
+	// panel's doctrine — "live" means an external terminal owns the transcript,
+	// so resume is forbidden there (two writers corrupt a session JSONL).
+	// /close-stamped sessions are history and are deliberately not listed;
+	// "detached" (registry-open, transcript idle) is the resumable class.
 
 	private async renderSessions(): Promise<void> {
 		if (!this.sessEl || !this.sessEl.isConnected) return;
@@ -1154,17 +1177,32 @@ class ProcessStatusView extends ItemView {
 			return;
 		}
 
-		const entries = Object.entries(registry.sessions).map(([num, s]) => ({ num, ...s }));
-		const active = entries.filter(s => (s.status ?? "active") === "active");
-		active.sort((a, b) => Number(b.num) - Number(a.num)); // newest session first
+		const attached = this.attachedUuids();
+		const rows: SessionRow[] = [];
+		for (const [num, s] of Object.entries(registry.sessions)) {
+			if ((s.status ?? "active") !== "active") continue;
+			const leaf = s.uuid ? attached.get(s.uuid) : undefined;
+			const freshness = this.jsonlFreshness(s.jsonl);
+			const state: SessionState = leaf ? "attached" : freshness === "live" ? "live" : "detached";
+			rows.push({
+				num, uuid: s.uuid, state, leaf,
+				focus: (s.focus ?? "").trim(),
+				zone: (s.write_zone ?? "").trim(),
+				date: s.date ?? "",
+				resumable: freshness === "stale",
+			});
+		}
+		const rank: Record<SessionState, number> = { attached: 0, live: 1, detached: 2 };
+		rows.sort((a, b) => rank[a.state] - rank[b.state] || Number(b.num) - Number(a.num));
 
+		const tally = (st: SessionState) => rows.filter(r => r.state === st).length;
 		header.createEl("span", {
-			text: `${active.length} active · ${entries.length} total`,
+			text: `${tally("attached")} attached · ${tally("live")} live · ${tally("detached")} detached`,
 			cls: "dash-ps-total dash-sess-summary",
 		});
 
-		if (active.length === 0) {
-			el.createEl("p", { text: "No active sessions.", cls: "dash-empty" });
+		if (rows.length === 0) {
+			el.createEl("p", { text: "No open sessions.", cls: "dash-empty" });
 			return;
 		}
 
@@ -1176,38 +1214,98 @@ class ProcessStatusView extends ItemView {
 		head.createEl("span", { text: "date" });
 		head.createEl("span", { text: "" });
 
-		for (const s of active) {
-			const row = table.createDiv({ cls: "dash-ps-row dash-ps-running" });
+		for (const r of rows) {
+			const row = table.createDiv({ cls: `dash-ps-row dash-ps-running dash-sess-row-${r.state}` });
 			const labelEl = row.createDiv({ cls: "dash-ps-label" });
-			const dot = labelEl.createSpan({ cls: "dash-ps-dot dash-ps-dot-running" });
+			const dot = labelEl.createSpan({ cls: `dash-ps-dot dash-sess-dot-${r.state}` });
 			dot.textContent = "•";
-			labelEl.createEl("span", { text: s.num });
+			dot.title = r.state === "attached"
+				? "Open in a seat in this Obsidian"
+				: r.state === "live"
+					? "Running in another terminal — resuming here would put two writers on one transcript"
+					: "Registry-open, transcript idle — resumable";
+			const nameEl = labelEl.createEl("span", { text: `s${r.num}` });
+			nameEl.title = r.uuid || "no uuid on this registry row";
 
-			const focus = (s.focus ?? "").trim();
-			const isIdle = !focus || focus === "TBD (awaiting user task)";
+			const isIdle = !r.focus || r.focus === "TBD (awaiting user task)";
 			row.createEl("span", {
-				text: isIdle ? "—" : focus,
+				text: isIdle ? "—" : r.focus,
 				cls: `dash-sess-focus${isIdle ? " dash-sess-idle" : ""}`,
 			});
+			row.createEl("span", { text: r.zone || "—", cls: "dash-sess-zone" });
+			row.createEl("span", { text: r.date || "—", cls: "dash-ps-uptime" });
 
-			const wz = (s.write_zone ?? "").trim();
-			row.createEl("span", { text: wz || "—", cls: "dash-sess-zone" });
-			row.createEl("span", { text: s.date ?? "—", cls: "dash-ps-uptime" });
-
-			const resumeEl = row.createDiv({ cls: "dash-sess-resume" });
-			const btn = resumeEl.createEl("button", { cls: "dash-sess-resume-btn", text: "resume" });
-			const freshness = this.jsonlFreshness(s.jsonl);
-			if (freshness === "live") {
-				btn.disabled = true;
-				btn.title = "Live in another terminal — resuming would put two writers on one transcript";
-			} else if (freshness === "gone") {
-				btn.disabled = true;
-				btn.title = "Transcript not found — nothing to resume";
+			const actions = row.createDiv({ cls: "dash-sess-actions" });
+			if (r.state === "attached" && r.leaf) {
+				const btn = actions.createEl("button", { cls: "dash-sess-btn", text: "focus" });
+				btn.title = "Jump to the seat that owns this session";
+				btn.addEventListener("click", () => this.focusSeat(r.leaf!));
+			} else if (r.state === "detached") {
+				const btn = actions.createEl("button", { cls: "dash-sess-btn dash-sess-resume-btn", text: "resume" });
+				if (!r.resumable) {
+					btn.disabled = true;
+					btn.title = "Transcript not found — nothing to resume";
+				} else {
+					btn.title = "Reopen this session in a workspace-shell seat (claude --resume)";
+					btn.addEventListener("click", () => this.resumeInSeat(r.uuid, r.num));
+				}
 			} else {
-				btn.title = "Reopen this session in a workspace-shell seat (claude --resume)";
-				btn.addEventListener("click", () => this.resumeInSeat(s.uuid, s.num));
+				actions.createEl("span", { text: "live", cls: "dash-sess-live-tag" });
 			}
+
+			const uuidBtn = actions.createEl("button", { cls: "dash-sess-btn", text: "uuid" });
+			uuidBtn.disabled = !r.uuid;
+			uuidBtn.title = r.uuid ? `Copy ${r.uuid}` : "No uuid on this registry row";
+			uuidBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				this.copyText(r.uuid, `s${r.num} uuid`);
+			});
+
+			const cmdBtn = actions.createEl("button", { cls: "dash-sess-btn", text: "cmd" });
+			cmdBtn.disabled = !r.uuid;
+			cmdBtn.title = "Copy a paste-ready resume command (cd + claude --resume)";
+			cmdBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				this.copyText(this.launchCommand(r), `s${r.num} resume command`);
+			});
 		}
+	}
+
+	/** UUID → leaf for every terminal pane open in this Obsidian, pop-out
+	 *  windows included. This is what makes "attached" distinguishable from
+	 *  "live elsewhere" — both have a fresh transcript. */
+	private attachedUuids(): Map<string, WorkspaceLeaf> {
+		const map = new Map<string, WorkspaceLeaf>();
+		for (const leaf of this.app.workspace.getLeavesOfType(WS_SHELL_VIEW_TYPE)) {
+			const uuid = (leaf.view as any)?.getSessionUuid?.();
+			if (uuid) map.set(uuid, leaf);
+		}
+		return map;
+	}
+
+	private focusSeat(leaf: WorkspaceLeaf): void {
+		this.app.workspace.revealLeaf(leaf);
+		(leaf.view as any)?.focusPane?.();
+	}
+
+	/** Default working dir for a resume command. */
+	private claudeDir(): string {
+		const base = (this.app.vault.adapter as any).basePath || "";
+		// Joined by hand with forward slashes: "path" is not in the esbuild
+		// externals, and both PowerShell and bash cd fine with them.
+		return base + "/00_System/AI/Claude";
+	}
+
+	private launchCommand(r: SessionRow): string {
+		return `cd "${this.claudeDir()}"; claude --resume ${r.uuid}`;
+	}
+
+	private copyText(text: string, what: string): void {
+		if (!text) return;
+		const done = () => new Notice(`Copied ${what}`, 1800);
+		const fail = () => new Notice("Copy failed", 1800);
+		if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done, fail);
+		else fail();
 	}
 
 	/** Classify a session's JSONL freshness. <2 min mtime = a live writer owns

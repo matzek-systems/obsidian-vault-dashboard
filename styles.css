@@ -849,9 +849,39 @@
   font-weight: 500;
 }
 
-/* 5-column layout: session / focus / write zone / date / resume */
+/* 5-column layout: session / focus / write zone / date / actions */
 .dash-sess-table .dash-ps-row {
-  grid-template-columns: minmax(80px, 0.5fr) minmax(160px, 1.6fr) minmax(120px, 1fr) 96px 72px;
+  grid-template-columns: minmax(72px, 0.45fr) minmax(150px, 1.5fr) minmax(110px, 0.9fr) 90px 152px;
+}
+
+.dash-sess-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.dash-sess-btn {
+  font-size: 0.72em;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.dash-sess-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* State dots: attached = a seat here owns it, live = another terminal owns it
+   (resume forbidden), detached = registry-open with an idle transcript. */
+.dash-sess-dot-attached { color: var(--color-green); }
+.dash-sess-dot-live { color: var(--color-yellow); }
+.dash-sess-dot-detached { color: var(--text-faint); }
+
+.dash-sess-live-tag {
+  font-size: 0.72em;
+  color: var(--text-muted);
+  padding-right: 4px;
 }
 
 .dash-sess-resume {
