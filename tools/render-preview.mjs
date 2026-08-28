@@ -109,8 +109,8 @@ async function main() {
 	// the raw --width past that cap.
 	const availableWidth = Math.max(200, Math.min(width, 1180) - 32);
 	const laneHtml = R.renderLane(sp, data, availableWidth);
-	const clock = R.renderClock(data.clock || [], data.blocked_overdue || []);
 	const triage = data.triage ? R.renderTriage(data.triage, data) : `<div class="empty">no schema-3 triage in this fixture</div>`;
+	const triageN = data.triage ? R.triageTotal(data.triage) : "";
 	const could = R.renderCouldDo(data.could_do);
 	const capture = R.renderCapture(data.capture || []);
 
@@ -143,14 +143,11 @@ async function main() {
       <div class="op-top"><span class="op-gen">${header}</span><button class="op-btn">↻</button></div>
       <div class="op-tabs">${tabs}</div>
       <div class="op-lane">${laneHtml}</div>
-      <div class="op-grid op-grid-top">
-        <section><h2>clock</h2><div class="op-clock">${clock}</div></section>
-        <section class="op-triage-sec"><h2>triage</h2><div class="op-triage">${triage}</div></section>
-      </div>
       <div class="op-grid op-grid-bottom">
         <section><h2>could do</h2><div class="op-could">${could}</div></section>
         <section><h2>capture zone <span class="n">${data.capture_total ?? (data.capture || []).length}</span></h2><div class="op-cap">${capture}</div></section>
       </div>
+      <details class="op-cross-triage"><summary>full triage board <span class="n">${triageN}</span></summary><div class="op-triage">${triage}</div></details>
     </div>
   </div>
 </div>

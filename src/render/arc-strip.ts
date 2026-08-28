@@ -71,8 +71,9 @@ function nodeMarks(events: Any[] | undefined): string {
 	return out;
 }
 
-/** Short hint for a cross-lane arc's origin ("SomaGuard" -> "Soma"). */
-function laneAbbrev(l: string): string {
+/** Short hint for a cross-lane arc's origin ("SomaGuard" -> "Soma"). Exported
+ *  for week.ts's day-cell lane chips (same abbreviation, different context). */
+export function laneAbbrev(l: string): string {
 	const s = String(l || "").replace(/^_/, "");
 	return s.length <= 5 ? s : s.slice(0, 4);
 }

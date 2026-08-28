@@ -5,17 +5,24 @@
 // the DOM skeleton, the refresh/regenerate lifecycle, and click/hover
 // delegation; every panel's *content* is delegated to a render function.
 //
-// Shape (operator verdicts, s911): lane tabs are the spine and sit at the
-// top; the default tab is the lane the operator last typed in. Each tab
-// holds: a kicker (who's moving this lane), the arc strip (session-level
-// history), then PROGRESSED/NEW/NO-CHANGE (or VERIFY/READY for a
-// high-volume lane) bands — no more artificial 6-item sprint cap. Below the
-// tabs: CLOCK + TRIAGE (replaces the old "swept" panel), then COULD DO +
-// CAPTURE ZONE, then WEEK. No title bar, no infra dots, no open-seats panel
-// (Processes covers seats). Every WI id hovers a card (wi-card.ts); every
-// arc-strip session node hovers a card too (session-hover.ts), and a
-// multi-row's gutter label hovers the full untruncated arc label
-// (arc-hover.ts) -- all three share the hover-card.ts skin.
+// Shape (operator verdicts, s911, reworked below-the-strip s916): lane tabs
+// are the spine and sit at the top; the default tab is the lane the operator
+// last typed in. Each tab (renderLane, src/render/lane.ts) holds: kicker +
+// counts, last-session note, the arc strip (session-level history), THIS
+// WEEK (cross-lane 7-day strip, same content on every tab), a per-lane
+// top-4 YOUR MOVE/THEM triage, NEW-this-week chips, a moved-outside-arcs
+// line, the flip-me callout, then the lane's full WI roster grouped by
+// status and collapsed by default. Below the tabs: COULD DO + CAPTURE ZONE,
+// then a collapsed cross-lane triage board (the old always-open TRIAGE
+// panel, now closed by default with its open/closed state persisted in
+// localStorage) at the very bottom. No title bar, no infra dots, no
+// open-seats panel (Processes covers seats), no standalone CLOCK section
+// (its due/overdue rows moved into THIS WEEK's per-day cells; only its
+// blocked-overdue footnote survives, inside the TODAY cell). Every WI id
+// hovers a card (wi-card.ts); every arc-strip session node hovers a card too
+// (session-hover.ts), and a multi-row's gutter label hovers the full
+// untruncated arc label + its WIs' progress (arc-hover.ts) -- all three
+// share the hover-card.ts skin.
 //
 // Render discipline (the s883-s911 "renders twice" bug): the skeleton is
 // built ONCE in onOpen; refresh() is serialized (one in flight, at most one
@@ -30,8 +37,10 @@ import { SessionHover } from "./session-hover";
 import { ArcHover } from "./arc-hover";
 import {
 	Any, esc, laneList, contPrompt,
-	renderHeader, renderTabs, renderLane, renderTriage, renderClock, renderCouldDo, renderCapture, renderWeek, weekNote,
+	renderHeader, renderTabs, renderLane, renderTriage, triageTotal, renderCouldDo, renderCapture,
 } from "./render";
+
+const CROSS_TRIAGE_KEY = "vault-dashboard-cross-triage-open";
 
 const CLAUDE_DIR = "00_System/AI/Claude";
 const DATA_FILE = `${CLAUDE_DIR}/System Operations/state/dashboard-data.json`;
@@ -146,25 +155,32 @@ export class DashboardView extends ItemView {
 			<div class="op-top"><span class="op-gen">loading…</span><button class="op-btn" data-act="refresh" title="regenerate now">↻</button></div>
 			<div class="op-tabs"></div>
 			<div class="op-lane"></div>
-			<div class="op-grid op-grid-top">
-				<section><h2>clock</h2><div class="op-clock"></div></section>
-				<section class="op-triage-sec"><h2>triage</h2><div class="op-triage"></div></section>
-			</div>
 			<div class="op-grid op-grid-bottom">
 				<section><h2>could do</h2><div class="op-could"></div></section>
 				<section><h2>capture zone <span class="n op-cap-n"></span></h2><div class="op-cap"></div></section>
 			</div>
-			<section><h2>week <span class="n op-week-n"></span></h2><div class="op-week"></div><div class="op-weeknote"></div></section>
+			<details class="op-cross-triage"><summary>full triage board <span class="n op-triage-n"></span></summary><div class="op-triage"></div></details>
 			<footer class="op-foot"><span class="op-stats"></span></footer>
 		</div>`;
 		const q = (sel: string): HTMLElement => c.querySelector(sel) as HTMLElement;
 		this.els = {
 			gen: q(".op-gen"), tabs: q(".op-tabs"), lane: q(".op-lane"),
-			clock: q(".op-clock"), triage: q(".op-triage"), could: q(".op-could"),
-			capN: q(".op-cap-n"), cap: q(".op-cap"),
-			weekN: q(".op-week-n"), week: q(".op-week"), weeknote: q(".op-weeknote"),
+			could: q(".op-could"), capN: q(".op-cap-n"), cap: q(".op-cap"),
+			crossTriage: q(".op-cross-triage"), triageN: q(".op-triage-n"), triage: q(".op-triage"),
 			stats: q(".op-stats"),
 		};
+		// The collapsed cross-lane triage board's open/closed state persists
+		// across sessions (operator ruling s916) -- restore it once here, then
+		// save on every toggle. paint() only ever writes .op-triage's
+		// innerHTML, never touches the `open` attribute again, so a repaint
+		// (e.g. the 60s refresh interval) never fights the operator's choice.
+		try {
+			if (window.localStorage.getItem(CROSS_TRIAGE_KEY) === "1") (this.els.crossTriage as HTMLDetailsElement).open = true;
+		} catch { /* localStorage unavailable -- default closed */ }
+		this.els.crossTriage.addEventListener("toggle", () => {
+			try { window.localStorage.setItem(CROSS_TRIAGE_KEY, (this.els.crossTriage as HTMLDetailsElement).open ? "1" : "0"); }
+			catch { /* non-fatal -- state just won't persist this session */ }
+		});
 	}
 
 	// ── actions ────────────────────────────────────────────────────
@@ -213,18 +229,13 @@ export class DashboardView extends ItemView {
 		this.paintTabs();
 		this.paintLane();
 
-		E.clock.innerHTML = renderClock(d.clock || [], d.blocked_overdue || []);
 		E.triage.innerHTML = d.triage ? renderTriage(d.triage, d) : `<div class="empty">triage needs schema 3 data</div>`;
+		E.triageN.textContent = d.triage ? `${triageTotal(d.triage)}` : "";
 		E.could.innerHTML = renderCouldDo(d.could_do);
 
 		const cap: Any[] = d.capture || [];
 		E.capN.textContent = `${d.capture_total ?? cap.length}`;
 		E.cap.innerHTML = renderCapture(cap);
-
-		const wk = d.week;
-		E.weekN.textContent = wk?.error ? "calendar read failed" : "";
-		E.week.innerHTML = renderWeek(wk);
-		E.weeknote.textContent = weekNote(wk);
 
 		const st = d.stats || {};
 		E.stats.textContent = `${st.open_working ?? "?"} working · ${st.waiting ?? "?"} waiting · ${st.deferred ?? "?"} deferred`;

@@ -7,7 +7,6 @@ export * from "./tabs";
 export * from "./arc-strip";
 export * from "./lane";
 export * from "./triage";
-export * from "./clock";
 export * from "./could-do";
 export * from "./capture";
 export * from "./week";
