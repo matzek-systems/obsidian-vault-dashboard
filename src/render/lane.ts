@@ -31,7 +31,7 @@ function flipCallout(all: Any[]): string {
  *  more artificial 6-item cap. In schema 2 it's still just the capped
  *  "sprint" and the full list lives in `data.lanes[].wis`; that split is
  *  rendered as a crash-guard fallback only. */
-export function renderLane(sp: Any, data: Any): string {
+export function renderLane(sp: Any, data: Any, availableWidth?: number): string {
 	if (!sp) return `<div class="empty">no lane has motion, a live seat, or working WIs</div>`;
 	const schema = data?.schema || 2;
 	let h = "";
@@ -50,7 +50,7 @@ export function renderLane(sp: Any, data: Any): string {
 			h += `<div class="last-sess"><span class="lsn-hd"><b>s${esc(ls.n)}</b><span class="lsn-date">${esc(ls.date)}</span></span><div class="lsn-note" data-act="togglenote">${esc(ls.note)}</div></div>`;
 		}
 
-		h += renderArcStrip(sp.lane, data.arcs || [], data.sessions_log || [], Date.now());
+		h += renderArcStrip(sp.lane, data.arcs || [], data.sessions_log || [], Date.now(), availableWidth);
 
 		const wis: Any[] = sp.wis || [];
 		h += flipCallout(wis);

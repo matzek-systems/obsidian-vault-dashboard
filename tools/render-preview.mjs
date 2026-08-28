@@ -102,7 +102,13 @@ async function main() {
 
 	const header = R.renderHeader(data, null);
 	const tabs = R.renderTabs(data, tab);
-	const laneHtml = R.renderLane(sp, data);
+	// Mirrors the real plugin's .op-lane.clientWidth measurement (see
+	// operator-panel.ts paintLane()) with arithmetic instead of a live DOM:
+	// .op-wrap caps content at max-width:1180px with 16px side padding
+	// (styles.css), so the arc strip's real available width is never just
+	// the raw --width past that cap.
+	const availableWidth = Math.max(200, Math.min(width, 1180) - 32);
+	const laneHtml = R.renderLane(sp, data, availableWidth);
 	const clock = R.renderClock(data.clock || [], data.blocked_overdue || []);
 	const triage = data.triage ? R.renderTriage(data.triage, data) : `<div class="empty">no schema-3 triage in this fixture</div>`;
 	const could = R.renderCouldDo(data.could_do);
@@ -124,22 +130,11 @@ async function main() {
 <script>
   if (new URLSearchParams(location.search).get("dark") === "1") document.body.classList.add("theme-dark");
   window.addEventListener("DOMContentLoaded", () => {
-    // mirrors operator-panel.ts paintLane() -- see its comments for why
-    // each step must run in this exact order.
-    document.querySelectorAll(".arc-strip").forEach((el) => {
-      el.querySelectorAll(".arc-bar").forEach((bar) => {
-        const lbl = bar.querySelector(".arc-bar-lbl");
-        if (lbl && lbl.scrollWidth > lbl.clientWidth + 1) bar.classList.add("lbl-out");
-      });
-      el.scrollLeft = el.scrollWidth;
-      el.querySelectorAll(".arc-bar.lbl-out").forEach((bar) => {
-        const lbl = bar.querySelector(".arc-bar-lbl");
-        if (!lbl) return;
-        const natural = bar.offsetWidth;
-        const clamped = Math.max(natural, el.scrollLeft - bar.offsetLeft + 2);
-        lbl.style.left = clamped + "px";
-      });
-    });
+    // mirrors operator-panel.ts paintLane() -- the swimlane's label gutter
+    // is CSS position:sticky;left:0 (styles.css .arc-gutter), so the only
+    // JS left is the right-anchor scroll default (most recent sessions
+    // visible without a manual scroll).
+    document.querySelectorAll(".arc-strip").forEach((el) => { el.scrollLeft = el.scrollWidth; });
   });
 </script>
 <div class="preview-page">

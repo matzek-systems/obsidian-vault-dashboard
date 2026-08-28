@@ -805,45 +805,62 @@
 .op-panel .lsn-note.expanded { -webkit-line-clamp: unset; }
 .op-panel .lsn-note:hover { color: var(--text-normal); }
 
-/* ── arc strip ── */
+/* ── arc strip (swimlane, s912+) ── */
 .op-panel .arc-strip { overflow-x: auto; margin: 0 0 4px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-secondary); scrollbar-width: thin; }
 .op-panel .arc-strip::-webkit-scrollbar { height: 6px; }
 .op-panel .arc-strip::-webkit-scrollbar-thumb { background: var(--background-modifier-border); border-radius: 3px; }
-.op-panel .arc-strip-track { position: relative; }
-.op-panel .arc-bars { position: relative; margin: 6px 0 0; }
-.op-panel .arc-bar { position: absolute; height: 11px; border-radius: 4px; background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); border: 1px solid color-mix(in srgb, var(--interactive-accent) 45%, transparent); cursor: default; overflow: hidden; display: flex; align-items: center; }
-.op-panel .arc-bar.open { background: color-mix(in srgb, #d6b25e 26%, transparent); border-color: color-mix(in srgb, #d6b25e 55%, transparent); }
-.op-panel .arc-bar-lbl { font-size: 9px; line-height: 11px; color: var(--text-normal); padding: 0 5px; white-space: nowrap; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
-.op-panel .arc-bar.foreign { border-style: dashed; }
-.op-panel .arc-bar-origin { font-size: 8px; line-height: 11px; color: var(--text-faint); padding: 0 4px 0 0; opacity: 0.8; flex: 0 0 auto; }
-/* a bar too narrow for its own label (JS measures scrollWidth post-paint,
-   see paintLane()/render-preview.mjs) moves the label outside the bar
-   instead of ellipsis-clipping it to a few characters. Each arc already
-   owns a unique row (top: i * BAR_ROW_PX in arc-strip.ts), so an outside
-   label can extend rightward within its own row's band without ever
-   crossing into another arc's bar. */
-.op-panel .arc-bar.lbl-out { overflow: visible; }
-.op-panel .arc-bar.lbl-out .arc-bar-lbl { position: absolute; left: 100%; top: 0; padding-left: 4px; overflow: visible; text-overflow: clip; opacity: 1; }
-.op-panel .arc-bar.lbl-out .arc-bar-origin { display: none; }
-.op-panel .arc-nodes { position: relative; height: 30px; margin-top: 2px; }
-.op-panel .arc-node { position: absolute; top: 2px; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 9.5px; color: var(--text-muted); white-space: nowrap; }
-.op-panel .arc-node-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--interactive-accent); }
-.op-panel .arc-node.dead .arc-node-dot { background: var(--text-faint); }
-.op-panel .arc-node-lbl { font-family: var(--font-monospace); font-size: 9.5px; color: var(--text-faint); }
-.op-panel .arc-node.dead .arc-node-lbl { color: #c77e7e; }
-.op-panel .arc-node-evs { display: flex; gap: 1px; font-size: 10px; line-height: 1; }
-.op-panel .arc-node-evs .ev-g { cursor: default; }
-.op-panel .ev-shipped, .op-panel .ev-root_caused { color: #7ec77e; }
-.op-panel .ev-declared_done { color: var(--interactive-accent); }
-.op-panel .ev-found_broken { color: #c77e7e; }
-.op-panel .ev-false_alarm { color: var(--text-faint); }
-.op-panel .ev-handoff, .op-panel .ev-filed { color: #8a82b0; }
-.op-panel .ev-decision { color: #d6b25e; }
-.op-panel .ev-dead { color: var(--text-faint); }
-.op-panel .ev-waiting_on_operator, .op-panel .ev-waiting_on_them { color: #d6b25e; }
+.op-panel .arc-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--background-modifier-border); }
+.op-panel .arc-row:last-child { border-bottom: none; }
+.op-panel .arc-row-hdr { background: var(--background-secondary); }
+/* fixed-width sticky label column -- stays pinned to the strip's left edge
+   while .arc-strip scrolls horizontally, so a row's label is never scrolled
+   out of view (this replaces the old floating .lbl-out/clamp machinery). */
+.op-panel .arc-gutter { flex: 0 0 220px; width: 220px; box-sizing: border-box; padding: 4px 8px; font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: var(--background-secondary); z-index: 1; display: flex; align-items: center; gap: 4px; }
+.op-panel .arc-gutter-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+.op-panel .arc-row.closed .arc-gutter-lbl { color: var(--text-faint); opacity: .75; }
+.op-panel .arc-row.foreign .arc-gutter-lbl { font-style: italic; }
+.op-panel .arc-row-origin { font-size: 8px; color: var(--text-faint); flex: 0 0 auto; opacity: .8; }
+.op-panel .arc-row-singles .arc-gutter { color: var(--text-faint); font-style: italic; }
+.op-panel .arc-row-n { font-size: 9px; opacity: .7; }
+.op-panel .arc-track { position: relative; flex: 0 0 auto; height: 24px; }
+.op-panel .arc-row-hdr .arc-track, .op-panel .arc-row-hdr .arc-gutter { height: 28px; }
+/* index-spaced columns: uniform width regardless of elapsed days, so nodes
+   always line up with the header and same-day sessions can never collide
+   (arc-strip.ts computes colW once per render, no per-node collision math). */
+.op-panel .arc-col-lbl { position: absolute; top: 3px; transform: translateX(-50%); font-family: var(--font-monospace); font-size: 9.5px; color: var(--text-faint); text-align: center; white-space: nowrap; }
+.op-panel .arc-col-date { display: block; font-size: 8px; color: var(--text-faint); opacity: .65; font-family: var(--font-text); }
+.op-panel .arc-line { position: absolute; top: 10px; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--interactive-accent) 35%, transparent); }
+.op-panel .arc-row.open .arc-line { background: color-mix(in srgb, #d6b25e 60%, transparent); }
+.op-panel .arc-row.closed .arc-line { background: var(--background-modifier-border); }
+/* border-top:dashed on a near-zero-height line rendered SOLID in testing
+   (Chromium dash-rendering degenerates on a hairline box) -- a striped
+   background is the robust cross-engine way to draw a dashed line here.
+   Combined open/closed selectors (5 classes, more specific than the 4-class
+   .open/.closed rules above) so a foreign row still shows open-vs-closed
+   brightness, not just origin. */
+.op-panel .arc-row.foreign .arc-line { background: repeating-linear-gradient(to right, color-mix(in srgb, var(--interactive-accent) 55%, transparent) 0 5px, transparent 5px 10px); }
+.op-panel .arc-row.open.foreign .arc-line { background: repeating-linear-gradient(to right, color-mix(in srgb, #d6b25e 70%, transparent) 0 5px, transparent 5px 10px); }
+.op-panel .arc-row.closed.foreign .arc-line { background: repeating-linear-gradient(to right, var(--background-modifier-border) 0 5px, transparent 5px 10px); }
+.op-panel .arc-node { position: absolute; top: 5px; width: 12px; height: 12px; border-radius: 50%; transform: translateX(-50%); cursor: default; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.op-panel .arc-node.closed-arc { opacity: .55; }
+.op-panel .nc-shipped { background: #7ec77e; }
+.op-panel .nc-broken { background: #c77e7e; }
+.op-panel .nc-caused { background: var(--interactive-accent); }
+.op-panel .nc-waiting { background: #d6b25e; }
+.op-panel .nc-decision { background: #9b7fd4; }
+.op-panel .nc-neutral { background: var(--text-faint); }
+/* dead session: hollow ring + thin × (never a filled dot -- distinguishes
+   "no real session" from a real node of any colour) */
+.op-panel .arc-node.dead { background: transparent; border: 1.5px solid var(--text-faint); color: var(--text-faint); font-weight: 500; font-size: 9px; line-height: 1; }
+.op-panel .arc-mark { position: absolute; font-size: 8px; line-height: 1; font-weight: 700; }
+.op-panel .arc-mark.mk-broken { top: -7px; right: -3px; color: #c77e7e; }
+.op-panel .arc-mark.mk-wait { bottom: -7px; right: -3px; color: #d6b25e; }
 .op-panel .arc-empty { padding: 8px; color: var(--text-faint); font-style: italic; font-size: 11px; }
-.op-panel .arc-legend { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 3px 2px 10px; font-size: 9.5px; color: var(--text-faint); }
-.op-panel .arc-legend .lg { white-space: nowrap; }
+.op-panel .arc-legend { display: flex; flex-wrap: wrap; gap: 3px 10px; padding: 5px 8px 10px; font-size: 9.5px; color: var(--text-faint); align-items: center; }
+.op-panel .arc-legend .lg { white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
+.op-panel .lg-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.op-panel .lg-dot.dead { background: transparent; border: 1.5px solid var(--text-faint); }
+.op-panel .lg-mark { font-weight: 700; width: 10px; text-align: center; display: inline-block; }
 
 /* ready-to-close nudge (every task checked, status never flipped) */
 .op-panel .flip-callout { font-size: 11px; color: #d6b25e; background: rgba(214, 178, 94, 0.1); border-radius: 6px; padding: 5px 8px; margin: 0 0 8px; }

@@ -234,47 +234,21 @@ export class DashboardView extends ItemView {
 		// sprint shape so renderLane's schema-2 fallback can still look the
 		// lane's full WI list back up by name, without faking a fake "sprint".
 		const sp = b.sprint ?? { lane: b.lane, weight: b.weight, wis: [], seats: [], moving_count: 0 };
-		this.els.lane.innerHTML = renderLane(sp, this.data);
-		// Default the arc strip's scroll to its right edge (most recent
-		// sessions) — the operator cares about "what just happened," not
+		// availableWidth: the swimlane's column width fills this (capped
+		// 56-96px per column, see arc-strip.ts) instead of squeezing/scaling
+		// with session count. .op-lane is a persistent skeleton element (built
+		// once in buildSkeleton()), so its clientWidth is already correct
+		// before this first paint -- it's a block child of .op-wrap, not
+		// itself the thing being replaced.
+		this.els.lane.innerHTML = renderLane(sp, this.data, this.els.lane.clientWidth || undefined);
+		// The swimlane's label gutter is CSS `position: sticky; left: 0`
+		// (styles.css .arc-gutter) -- it stays pinned as the strip scrolls,
+		// so no JS measurement/clamp pass is needed for labels any more (the
+		// old .lbl-out class + post-layout clamp is gone along with the
+		// floating-bar design that needed it). Only the right-anchor default
+		// remains: the operator cares about "what just happened," not
 		// day-1-of-the-window; older history is a scroll-left away.
 		const strip = this.els.lane.querySelector(".arc-strip") as HTMLElement | null;
-		if (strip) {
-			// A bar too narrow for its own label gets the label moved outside
-			// the bar (CSS .lbl-out) instead of ellipsis-clipping it to a few
-			// characters -- can only be decided post-layout (scrollWidth vs
-			// clientWidth needs real measurement, arc-strip.ts stays a pure
-			// no-DOM function). Mirrored in tools/render-preview.mjs. Must run
-			// BEFORE the scroll-to-right-edge line below: adding .lbl-out can
-			// itself grow the track's scrollWidth (labels now render past
-			// their bar), so anchoring first used a stale, too-small width.
-			strip.querySelectorAll<HTMLElement>(".arc-bar").forEach((bar) => {
-				const lbl = bar.querySelector<HTMLElement>(".arc-bar-lbl");
-				if (lbl && lbl.scrollWidth > lbl.clientWidth + 1) bar.classList.add("lbl-out");
-			});
-			// Default the arc strip's scroll to its right edge (most recent
-			// sessions) — the operator cares about "what just happened," not
-			// day-1-of-the-window; older history is a scroll-left away.
-			strip.scrollLeft = strip.scrollWidth;
-			// An outside label's natural position (right after its bar) can
-			// still land left of the strip's own visible edge when the bar
-			// itself sits outside the right-anchored viewport (an old/short
-			// arc) but the label is long enough to reach back into view --
-			// the strip's overflow-x:auto then clips its START, not its end,
-			// showing a confusing "avid call transcript trim..." fragment
-			// with no indication anything is missing. Clamp instead: never
-			// let the label start further left than the strip's current
-			// visible edge, so it's either fully visible or fully scrolled
-			// away, never straddling the clip boundary mid-word. Setting an
-			// inline pixel `left` here doesn't change scrollWidth, so it's
-			// safe to run after the scroll-anchor line above.
-			strip.querySelectorAll<HTMLElement>(".arc-bar.lbl-out").forEach((bar) => {
-				const lbl = bar.querySelector<HTMLElement>(".arc-bar-lbl");
-				if (!lbl) return;
-				const natural = bar.offsetWidth;
-				const clamped = Math.max(natural, strip.scrollLeft - bar.offsetLeft + 2);
-				lbl.style.left = `${clamped}px`;
-			});
-		}
+		if (strip) strip.scrollLeft = strip.scrollWidth;
 	}
 }
