@@ -820,6 +820,8 @@
 .op-wi-card-title { font-weight: 600; margin-bottom: 4px; }
 .op-wi-card-status { color: var(--interactive-accent); font-size: 11px; margin-bottom: 6px; }
 .op-wi-card-body { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
+/* gen-deltas open_reason: "wis-working" note (arc-hover.ts, s916 FYI addon) */
+.op-wi-card-note { color: var(--text-faint); font-size: 10.5px; font-style: italic; margin-top: 4px; }
 .op-wi-card-foot { display: flex; justify-content: space-between; margin-top: 8px; color: var(--text-faint); font-size: 10px; }
 
 /* ============================================================

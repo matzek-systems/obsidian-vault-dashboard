@@ -5,7 +5,11 @@
 // the whole point of keeping src/render/ import-free), and renders one
 // lane tab + triage into a standalone HTML page embedding styles.css.
 //
-// Usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane] [--width N]
+// Usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane] [--width N] [--hover]
+//
+// --hover additionally bundles+wires the real ArcHover class (arc-hover.ts)
+// so a headless-Playwright .hover() on a real .arc-gutter[data-arc] element
+// exercises the actual mouseover -> show() path, not just static markup.
 //
 // The output page defines Obsidian's CSS custom properties itself (light
 // under :root, dark under .theme-dark) since there's no real Obsidian
@@ -35,9 +39,15 @@ if (wIdx !== -1) {
 	width = parseInt(rawArgv[wIdx + 1], 10) || 460;
 	rawArgv.splice(wIdx, 2);
 }
+let hover = false;
+const hIdx = rawArgv.indexOf("--hover");
+if (hIdx !== -1) {
+	hover = true;
+	rawArgv.splice(hIdx, 1);
+}
 const [dataPath, outPath, laneArg] = rawArgv;
 if (!dataPath || !outPath) {
-	console.error("usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane] [--width N]");
+	console.error("usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane] [--width N] [--hover]");
 	process.exit(2);
 }
 
@@ -58,6 +68,28 @@ async function bundleRenderLayer() {
 	// esbuild writes CJS with `module.exports.x = ...` — a plain require() works.
 	const mod = await import(pathToFileURL(outfile).href + `?t=${Date.now()}`);
 	return mod;
+}
+
+// Bundles the browser-side interactive bits (ArcHover's mouseover hover
+// card) as an inline IIFE, for headless-Playwright verification that the
+// real hover wiring -- not just the static markup -- behaves. Distinct from
+// bundleRenderLayer() above: this targets platform:"browser" (arc-hover.ts
+// and its hover-card.ts dependency use `document`/`window` directly, not
+// Node-importable) and its output gets embedded as inline <script> text in
+// the page rather than require()'d from this Node process. Opt-in via
+// --hover since most callers only need the static markup/CSS.
+async function bundleArcHover() {
+	const result = await esbuild.build({
+		entryPoints: [path.join(REPO, "src", "arc-hover.ts")],
+		bundle: true,
+		platform: "browser",
+		format: "iife",
+		globalName: "VDArcHover",
+		target: "es2020",
+		write: false,
+		logLevel: "warning",
+	});
+	return result.outputFiles[0].text;
 }
 
 function styleVars() {
@@ -92,6 +124,7 @@ html, body { margin: 0; padding: 0; background: var(--background-primary); }
 
 async function main() {
 	const R = await bundleRenderLayer();
+	const arcHoverJs = hover ? await bundleArcHover() : "";
 	const data = JSON.parse(readFileSync(dataPath, "utf8"));
 	const css = readFileSync(path.join(REPO, "styles.css"), "utf8");
 
@@ -137,6 +170,18 @@ async function main() {
     document.querySelectorAll(".arc-strip").forEach((el) => { el.scrollLeft = el.scrollWidth; });
   });
 </script>
+${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
+<script>
+  // --hover wiring: mirrors operator-panel.ts's real init (new ArcHover(),
+  // .attach(root), .setData(d.arcs)) so a headless-Playwright .hover() on a
+  // real .arc-gutter[data-arc] element exercises the actual show() path,
+  // not just the static markup.
+  window.addEventListener("DOMContentLoaded", () => {
+    const ah = new VDArcHover.ArcHover();
+    ah.attach(document.querySelector(".op-lane"));
+    ah.setData(${JSON.stringify(data.arcs || [])});
+  });
+</script>` : ""}
 <div class="preview-page">
   <div class="vault-dashboard op-panel" style="width:${width}px">
     <div class="op-wrap">

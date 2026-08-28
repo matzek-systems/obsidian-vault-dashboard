@@ -61,9 +61,15 @@ export class ArcHover {
 		const wisHtml = wiRows.length
 			? `<div class="op-sess-card-evs">${wiRows.map(wiRowLine).join("")}</div>`
 			: (a.wis && a.wis.length ? `<div class="op-wi-card-body">${esc(a.wis.join(", "))}</div>` : `<div class="op-wi-card-body">no WIs</div>`);
+		// gen-deltas second-layer open rule (FYI, s916): an arc whose last
+		// session ended shipped/decision but whose WIs are still working gets
+		// reopened as open_reason: "wis-working" -- one muted line, additive
+		// only, no other layout change.
+		const openNote = a.open && a.open_reason === "wis-working" ? `<div class="op-wi-card-note">open — WIs still working</div>` : "";
 		const html = `<div class="op-wi-card-title">${esc(a.label)}</div>`
 			+ `<div class="op-wi-card-body">${esc(arcSpan(a))}</div>`
 			+ wisHtml
+			+ openNote
 			+ `<div class="op-wi-card-foot"><span>${a.open ? "open" : "closed"}</span>${a.lane ? `<span>${esc(a.lane)}</span>` : ""}</div>`;
 		this.cardEl = showCard(html, event, "op-sess-card");
 	}
