@@ -1,10 +1,11 @@
 {
   "name": "vault-dashboard",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "description": "Project dashboard with locked grid layout",
   "main": "main.js",
   "scripts": {
-    "build": "node esbuild.config.mjs"
+    "build": "node esbuild.config.mjs",
+    "preview": "node tools/render-preview.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

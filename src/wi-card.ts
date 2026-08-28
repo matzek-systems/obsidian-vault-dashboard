@@ -1,8 +1,11 @@
 import type { App } from "obsidian";
+import { esc } from "./render/common";
+import { showCard, hideCard } from "./hover-card";
 
 // WI hover card for the dashboard — same shape as workspace-shell's wi-links.ts
 // (lazy index over Roadmaps/*.md, 30s stale-while-revalidate, card near the
 // pointer clamped to the owning window). Any element carrying data-id gets it.
+// Card DOM/positioning is shared with session-hover.ts via hover-card.ts.
 
 // esbuild here externalizes fs but not path — join with forward slashes by hand.
 const fs = require("fs") as typeof import("fs");
@@ -124,26 +127,16 @@ export class WiHover {
 
 	private show(info: WiInfo, event: MouseEvent): void {
 		this.hide();
-		// Pop-out windows own their own document; build the card there.
-		const win: Window = event.view ?? window;
-		const doc = win.document;
-		const card = doc.body.createDiv({ cls: "op-wi-card" });
-		card.createDiv({ cls: "op-wi-card-title", text: info.heading });
-		if (info.statusLine) card.createDiv({ cls: "op-wi-card-status", text: info.statusLine.replace(/`/g, "") });
-		if (info.body) card.createDiv({ cls: "op-wi-card-body", text: info.body.slice(0, 280) });
-		const foot = card.createDiv({ cls: "op-wi-card-foot" });
-		foot.createSpan({ text: info.total > 0 ? `☑ ${info.done}/${info.total}` : "" });
-		foot.createSpan({ text: info.fileBase });
-		const pad = 12;
-		card.style.left = `${Math.min(event.clientX + pad, win.innerWidth - 400)}px`;
-		const y = event.clientY + pad;
-		card.style.top = `${y + 180 > win.innerHeight ? Math.max(8, event.clientY - 190) : y}px`;
-		this.cardEl = card;
+		const statusLine = info.statusLine ? `<div class="op-wi-card-status">${esc(info.statusLine.replace(/`/g, ""))}</div>` : "";
+		const body = info.body ? `<div class="op-wi-card-body">${esc(info.body.slice(0, 280))}</div>` : "";
+		const html = `<div class="op-wi-card-title">${esc(info.heading)}</div>${statusLine}${body}`
+			+ `<div class="op-wi-card-foot"><span>${info.total > 0 ? `☑ ${info.done}/${info.total}` : ""}</span><span>${esc(info.fileBase)}</span></div>`;
+		this.cardEl = showCard(html, event);
 	}
 
 	hide(): void {
 		if (this.timer !== null) { window.clearTimeout(this.timer); this.timer = null; }
-		this.cardEl?.remove();
+		hideCard(this.cardEl);
 		this.cardEl = null;
 	}
 
