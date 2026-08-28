@@ -809,7 +809,15 @@
 .op-panel .arc-strip { overflow-x: auto; margin: 0 0 4px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-secondary); scrollbar-width: thin; }
 .op-panel .arc-strip::-webkit-scrollbar { height: 6px; }
 .op-panel .arc-strip::-webkit-scrollbar-thumb { background: var(--background-modifier-border); border-radius: 3px; }
-.op-panel .arc-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--background-modifier-border); }
+/* width: max-content is load-bearing: a block-level flex container defaults
+   to FILLING its parent's width, not sizing to its (wider) content -- each
+   row was silently clamped to .arc-strip's clientWidth with its track
+   overflowing invisibly (overflow:visible), which is also what was breaking
+   position:sticky on the gutter (its stick range is computed against the
+   row's own box, and that box was never actually as wide as the real
+   content). Confirmed via getBoundingClientRect() before/after -- see
+   CLAUDE.md Layout note. */
+.op-panel .arc-row { display: flex; align-items: stretch; width: max-content; border-bottom: 1px solid var(--background-modifier-border); }
 .op-panel .arc-row:last-child { border-bottom: none; }
 .op-panel .arc-row-hdr { background: var(--background-secondary); }
 /* fixed-width sticky label column -- stays pinned to the strip's left edge
