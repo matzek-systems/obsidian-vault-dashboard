@@ -5,13 +5,21 @@
 // the whole point of keeping src/render/ import-free), and renders one
 // lane tab + triage into a standalone HTML page embedding styles.css.
 //
-// Usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane]
+// Usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane] [--width N]
 //
 // The output page defines Obsidian's CSS custom properties itself (light
 // under :root, dark under .theme-dark) since there's no real Obsidian
 // runtime supplying them here. Append ?dark=1 to the file:// URL when
 // screenshotting to render the dark variant — a small inline script flips
 // the class before paint.
+//
+// --width N (default 460) sets the .vault-dashboard.op-panel element's own
+// width -- NOT the page/body width. .op-panel is a CSS container
+// (container-type: inline-size), so its @container rules key off this
+// number regardless of how wide the browser window/screenshot viewport is.
+// Screenshot at --window-size bigger than --width to prove the narrow-stack
+// rules fire from the panel's own size, not the window's (a real Obsidian
+// pane sits narrow inside a 1920-2560px app window).
 
 import esbuild from "esbuild";
 import { readFileSync, writeFileSync, mkdtempSync } from "fs";
@@ -20,9 +28,16 @@ import path from "path";
 import { pathToFileURL } from "url";
 import process from "process";
 
-const [, , dataPath, outPath, laneArg] = process.argv;
+const rawArgv = process.argv.slice(2);
+let width = 460;
+const wIdx = rawArgv.indexOf("--width");
+if (wIdx !== -1) {
+	width = parseInt(rawArgv[wIdx + 1], 10) || 460;
+	rawArgv.splice(wIdx, 2);
+}
+const [dataPath, outPath, laneArg] = rawArgv;
 if (!dataPath || !outPath) {
-	console.error("usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane]");
+	console.error("usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane] [--width N]");
 	process.exit(2);
 }
 
@@ -72,8 +87,6 @@ body.theme-dark {
   --interactive-accent: #5b8ff0;
 }
 html, body { margin: 0; padding: 0; background: var(--background-primary); }
-body { width: 460px; }
-.preview-frame { width: 460px; border: 0; }
 `;
 }
 
@@ -111,11 +124,19 @@ async function main() {
 <script>
   if (new URLSearchParams(location.search).get("dark") === "1") document.body.classList.add("theme-dark");
   window.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll(".arc-strip").forEach((el) => { el.scrollLeft = el.scrollWidth; });
+    document.querySelectorAll(".arc-strip").forEach((el) => {
+      el.scrollLeft = el.scrollWidth;
+      // mirrors operator-panel.ts paintLane() -- a bar too narrow for its
+      // own label moves the label outside instead of ellipsis-clipping it.
+      el.querySelectorAll(".arc-bar").forEach((bar) => {
+        const lbl = bar.querySelector(".arc-bar-lbl");
+        if (lbl && lbl.scrollWidth > lbl.clientWidth + 1) bar.classList.add("lbl-out");
+      });
+    });
   });
 </script>
 <div class="preview-page">
-  <div class="vault-dashboard op-panel">
+  <div class="vault-dashboard op-panel" style="width:${width}px">
     <div class="op-wrap">
       <div class="op-top"><span class="op-gen">${header}</span><button class="op-btn">↻</button></div>
       <div class="op-tabs">${tabs}</div>
@@ -135,7 +156,7 @@ async function main() {
 </html>`;
 
 	writeFileSync(outPath, html, "utf8");
-	console.log(`wrote ${outPath} (lane=${tab}, ${html.length} bytes)`);
+	console.log(`wrote ${outPath} (lane=${tab}, width=${width}px, ${html.length} bytes)`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

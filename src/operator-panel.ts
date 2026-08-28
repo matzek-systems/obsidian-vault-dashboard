@@ -239,6 +239,17 @@ export class DashboardView extends ItemView {
 		// sessions) — the operator cares about "what just happened," not
 		// day-1-of-the-window; older history is a scroll-left away.
 		const strip = this.els.lane.querySelector(".arc-strip") as HTMLElement | null;
-		if (strip) strip.scrollLeft = strip.scrollWidth;
+		if (strip) {
+			strip.scrollLeft = strip.scrollWidth;
+			// A bar too narrow for its own label gets the label moved outside
+			// the bar (CSS .lbl-out) instead of ellipsis-clipping it to a few
+			// characters -- can only be decided post-layout (scrollWidth vs
+			// clientWidth needs real measurement, arc-strip.ts stays a pure
+			// no-DOM function). Mirrored in tools/render-preview.mjs.
+			strip.querySelectorAll<HTMLElement>(".arc-bar").forEach((bar) => {
+				const lbl = bar.querySelector<HTMLElement>(".arc-bar-lbl");
+				if (lbl && lbl.scrollWidth > lbl.clientWidth + 1) bar.classList.add("lbl-out");
+			});
+		}
 	}
 }
