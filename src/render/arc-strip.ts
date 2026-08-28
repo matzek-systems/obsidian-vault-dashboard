@@ -13,10 +13,30 @@ import { Any, esc } from "./common";
 
 const WINDOW_DAYS = 21;
 const DAY_MS = 86_400_000;
-const GUTTER_PX = 220;     // matches .arc-gutter's fixed CSS width
+// Gutter width scales with the panel instead of a fixed 220px (operator
+// ruling, s914: "less than half of the descriptions are visible") -- min(360,
+// 30% of availableWidth), floored at 200 so a narrow pane never squeezes it
+// past readability. GUTTER_DEFAULT (220, the old fixed value) is used only
+// when no availableWidth is supplied (e.g. a caller that never measured a
+// container) and happens to already sit inside the min/max band.
+const GUTTER_MIN = 200;
+const GUTTER_MAX = 360;
+const GUTTER_DEFAULT = 220;
 const COL_MIN = 56;
 const COL_MAX = 96;
 const COL_DEFAULT = 64;    // used only when no availableWidth is supplied
+
+function computeGutterPx(availableWidth?: number): number {
+	if (!availableWidth) return GUTTER_DEFAULT;
+	return Math.max(GUTTER_MIN, Math.min(GUTTER_MAX, Math.round(availableWidth * 0.30)));
+}
+
+/** Inline style shared by every row's .arc-gutter (header/multi/singles) so
+ *  columns stay aligned -- the CSS class's 220px is now just a fallback for
+ *  any caller that skips this. */
+function gutterStyleAttr(px: number): string {
+	return `flex:0 0 ${px}px;width:${px}px`;
+}
 
 /** Node colour bucket by the session's LAST event (spec: shipped green,
  *  found_broken red, root_caused blue, waiting amber, decision purple,
@@ -62,12 +82,44 @@ function shortDate(iso: string | undefined): string {
 	return parts.length === 3 ? `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}` : String(iso || "");
 }
 
+/** First -> last member-session date span. Reads a.sessions (each member
+ *  carries its own `date`) rather than a.first_date/a.last_date -- those
+ *  fields don't exist on real schema-3 arc objects, so the previous version
+ *  of this silently rendered "? -> ?" for every multi-session arc. Exported
+ *  for arc-hover.ts's full-label card to share the same fix. */
+export function arcSpan(a: Any): string {
+	const sessions: Any[] = a.sessions || [];
+	const firstRow = sessions.find((s) => s.n === a.first);
+	const lastRow = sessions.find((s) => s.n === a.last);
+	return a.first === a.last ? (firstRow?.date || "") : `${firstRow?.date ?? "?"} → ${lastRow?.date ?? "?"}`;
+}
+
 /** Gutter + hover tooltip text: full label, first→last span, and wis. */
 function arcTooltip(a: Any, lane: string): string {
-	const span = a.first === a.last ? (a.first_date || "") : `${a.first_date ?? "?"} → ${a.last_date ?? "?"}`;
 	const wis = a.wis && a.wis.length ? a.wis.join(", ") : "no WIs";
 	const foreign = a.lane && a.lane !== lane;
-	return `${a.label} · ${span} · ${wis}${a.open ? " · open" : " · closed"}${foreign ? ` · from ${a.lane}` : ""}`;
+	return `${a.label} · ${arcSpan(a)} · ${wis}${a.open ? " · open" : " · closed"}${foreign ? ` · from ${a.lane}` : ""}`;
+}
+
+/** Gutter label markup (operator ruling s914): a label shaped "Name: what
+ *  happened" splits into a bold name line + a muted description line (2
+ *  lines total, ellipsis on line 2 if the description overflows); a label
+ *  with no colon just wraps to 2 lines with an ellipsis. The FULL
+ *  untruncated label always lives in the gutter's title="" tooltip
+ *  (arcTooltip, above) and the ArcHover card (arc-hover.ts) for anything
+ *  long enough to clip here -- this is display-only truncation, never data
+ *  loss. */
+function gutterLabelHtml(label: string): string {
+	const idx = label.indexOf(":");
+	if (idx === -1) {
+		return `<span class="arc-gutter-lbl arc-gutter-lbl-wrap">${esc(label)}</span>`;
+	}
+	const name = label.slice(0, idx).trim();
+	const rest = label.slice(idx + 1).trim();
+	return `<span class="arc-gutter-lbl arc-gutter-lbl-split">`
+		+ `<span class="arc-gutter-name">${esc(name)}</span>`
+		+ `<span class="arc-gutter-desc">${esc(rest)}</span>`
+		+ `</span>`;
 }
 
 function renderNode(row: Any, x: number, closedArc: boolean): string {
@@ -95,7 +147,7 @@ function renderSingleNode(a: Any, row: Any, x: number, lane: string): string {
 	return `<div class="${cls.join(" ")}" data-sess="${esc(a.first)}" data-arc="${esc(a.id)}" style="left:${x}px" title="${esc(title)}">${nodeMarks(row?.events)}</div>`;
 }
 
-function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, trackWidth: number): string {
+function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, trackWidth: number, gutterPx: number): string {
 	const foreign = !!(a.lane && a.lane !== lane);
 	const cls = ["arc-row", a.open ? "open" : "closed", foreign ? "foreign" : ""].filter(Boolean).join(" ");
 	const originChip = foreign ? `<span class="arc-row-origin" title="from ${esc(a.lane)}">${esc(laneAbbrev(a.lane))}</span>` : "";
@@ -106,7 +158,7 @@ function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, track
 		: "";
 	const nodesHtml = members.map((s) => renderNode(s, colX(s.n), !a.open)).join("");
 	return `<div class="${cls}">`
-		+ `<div class="arc-gutter" title="${esc(arcTooltip(a, lane))}">${originChip}<span class="arc-gutter-lbl">${esc(a.label)}</span></div>`
+		+ `<div class="arc-gutter" data-arc="${esc(a.id)}" style="${gutterStyleAttr(gutterPx)}" title="${esc(arcTooltip(a, lane))}">${originChip}${gutterLabelHtml(a.label)}</div>`
 		+ `<div class="arc-track" style="width:${trackWidth}px">${lineHtml}${nodesHtml}</div>`
 		+ `</div>`;
 }
@@ -115,30 +167,36 @@ function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, track
  *  top-level (all-lane) schema-3 arrays, filtered here. An arc shows on a
  *  lane tab when the tab's lane is IN arc.lanes (the union of every lane
  *  any member session touched), not just arc.lane (its origin lane) —
- *  missing `lanes` on older/mock data falls back to [lane]. `availableWidth`
- *  is the caller-measured px width of the strip's container (`.op-lane` in
- *  the real plugin, an arithmetic estimate in render-preview.mjs); when
- *  given, column width fills it (capped 56-96px, index count permitting)
- *  instead of using the fixed default — see COL_MIN/COL_MAX above. */
+ *  missing `lanes` on older/mock data falls back to [lane]. Only OPEN arcs
+ *  render (operator ruling s914: "he doesn't want inactive arcs on the
+ *  strip") — a lane with zero open arcs renders a one-line empty state
+ *  instead of an axis with nothing on it, regardless of recent session
+ *  activity. `availableWidth` is the caller-measured px width of the
+ *  strip's container (`.op-lane` in the real plugin, an arithmetic estimate
+ *  in render-preview.mjs); when given, column width fills it (capped 56-96px,
+ *  index count permitting) instead of using the fixed default — see
+ *  COL_MIN/COL_MAX above — and the gutter scales off it too (GUTTER_MIN/MAX). */
 export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], now: number = Date.now(), availableWidth?: number): string {
 	const windowStart = now - WINDOW_DAYS * DAY_MS;
 	const all: Any[] = sessionsLog || [];
 	const inLane = (r: Any) => (r.lanes && r.lanes.length ? r.lanes : [r.lane]).includes(lane);
 
-	const baseCols = all.filter((r) => inLane(r) && new Date(`${r.date}T12:00:00`).getTime() >= windowStart).map((r) => r.n);
 	const laneArcs = (arcs || []).filter((a) => (a.lanes && a.lanes.length ? a.lanes : [a.lane]).includes(lane));
+	const openArcs = laneArcs.filter((a) => a.open);
 
-	if (!baseCols.length && !laneArcs.length) {
-		return `<div class="arc-empty">no sessions touched this lane in the last ${WINDOW_DAYS}d</div>`;
+	if (!openArcs.length) {
+		return `<div class="arc-empty">no open arcs in the last ${WINDOW_DAYS}d</div>`;
 	}
 
+	const baseCols = all.filter((r) => inLane(r) && new Date(`${r.date}T12:00:00`).getTime() >= windowStart).map((r) => r.n);
+
 	// One column per session that touched this lane inside the window, PLUS
-	// any arc member session missing from that set (an arc reaching further
-	// back than WINDOW_DAYS, or a session that lived entirely in another
-	// lane) — appended so the arc's line/node never drops mid-track.
+	// any open-arc member session missing from that set (an arc reaching
+	// further back than WINDOW_DAYS, or a session that lived entirely in
+	// another lane) — appended so the arc's line/node never drops mid-track.
 	const rowByN = new Map<number, Any>(all.map((r) => [r.n, r]));
 	const colSet = new Set<number>(baseCols);
-	for (const a of laneArcs) {
+	for (const a of openArcs) {
 		for (const s of a.sessions || []) {
 			colSet.add(s.n);
 			if (!rowByN.has(s.n)) rowByN.set(s.n, s);
@@ -147,8 +205,9 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 	const colNs = Array.from(colSet).sort((x, y) => x - y);
 	const numCols = colNs.length || 1;
 
+	const gutterPx = computeGutterPx(availableWidth);
 	const colW = availableWidth
-		? Math.max(COL_MIN, Math.min(COL_MAX, Math.floor((availableWidth - GUTTER_PX) / numCols)))
+		? Math.max(COL_MIN, Math.min(COL_MAX, Math.floor((availableWidth - gutterPx) / numCols)))
 		: COL_DEFAULT;
 	const colIndex = new Map<number, number>(colNs.map((n, i) => [n, i]));
 	const colX = (n: number): number => (colIndex.get(n) ?? 0) * colW + colW / 2;
@@ -171,16 +230,16 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 		const tick = ticks.has(n);
 		return `<div class="arc-col-lbl" style="left:${colX(n)}px">s${esc(n)}${tick ? `<span class="arc-col-date">${esc(shortDate(row?.date))}</span>` : ""}</div>`;
 	}).join("");
-	const hdrRow = `<div class="arc-row arc-row-hdr"><div class="arc-gutter"></div><div class="arc-track" style="width:${trackWidth}px">${hdrCols}</div></div>`;
+	const hdrRow = `<div class="arc-row arc-row-hdr"><div class="arc-gutter" style="${gutterStyleAttr(gutterPx)}"></div><div class="arc-track" style="width:${trackWidth}px">${hdrCols}</div></div>`;
 
-	const multi = laneArcs.filter((a) => a.first !== a.last).slice().sort((a, b) => (b.last ?? 0) - (a.last ?? 0));
-	const singles = laneArcs.filter((a) => a.first === a.last);
+	const multi = openArcs.filter((a) => a.first !== a.last).slice().sort((a, b) => (b.last ?? 0) - (a.last ?? 0));
+	const singles = openArcs.filter((a) => a.first === a.last);
 
-	const multiRows = multi.map((a) => renderMultiRow(a, lane, colX, trackWidth)).join("");
+	const multiRows = multi.map((a) => renderMultiRow(a, lane, colX, trackWidth, gutterPx)).join("");
 
 	const singlesNodes = singles.map((a) => renderSingleNode(a, rowByN.get(a.first) || (a.sessions && a.sessions[0]), colX(a.first), lane)).join("");
 	const singlesRow = singles.length
-		? `<div class="arc-row arc-row-singles"><div class="arc-gutter">singles <span class="arc-row-n">${singles.length}</span></div><div class="arc-track" style="width:${trackWidth}px">${singlesNodes}</div></div>`
+		? `<div class="arc-row arc-row-singles"><div class="arc-gutter" style="${gutterStyleAttr(gutterPx)}">singles <span class="arc-row-n">${singles.length}</span></div><div class="arc-track" style="width:${trackWidth}px">${singlesNodes}</div></div>`
 		: "";
 
 	const NODE_LEGEND: [string, string][] = [

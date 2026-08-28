@@ -806,7 +806,17 @@
 .op-panel .lsn-note:hover { color: var(--text-normal); }
 
 /* ── arc strip (swimlane, s912+) ── */
-.op-panel .arc-strip { overflow-x: auto; margin: 0 0 4px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-secondary); scrollbar-width: thin; }
+/* overflow-y: hidden is load-bearing, not decorative: setting overflow-x
+   alone (with overflow-y left at its visible default) makes the browser
+   compute overflow-y as auto too (CSS overflow-interdependency rule -- a
+   non-visible value on one axis promotes 'visible' on the other to 'auto'),
+   so any few px of vertical rounding across the row stack (border-bottoms,
+   node/gutter box-model rounding) silently produced a real 1px vertical
+   scrollbar on the STRIP itself (operator ruling, s914: size to content, no
+   vertical scroll ever -- the panel scrolls, not the strip). overflow-y:
+   visible would just get re-promoted to auto by the same rule; hidden is
+   the value that actually holds. */
+.op-panel .arc-strip { overflow-x: auto; overflow-y: hidden; margin: 0 0 4px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-secondary); scrollbar-width: thin; }
 .op-panel .arc-strip::-webkit-scrollbar { height: 6px; }
 .op-panel .arc-strip::-webkit-scrollbar-thumb { background: var(--background-modifier-border); border-radius: 3px; }
 /* width: max-content is load-bearing: a block-level flex container defaults
@@ -823,14 +833,36 @@
 /* fixed-width sticky label column -- stays pinned to the strip's left edge
    while .arc-strip scrolls horizontally, so a row's label is never scrolled
    out of view (this replaces the old floating .lbl-out/clamp machinery). */
+/* Fixed 220px is now just a fallback -- arc-strip.ts's gutterStyleAttr()
+   sets a per-render inline width (min(360, 30% of panel), floored at 200,
+   operator ruling s914: "less than half of the descriptions are visible")
+   that always wins over this. */
+/* white-space/overflow/ellipsis stay on the OUTER gutter too -- the singles
+   row's "singles N" label is plain text with no .arc-gutter-lbl wrapper, so
+   it relies on these directly for its own (rarely-needed) single-line
+   truncation. The multi-row 2-line label spans below override white-space
+   on themselves, which wins over this inherited value. */
 .op-panel .arc-gutter { flex: 0 0 220px; width: 220px; box-sizing: border-box; padding: 4px 8px; font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: var(--background-secondary); z-index: 1; display: flex; align-items: center; gap: 4px; }
-.op-panel .arc-gutter-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+.op-panel .arc-gutter-lbl { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+/* "Name: what happened" splits into a bold name line + a muted description
+   line (2 lines total, ellipsis on line 2); a label with no colon just
+   wraps to 2 lines with ellipsis (arc-gutter-lbl-wrap). The FULL label
+   always lives in the gutter's title="" tooltip and the ArcHover card
+   (arc-hover.ts) -- this is display truncation only, never data loss. */
+.op-panel .arc-gutter-lbl-wrap { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; line-height: 1.25; }
+.op-panel .arc-gutter-name { display: block; font-weight: 600; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
+.op-panel .arc-gutter-desc { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; color: var(--text-muted); font-size: .94em; line-height: 1.2; }
 .op-panel .arc-row.closed .arc-gutter-lbl { color: var(--text-faint); opacity: .75; }
 .op-panel .arc-row.foreign .arc-gutter-lbl { font-style: italic; }
 .op-panel .arc-row-origin { font-size: 8px; color: var(--text-faint); flex: 0 0 auto; opacity: .8; }
 .op-panel .arc-row-singles .arc-gutter { color: var(--text-faint); font-style: italic; }
 .op-panel .arc-row-n { font-size: 9px; opacity: .7; }
-.op-panel .arc-track { position: relative; flex: 0 0 auto; height: 24px; }
+/* align-self: center -- .arc-track keeps a fixed height (its nodes are
+   absolutely positioned at fixed top offsets within it), so under the
+   row's align-items: stretch it would otherwise pin to the row's TOP edge
+   once a 2-line gutter label makes the row taller than the track, drifting
+   nodes away from the now vertically-centered gutter label. */
+.op-panel .arc-track { position: relative; flex: 0 0 auto; height: 24px; align-self: center; }
 .op-panel .arc-row-hdr .arc-track, .op-panel .arc-row-hdr .arc-gutter { height: 28px; }
 /* index-spaced columns: uniform width regardless of elapsed days, so nodes
    always line up with the header and same-day sessions can never collide

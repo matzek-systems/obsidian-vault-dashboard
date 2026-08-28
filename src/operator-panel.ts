@@ -13,7 +13,9 @@
 // tabs: CLOCK + TRIAGE (replaces the old "swept" panel), then COULD DO +
 // CAPTURE ZONE, then WEEK. No title bar, no infra dots, no open-seats panel
 // (Processes covers seats). Every WI id hovers a card (wi-card.ts); every
-// arc-strip session node hovers a card too (session-hover.ts), same skin.
+// arc-strip session node hovers a card too (session-hover.ts), and a
+// multi-row's gutter label hovers the full untruncated arc label
+// (arc-hover.ts) -- all three share the hover-card.ts skin.
 //
 // Render discipline (the s883-s911 "renders twice" bug): the skeleton is
 // built ONCE in onOpen; refresh() is serialized (one in flight, at most one
@@ -25,6 +27,7 @@ import { execFile } from "child_process";
 import type DashboardPlugin from "./main";
 import { WiIndex, WiHover } from "./wi-card";
 import { SessionHover } from "./session-hover";
+import { ArcHover } from "./arc-hover";
 import {
 	Any, esc, laneList, contPrompt,
 	renderHeader, renderTabs, renderLane, renderTriage, renderClock, renderCouldDo, renderCapture, renderWeek, weekNote,
@@ -49,6 +52,7 @@ export class DashboardView extends ItemView {
 	private els: Record<string, HTMLElement> = {};
 	private wiHover: WiHover | null = null;
 	private sessHover: SessionHover | null = null;
+	private arcHover: ArcHover | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
 		super(leaf);
@@ -68,6 +72,8 @@ export class DashboardView extends ItemView {
 		this.wiHover.attach(this.contentEl);
 		this.sessHover = new SessionHover();
 		this.sessHover.attach(this.contentEl);
+		this.arcHover = new ArcHover();
+		this.arcHover.attach(this.contentEl);
 		this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => {
 			if (leaf === this.leaf) void this.refresh(false);
 		}));
@@ -80,6 +86,8 @@ export class DashboardView extends ItemView {
 		this.wiHover = null;
 		this.sessHover?.dispose();
 		this.sessHover = null;
+		this.arcHover?.dispose();
+		this.arcHover = null;
 	}
 
 	/** Kept for DashboardPlugin.saveSettings(), which calls render() on open leaves. */
@@ -102,6 +110,7 @@ export class DashboardView extends ItemView {
 				if (my !== this.gen) return;   // a newer refresh owns the screen
 				this.data = d;
 				this.sessHover?.setData(d.sessions_log || []);
+				this.arcHover?.setData(d.arcs || []);
 				this.paint();
 			} catch (e) {
 				const msg = e instanceof Error ? e.message : String(e);
