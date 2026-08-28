@@ -63,11 +63,23 @@ function nodeGlyphs(events: Any[]): string {
 	return out.join("");
 }
 
+/** Short hint for a cross-lane arc's origin ("SomaGuard" -> "Soma"). Just
+ *  enough to read as a lane name at 9px, not a full label. */
+function laneAbbrev(l: string): string {
+	const s = String(l || "").replace(/^_/, "");
+	return s.length <= 5 ? s : s.slice(0, 4);
+}
+
 /** lane = the lane this strip is scoped to; arcs/sessionsLog are the
- *  top-level (all-lane) schema-3 arrays, filtered here. */
+ *  top-level (all-lane) schema-3 arrays, filtered here. An arc shows on a
+ *  lane tab when the tab's lane is IN arc.lanes (the union of every lane
+ *  any member session touched), not just arc.lane (its origin lane) —
+ *  missing `lanes` on older/mock data falls back to [lane]. */
 export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], now: number = Date.now()): string {
 	const windowStart = now - WINDOW_DAYS * DAY_MS;
-	const rows: Any[] = (sessionsLog || [])
+	const all: Any[] = sessionsLog || [];
+	const byN = new Map<number, Any>(all.map((r) => [r.n, r]));
+	const rows: Any[] = all
 		.filter((r) => (r.lanes && r.lanes.length ? r.lanes : [r.lane]).includes(lane))
 		.slice()
 		.sort((a, b) => (a.n ?? 0) - (b.n ?? 0));
@@ -75,12 +87,15 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 		return `<div class="arc-empty">no sessions touched this lane in the last ${WINDOW_DAYS}d</div>`;
 	}
 
-	const laneArcs = (arcs || []).filter((a) => a.lane === lane);
+	const laneArcs = (arcs || []).filter((a) => (a.lanes && a.lanes.length ? a.lanes : [a.lane]).includes(lane));
 
 	// Position by real elapsed time, but enforce a minimum gap between
 	// consecutive nodes so same-day sessions (common — see s892/893/894)
-	// don't render exactly on top of each other. Bars read from this same
-	// map so a bar endpoint never drifts from the node it's meant to touch.
+	// don't render exactly on top of each other. Bars prefer this same map
+	// so a bar endpoint never drifts from the node it's meant to touch —
+	// but a cross-lane arc's first/last session may not be one of THIS
+	// lane's own nodes at all (it happened in another lane), so bars fall
+	// back to plain date-based positioning for an endpoint outside posByN.
 	const posByN = new Map<number, number>();
 	let prevX = -Infinity;
 	for (const r of rows) {
@@ -89,7 +104,12 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 		posByN.set(r.n, x);
 		prevX = x;
 	}
-	const trackWidth = Math.max(220, prevX + 70);
+	const barX = (n: number): number | null => {
+		if (posByN.has(n)) return posByN.get(n) as number;
+		const r = byN.get(n);
+		return r ? dayOffset(r.date, windowStart) * DAY_PX : null;
+	};
+	let trackWidth = Math.max(220, prevX + 70);
 
 	const nodes = rows.map((r) => {
 		const x = posByN.get(r.n) ?? 0;
@@ -102,15 +122,20 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 	}).join("");
 
 	const barRows = laneArcs.map((a, i) => {
-		const first = rows.find((r) => r.n === a.first);
-		const last = rows.find((r) => r.n === a.last);
-		if (!first || !last) return "";
-		const x1 = posByN.get(first.n) ?? 0;
-		const x2 = posByN.get(last.n) ?? 0;
-		const span = a.first === a.last ? "" : `${first.date} → ${last.date}`;
-		const title = `${a.label}${span ? " · " + span : ""}${a.open ? " · open" : " · closed"}`;
-		return `<div class="arc-bar${a.open ? " open" : ""}" style="left:${x1}px;width:${Math.max(6, x2 - x1)}px;top:${i * BAR_ROW_PX}px" title="${esc(title)}" data-arc="${esc(a.id)}">`
-			+ `<span class="arc-bar-lbl">${esc(a.label)}</span>`
+		const x1 = barX(a.first);
+		const x2 = barX(a.last);
+		if (x1 == null || x2 == null) return "";
+		const w = Math.max(6, x2 - x1);
+		trackWidth = Math.max(trackWidth, x1 + w + 70);
+		const firstRow = byN.get(a.first);
+		const lastRow = byN.get(a.last);
+		const span = a.first === a.last ? "" : `${firstRow?.date ?? "?"} → ${lastRow?.date ?? "?"}`;
+		const foreign = a.lane && a.lane !== lane;
+		const title = `${a.label}${span ? " · " + span : ""}${a.open ? " · open" : " · closed"}${foreign ? ` · from ${a.lane}` : ""}`;
+		// origin chip only when there's room to not clutter a short bar
+		const originChip = foreign && w >= 46 ? `<span class="arc-bar-origin" title="from ${esc(a.lane)}">${esc(laneAbbrev(a.lane))}</span>` : "";
+		return `<div class="arc-bar${a.open ? " open" : ""}${foreign ? " foreign" : ""}" style="left:${x1}px;width:${w}px;top:${i * BAR_ROW_PX}px" title="${esc(title)}" data-arc="${esc(a.id)}">`
+			+ `<span class="arc-bar-lbl">${esc(a.label)}</span>${originChip}`
 			+ `</div>`;
 	}).join("");
 

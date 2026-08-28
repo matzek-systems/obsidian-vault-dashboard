@@ -1,8 +1,298 @@
 {
  "schema": 3,
- "generated": "2026-08-28T04:04:16-07:00",
- "gen_ms": 3121,
+ "generated": "2026-08-28T04:51:50-07:00",
+ "gen_ms": 840,
  "sprints": [
+  {
+   "lane": "SomaGuard",
+   "weight": 5,
+   "seats": [
+    {
+     "n": 909,
+     "active_min": 3,
+     "user_min": 19,
+     "tier": "hot",
+     "focus": "SomaGuard GA4+Ads tag verification (read-only probe)"
+    },
+    {
+     "n": 913,
+     "active_min": 31,
+     "user_min": 48,
+     "tier": "warm",
+     "focus": "SOMA-20 live state + cold-email test design; build MM 03_Knowledge/Email Outreach folder"
+    },
+    {
+     "n": 908,
+     "active_min": 36,
+     "user_min": 1420,
+     "tier": "warm",
+     "focus": "SomaGuard: Quick Shop lost colour chooser after per-colour split (David 8/26) - fix + veri"
+    }
+   ],
+   "moving_count": 10,
+   "last_focused": "2026-08-28T04:22:10-07:00",
+   "wis": [
+    {
+     "id": "SOMA-27",
+     "title": "somaguard.net link preview image is pixelated in WhatsApp (no og:image on the home page; social sharing image unset)",
+     "lane": "SomaGuard",
+     "status": "active",
+     "due": null,
+     "tasks_done": 6,
+     "tasks_total": 9,
+     "last_touch": "2026-08-28T04:22:10-07:00",
+     "last_focused": "2026-08-28T04:22:10-07:00",
+     "age_days": 0,
+     "due_in": null,
+     "next": "Send David the logo render: the finished 1200x630 share image plus a clean high-res logo file (PNG on transparent + on brand background), so he has something sharp to send directly",
+     "done_when": "A curl of https://somaguard.net/ shows an og:image tag pointing at a 1200x630 share image, and David confirms a fresh WhatsApp send of the home link renders it sharp.",
+     "next_tasks": [
+      "Send David the logo render: the finished 1200x630 share image plus a clean high-res logo file (PNG on transparent + on brand background), so he has something sharp to send directly",
+      "Advertising: ask David to check conversion events (operator simplification, session 909; the earlier test-order plan is dropped). Ask: Google Ads > Goals > Conversions > Summary, s",
+      "Mirror the share-image fallback to the rebuild store (tactical note \"content fixes ship twice until cutover\"): confirm which rebuild theme is canonical now (`somaguard-preview/main"
+     ],
+     "unblocks": [],
+     "band": "progressed",
+     "delta": {
+      "kind": "task",
+      "summary": "Send David the logo render: the finished 1200x630 share image plus a clean high-res logo file (PNG on transparent + on brand background), so",
+      "at": "2026-08-28T04:22:10-07:00",
+      "days": 0
+     },
+     "flip_me": false,
+     "actor": {
+      "who": "them",
+      "hit": "david"
+     }
+    },
+    {
+     "id": "SOMA-20",
+     "title": "Cold-email go-live — David presses Start on 3809441",
+     "lane": "SomaGuard",
+     "status": "active",
+     "due": "2026-08-26",
+     "tasks_done": 2,
+     "tasks_total": 13,
+     "last_touch": "2026-08-28T04:22:10-07:00",
+     "last_focused": "2026-08-28T04:22:10-07:00",
+     "age_days": 0,
+     "due_in": -2,
+     "next": "Operator sends David the kit: runbook (on GitHub in the shared repo since session 887, `d643132`: s878's body kept as reference, asks-first action list added on top, de-dashed, 00_",
+     "done_when": "David (or operator) presses Start on Smartlead campaign 3809441 with David's 3-step copy saved, batch-1 CSV (1,131 practice-domain rows) uploaded + verified, and an EmailGuard placement test on his copy green; first real send visible in campaign Analytics.",
+     "next_tasks": [
+      "Operator sends David the kit: runbook (on GitHub in the shared repo since session 887, `d643132`: s878's body kept as reference, asks-first action list added on top, de-dashed, 00_",
+      "David writes + saves the 3-step sequence in 3809441 (runbook §2 rules: plain text, no links, no \"free\", `{{salutation}}` greeting, sign-off name + company, no footer block; address",
+      "Copy review against §2 (operator or David's Claude, 15 min)",
+      "EmailGuard Level-3 placement test on HIS copy → TEST campaign 3809473 → Workspace/M365 seeds green (3 free tests left in Aug)",
+      "Batch 1 uploaded via Smartlead UI + Launch Verification & Proceed (6,000 credits/month included in Pro; UI-only; can't run once live) — no Start",
+      "David has Master Inbox open daily (Smartlead app on his phone), knows the opt-out rule (§6): \"no/stop/remove/unsubscribe\" → mark Unsubscribed same day"
+     ],
+     "unblocks": [],
+     "band": "progressed",
+     "delta": {
+      "kind": "task",
+      "summary": "Operator sends David the kit: runbook (on GitHub in the shared repo since session 887, `d643132`: s878's body kept as reference, asks-first ",
+      "at": "2026-08-28T04:22:10-07:00",
+      "days": 0
+     },
+     "flip_me": false,
+     "actor": {
+      "who": "them",
+      "hit": "david"
+     }
+    },
+    {
+     "id": "SOMA-17",
+     "title": "Client request register — Adam + David feedback across all rounds",
+     "lane": "SomaGuard",
+     "status": "active",
+     "due": null,
+     "tasks_done": 21,
+     "tasks_total": 21,
+     "last_touch": "2026-08-27T06:44:19-07:00",
+     "last_focused": "2026-08-27T02:03:31-07:00",
+     "age_days": 1,
+     "due_in": null,
+     "next": null,
+     "done_when": "Every row in the three request tables reads done, deferred with a reason, or explicitly declined by the client, AND the port path to somaguard.net is scoped as its own WI.",
+     "next_tasks": [],
+     "unblocks": [],
+     "band": "progressed",
+     "delta": {
+      "kind": "task",
+      "summary": "21/21 tasks",
+      "at": "2026-08-27T06:44:19-07:00",
+      "days": 1
+     },
+     "flip_me": true,
+     "actor": {
+      "who": null,
+      "hit": null
+     }
+    },
+    {
+     "id": "SOMA-26",
+     "title": "PageSpeed follow-ups on somaguard.net — hero video on phones, third-party tag weight, contrast, Horizon core ARIA, image sizing",
+     "lane": "SomaGuard",
+     "status": "ready",
+     "due": null,
+     "tasks_done": 4,
+     "tasks_total": 7,
+     "last_touch": "2026-08-27T02:05:35-07:00",
+     "last_focused": "2026-08-27T02:05:35-07:00",
+     "age_days": 1,
+     "due_in": null,
+     "next": "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop run logs `…HD-1080p-7.2Mbps-89899929.mp4 E",
+     "done_when": "Each bullet is either shipped (with the commit) or explicitly declined by the operator, and a post-deploy PageSpeed run is recorded in the WI with its four mobile scores.",
+     "next_tasks": [
+      "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop run logs `…HD-1080p-7.2Mbps-89899929.mp4 E",
+      "Third-party tag weight (most of the TBT). gtag for GA4 `G-NKXV0ZM5DQ` + Ads `AW-183…` (471 KiB, ~650 ms of long tasks) via the Google & YouTube channel, the Meta pixel (182 KiB), a",
+      "Re-run PSI after the accessibility deploy and record the new scores here. Deployed 2026-08-27 (session 908, live main `1f63e7b`). Local Lighthouse 12 on the deployed page, same run"
+     ],
+     "unblocks": [],
+     "band": "progressed",
+     "delta": {
+      "kind": "task",
+      "summary": "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop ru",
+      "at": "2026-08-27T02:05:35-07:00",
+      "days": 1
+     },
+     "flip_me": false,
+     "actor": {
+      "who": "seat",
+      "hit": null
+     },
+     "rot": false
+    },
+    {
+     "id": "SOMA-18",
+     "title": "Port the somaguard-2 build into the live somaguard.net store",
+     "lane": "SomaGuard",
+     "status": "active",
+     "due": null,
+     "tasks_done": 14,
+     "tasks_total": 21,
+     "last_touch": "2026-08-28T04:21:20-07:00",
+     "last_focused": "2026-08-28T04:21:20-07:00",
+     "age_days": 0,
+     "due_in": null,
+     "next": "Live-site copy findings (session 896, found while building the cold-email Copy Brief against the live store — all four are unverified-as-intentional, surface to David/Adam before c",
+     "done_when": "somaguard.net serves the rebuilt theme with product imagery matching media-v2-snapshot.json, verified on a cookie-free live fetch, with no (sample) review data present and the live store's existing apps and order history intact.",
+     "next_tasks": [
+      "Live-site copy findings (session 896, found while building the cold-email Copy Brief against the live store — all four are unverified-as-intentional, surface to David/Adam before c",
+      "Post-flip checkout verification (added session 896): the store took real orders pre-Pause so Payments/tax config should survive, but nothing has exercised checkout since — after th",
+      "Reviews schema on live: run `somaguard-theme/tools/setup-reviews-schema.py --store <live> --env-prefix SOMA2` WITHOUT `--seed` (seed/wire are opt-in since `939aced` — sample review",
+      "Confirm no `(sample)` review data crossed over",
+      "Cookie-free live fetch as the acceptance check",
+      "Pre-port polish from the session-877 readiness sweep (SOMA-17 § Human-check readiness sweep): meta descriptions on home/collections/pages + bespoke ones for the six mask PDPs; a se"
+     ],
+     "unblocks": [],
+     "band": "progressed",
+     "delta": {
+      "kind": "task",
+      "summary": "Live-site copy findings (session 896, found while building the cold-email Copy Brief against the live store — all four are unverified-as-int",
+      "at": "2026-08-28T04:21:20-07:00",
+      "days": 0
+     },
+     "flip_me": false,
+     "actor": {
+      "who": "them",
+      "hit": "david"
+     }
+    },
+    {
+     "id": "SOMA-23",
+     "title": "Analytics + conversion tracking on somaguard.net (GA4, Ads tag, GSC) — gates all paid spend",
+     "lane": "SomaGuard",
+     "status": "active",
+     "due": null,
+     "tasks_done": 3,
+     "tasks_total": 9,
+     "last_touch": "2026-08-28T04:22:10-07:00",
+     "last_focused": "2026-08-28T04:22:10-07:00",
+     "age_days": 0,
+     "due_in": null,
+     "next": "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator as a user on each. He already has one (used at postmaster.goo",
+     "done_when": "A GA4 property owned by a named account is receiving view_item / add_to_cart / begin_checkout / purchase from somaguard.net (confirmed in Realtime or DebugView), a Google Ads conversion action is importing purchases, Search Console is verified for the domain, and the owner of the existing Meta pixel 580682508169416 is confirmed in writing",
+     "next_tasks": [
+      "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator as a user on each. He already has one (used at postmaster.goo",
+      "3. Start Search Console verification for somaguard.net — either the channel connect auto-verifies it, or he creates the property and sends the HTML meta tag (we have theme write ac",
+      "5. Answer two prior-agency questions from his own accounts: who owns Meta pixel `580682508169416` (Events Manager), and does a GA4 property / Google Ads account / Merchant Center a",
+      "GA4 property + web data stream configured; enhanced measurement + ecommerce events checked end to end in Realtime/DebugView (purchase trails the plan flip) PARTIAL (session 909, ne",
+      "Google Ads conversion action importing GA4 purchase, value + currency correct — the link that actually matters is GA4 → Google Ads; the GA4 ↔ Search Console link is a reporting con",
+      "Submit `sitemap.xml` in Search Console once we have access"
+     ],
+     "unblocks": [
+      "SOMA-24"
+     ],
+     "band": "progressed",
+     "delta": {
+      "kind": "task",
+      "summary": "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator as a user on each. He",
+      "at": "2026-08-28T04:22:10-07:00",
+      "days": 0
+     },
+     "flip_me": false,
+     "actor": {
+      "who": "seat",
+      "hit": null
+     }
+    }
+   ],
+   "focal": true,
+   "counts": {
+    "closed_7d": 0,
+    "progressed_7d": 6,
+    "new_7d": 0,
+    "no_change": 0
+   },
+   "last_session": {
+    "n": 909,
+    "date": "2026-08-27",
+    "note": "Closed with SOMA-27 built out and an MM analytics handoff written but not started.",
+    "arc": null,
+    "arc_label": null
+   },
+   "queue": {
+    "verify": [],
+    "ready": [
+     {
+      "id": "SOMA-26",
+      "title": "PageSpeed follow-ups on somaguard.net — hero video on phones, third-party tag weight, contrast, Horizon core ARIA, image sizing",
+      "lane": "SomaGuard",
+      "status": "ready",
+      "due": null,
+      "tasks_done": 4,
+      "tasks_total": 7,
+      "last_touch": "2026-08-27T02:05:35-07:00",
+      "last_focused": "2026-08-27T02:05:35-07:00",
+      "age_days": 1,
+      "due_in": null,
+      "next": "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop run logs `…HD-1080p-7.2Mbps-89899929.mp4 E",
+      "done_when": "Each bullet is either shipped (with the commit) or explicitly declined by the operator, and a post-deploy PageSpeed run is recorded in the WI with its four mobile scores.",
+      "next_tasks": [
+       "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop run logs `…HD-1080p-7.2Mbps-89899929.mp4 E",
+       "Third-party tag weight (most of the TBT). gtag for GA4 `G-NKXV0ZM5DQ` + Ads `AW-183…` (471 KiB, ~650 ms of long tasks) via the Google & YouTube channel, the Meta pixel (182 KiB), a",
+       "Re-run PSI after the accessibility deploy and record the new scores here. Deployed 2026-08-27 (session 908, live main `1f63e7b`). Local Lighthouse 12 on the deployed page, same run"
+      ],
+      "unblocks": [],
+      "band": "progressed",
+      "delta": {
+       "kind": "task",
+       "summary": "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop ru",
+       "at": "2026-08-27T02:05:35-07:00",
+       "days": 1
+      },
+      "flip_me": false,
+      "actor": {
+       "who": "seat",
+       "hit": null
+      },
+      "rot": false
+     }
+    ]
+   }
+  },
   {
    "lane": "_System",
    "weight": 2,
@@ -10,14 +300,14 @@
     {
      "n": 911,
      "active_min": 0,
-     "user_min": 3,
+     "user_min": 37,
      "tier": "hot",
      "focus": "SYS-485 operator dashboard build (s883 prototype -> live, plugin rework, calendar panel)"
     },
     {
      "n": 914,
-     "active_min": 22,
-     "user_min": 758,
+     "active_min": 37,
+     "user_min": 46,
      "tier": "warm",
      "focus": "s911 freeze forensics (SYS-491 pipe-block evidence) + startup"
     }
@@ -31,8 +321,8 @@
      "lane": "_System",
      "status": "active",
      "due": null,
-     "tasks_done": 4,
-     "tasks_total": 10,
+     "tasks_done": 5,
+     "tasks_total": 15,
      "last_touch": "2026-08-27T13:31:39-07:00",
      "last_focused": "2026-08-27T13:31:39-07:00",
      "age_days": 0,
@@ -41,11 +331,11 @@
      "done_when": "The vault-dashboard plugin renders NOW/THREAD + the derived panels from a shared dashboard-data.json with zero hand-fed state (phone surface split to SYS-497); SYS-341's two live-confirms pass or are superseded by the rework; shipped via the plugin release channel and opened once on David's seat",
      "next_tasks": [
       "Plugin rework: replace the roadmap-tab list spine with NOW + THREAD as the focal layer; remaining panels as independently killable render blocks reading the same JSON; keep SYS-341",
-      "Focal signal honesty: focal sprint = the seat the operator last typed in + `state/session-focus.json` overlay; registry focus is 32% reliable on 69 mined sessions, so SYS-489 (depe",
-      "Send-to-session v1: ⧉ row action routes the composed prompt into a chosen live seat (workspace-shell PTY write + sessions panel)",
-      "Fold-ins: SYS-341's two live-confirms ride into this rework; SYS-354 (WI hover-card) and WI-128 (process-status/search-setup panel) become panels here or stay deferred — decide, do",
-      "Ship through the plugin release channel (WI-145 fleet repos + Update Checker); David's seat gets it with the SYS-484 seat batch — first: bump manifest 2.1.0 → 2.2.0, prune the dead",
-      "Housekeeping: two detached mock servers (`:8377` pid 35432, `:8378` pid 38888, `serve.pid` in each Scratchpad dir) — kill at close; delete `Scratchpad/session-911-dashboard-v2/inde"
+      "Motion honesty pass 2: per-WI state-delta snapshot (status / ticked / total / last_delta, touch-cache pattern) replaces touch-based motion; sprint rows labelled progressed / new / ",
+      "Arc strip per lane tab (operator-preferred shape, handoff §9.13): a session timeline with arc bars + rework glyphs (declared-done / found-broken / root-caused / false-alarm / hando",
+      "Cross-lane Actor Triage Board (YOU uncapped / THEM waiting-room with age / SEAT as per-lane counts + stalled badge) with reason tags and the matched verb visible; one merged adviso",
+      "Leverage: operator scores `Scratchpad/session-911-dashboard-v2/leverage-worksheet.md` (132 working rows; 4 explicit tags today, 103/116 assignable tied at 15.0) → applier writes `l",
+      "Focal signal honesty: focal sprint = the seat the operator last typed in + `state/session-focus.json` overlay; registry focus is 32% reliable on 69 mined sessions, so SYS-489 (depe"
      ],
      "unblocks": [
       "SYS-497",
@@ -238,12 +528,19 @@
      }
     }
    ],
-   "focal": true,
+   "focal": false,
    "counts": {
     "closed_7d": 3,
     "progressed_7d": 6,
     "new_7d": 0,
     "no_change": 0
+   },
+   "last_session": {
+    "n": 914,
+    "date": "2026-08-27",
+    "note": "Freeze forensics session gathering SYS-491 pipe-block evidence; startup housekeeping.",
+    "arc": null,
+    "arc_label": null
    },
    "queue": {
     "verify": [
@@ -354,373 +651,6 @@
      }
     ],
     "ready": []
-   },
-   "last_session": {
-    "n": 914,
-    "date": "2026-08-27",
-    "note": "Freeze forensics session gathering SYS-491 pipe-block evidence; startup housekeeping.",
-    "arc": null,
-    "arc_label": null
-   }
-  },
-  {
-   "lane": "SomaGuard",
-   "weight": 5,
-   "seats": [
-    {
-     "n": 909,
-     "active_min": 26,
-     "user_min": 757,
-     "tier": "warm",
-     "focus": "SomaGuard GA4+Ads tag verification (read-only probe)"
-    },
-    {
-     "n": 908,
-     "active_min": 26,
-     "user_min": 1372,
-     "tier": "warm",
-     "focus": "SomaGuard: Quick Shop lost colour chooser after per-colour split (David 8/26) - fix + veri"
-    }
-   ],
-   "moving_count": 10,
-   "last_focused": "2026-08-27T15:27:01-07:00",
-   "wis": [
-    {
-     "id": "SOMA-27",
-     "title": "somaguard.net link preview image is pixelated in WhatsApp (no og:image on the home page; social sharing image unset)",
-     "lane": "SomaGuard",
-     "status": "ready",
-     "due": null,
-     "tasks_done": 5,
-     "tasks_total": 9,
-     "last_touch": "2026-08-27T00:09:38-07:00",
-     "last_focused": "2026-08-27T00:09:38-07:00",
-     "age_days": 1,
-     "due_in": null,
-     "next": "Reply to David with the one-liner: the store's social sharing image was never set, so the preview fell back to a tiny video thumbnail; fixed by uploading one.",
-     "done_when": "A curl of https://somaguard.net/ shows an og:image tag pointing at a 1200x630 share image, and David confirms a fresh WhatsApp send of the home link renders it sharp.",
-     "next_tasks": [
-      "Reply to David with the one-liner: the store's social sharing image was never set, so the preview fell back to a tiny video thumbnail; fixed by uploading one.",
-      "Send David the logo render: the finished 1200x630 share image plus a clean high-res logo file (PNG on transparent + on brand background), so he has something sharp to send directly",
-      "Advertising: ask David to check conversion events (operator simplification, session 909; the earlier test-order plan is dropped). Ask: Google Ads > Goals > Conversions > Summary, s",
-      "Mirror the share-image fallback to the rebuild store (tactical note \"content fixes ship twice until cutover\"): confirm which rebuild theme is canonical now (`somaguard-preview/main"
-     ],
-     "unblocks": [],
-     "band": "progressed",
-     "delta": {
-      "kind": "task",
-      "summary": "Reply to David with the one-liner: the store's social sharing image was never set, so the preview fell back to a tiny video thumbnail; fixed",
-      "at": "2026-08-27T00:09:38-07:00",
-      "days": 1
-     },
-     "flip_me": false,
-     "actor": {
-      "who": "them",
-      "hit": "david"
-     },
-     "rot": false
-    },
-    {
-     "id": "SOMA-17",
-     "title": "Client request register — Adam + David feedback across all rounds",
-     "lane": "SomaGuard",
-     "status": "active",
-     "due": null,
-     "tasks_done": 21,
-     "tasks_total": 21,
-     "last_touch": "2026-08-27T06:44:19-07:00",
-     "last_focused": "2026-08-27T02:03:31-07:00",
-     "age_days": 1,
-     "due_in": null,
-     "next": null,
-     "done_when": "Every row in the three request tables reads done, deferred with a reason, or explicitly declined by the client, AND the port path to somaguard.net is scoped as its own WI.",
-     "next_tasks": [],
-     "unblocks": [],
-     "band": "progressed",
-     "delta": {
-      "kind": "task",
-      "summary": "21/21 tasks",
-      "at": "2026-08-27T06:44:19-07:00",
-      "days": 1
-     },
-     "flip_me": true,
-     "actor": {
-      "who": null,
-      "hit": null
-     }
-    },
-    {
-     "id": "SOMA-26",
-     "title": "PageSpeed follow-ups on somaguard.net — hero video on phones, third-party tag weight, contrast, Horizon core ARIA, image sizing",
-     "lane": "SomaGuard",
-     "status": "ready",
-     "due": null,
-     "tasks_done": 4,
-     "tasks_total": 7,
-     "last_touch": "2026-08-27T02:05:35-07:00",
-     "last_focused": "2026-08-27T02:05:35-07:00",
-     "age_days": 1,
-     "due_in": null,
-     "next": "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop run logs `…HD-1080p-7.2Mbps-89899929.mp4 E",
-     "done_when": "Each bullet is either shipped (with the commit) or explicitly declined by the operator, and a post-deploy PageSpeed run is recorded in the WI with its four mobile scores.",
-     "next_tasks": [
-      "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop run logs `…HD-1080p-7.2Mbps-89899929.mp4 E",
-      "Third-party tag weight (most of the TBT). gtag for GA4 `G-NKXV0ZM5DQ` + Ads `AW-183…` (471 KiB, ~650 ms of long tasks) via the Google & YouTube channel, the Meta pixel (182 KiB), a",
-      "Re-run PSI after the accessibility deploy and record the new scores here. Deployed 2026-08-27 (session 908, live main `1f63e7b`). Local Lighthouse 12 on the deployed page, same run"
-     ],
-     "unblocks": [],
-     "band": "progressed",
-     "delta": {
-      "kind": "task",
-      "summary": "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop ru",
-      "at": "2026-08-27T02:05:35-07:00",
-      "days": 1
-     },
-     "flip_me": false,
-     "actor": {
-      "who": "seat",
-      "hit": null
-     },
-     "rot": false
-    },
-    {
-     "id": "SOMA-18",
-     "title": "Port the somaguard-2 build into the live somaguard.net store",
-     "lane": "SomaGuard",
-     "status": "active",
-     "due": null,
-     "tasks_done": 13,
-     "tasks_total": 21,
-     "last_touch": "2026-08-20T15:35:03-07:00",
-     "last_focused": "2026-08-20T15:35:03-07:00",
-     "age_days": 7,
-     "due_in": null,
-     "next": "David's plan upgrade (Pause and Build → Basic) if DTC-live is the intent — operator: already known. Now also gates SOMA-20 Start (session 896 ruling) and SOMA-23 purchase conversio",
-     "done_when": "somaguard.net serves the rebuilt theme with product imagery matching media-v2-snapshot.json, verified on a cookie-free live fetch, with no (sample) review data present and the live store's existing apps and order history intact.",
-     "next_tasks": [
-      "David's plan upgrade (Pause and Build → Basic) if DTC-live is the intent — operator: already known. Now also gates SOMA-20 Start (session 896 ruling) and SOMA-23 purchase conversio",
-      "Live-site copy findings (session 896, found while building the cold-email Copy Brief against the live store — all four are unverified-as-intentional, surface to David/Adam before c",
-      "Post-flip checkout verification (added session 896): the store took real orders pre-Pause so Payments/tax config should survive, but nothing has exercised checkout since — after th",
-      "Reviews schema on live: run `somaguard-theme/tools/setup-reviews-schema.py --store <live> --env-prefix SOMA2` WITHOUT `--seed` (seed/wire are opt-in since `939aced` — sample review",
-      "Confirm no `(sample)` review data crossed over",
-      "Cookie-free live fetch as the acceptance check"
-     ],
-     "unblocks": [],
-     "band": "progressed",
-     "delta": {
-      "kind": "task",
-      "summary": "David's plan upgrade (Pause and Build → Basic) if DTC-live is the intent — operator: already known. Now also gates SOMA-20 Start (session 89",
-      "at": "2026-08-20T15:35:03-07:00",
-      "days": 7
-     },
-     "flip_me": false,
-     "actor": {
-      "who": "them",
-      "hit": "david"
-     }
-    },
-    {
-     "id": "SOMA-20",
-     "title": "Cold-email go-live — David presses Start on 3809441",
-     "lane": "SomaGuard",
-     "status": "active",
-     "due": "2026-08-26",
-     "tasks_done": 1,
-     "tasks_total": 13,
-     "last_touch": "2026-08-27T06:40:07-07:00",
-     "last_focused": "2026-08-20T15:47:48-07:00",
-     "age_days": 7,
-     "due_in": -2,
-     "next": "Operator sends David the kit: runbook (on GitHub in the shared repo since session 887, `d643132`: s878's body kept as reference, asks-first action list added on top, de-dashed, 00_",
-     "done_when": "David (or operator) presses Start on Smartlead campaign 3809441 with David's 3-step copy saved, batch-1 CSV (1,131 practice-domain rows) uploaded + verified, and an EmailGuard placement test on his copy green; first real send visible in campaign Analytics.",
-     "next_tasks": [
-      "Operator sends David the kit: runbook (on GitHub in the shared repo since session 887, `d643132`: s878's body kept as reference, asks-first action list added on top, de-dashed, 00_",
-      "David writes + saves the 3-step sequence in 3809441 (runbook §2 rules: plain text, no links, no \"free\", `{{salutation}}` greeting, sign-off name + company, no footer block; address",
-      "Copy review against §2 (operator or David's Claude, 15 min)",
-      "EmailGuard Level-3 placement test on HIS copy → TEST campaign 3809473 → Workspace/M365 seeds green (3 free tests left in Aug)",
-      "Batch 1 uploaded via Smartlead UI + Launch Verification & Proceed (~$15 / 6,000 credits; UI-only; can't run once live) — no Start",
-      "David has Master Inbox open daily (Smartlead app on his phone), knows the opt-out rule (§6): \"no/stop/remove/unsubscribe\" → mark Unsubscribed same day"
-     ],
-     "unblocks": [],
-     "band": "progressed",
-     "delta": {
-      "kind": "task",
-      "summary": "Operator sends David the kit: runbook (on GitHub in the shared repo since session 887, `d643132`: s878's body kept as reference, asks-first ",
-      "at": "2026-08-27T06:40:07-07:00",
-      "days": 7
-     },
-     "flip_me": false,
-     "actor": {
-      "who": "them",
-      "hit": "david"
-     }
-    },
-    {
-     "id": "SOMA-23",
-     "title": "Analytics + conversion tracking on somaguard.net (GA4, Ads tag, GSC) — gates all paid spend",
-     "lane": "SomaGuard",
-     "status": "ready",
-     "due": null,
-     "tasks_done": 0,
-     "tasks_total": 9,
-     "last_touch": "2026-08-27T15:27:01-07:00",
-     "last_focused": "2026-08-27T15:27:01-07:00",
-     "age_days": 0,
-     "due_in": null,
-     "next": "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator as a user on each. He already has one (used at postmaster.goo",
-     "done_when": "A GA4 property owned by a named account is receiving view_item / add_to_cart / begin_checkout / purchase from somaguard.net (confirmed in Realtime or DebugView), a Google Ads conversion action is importing purchases, Search Console is verified for the domain, and the owner of the existing Meta pixel 580682508169416 is confirmed in writing",
-     "next_tasks": [
-      "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator as a user on each. He already has one (used at postmaster.goo",
-      "2. Install the Google & YouTube sales channel on `312534-2` and connect that Google account — channel/app installs need full store admin, which the Online-Store-only collaborator g",
-      "3. Start Search Console verification for somaguard.net — either the channel connect auto-verifies it, or he creates the property and sends the HTML meta tag (we have theme write ac",
-      "4. Flip the plan — already the #1 handoff item; per the finding above it also gates purchase conversions and the Google feed",
-      "5. Answer two prior-agency questions from his own accounts: who owns Meta pixel `580682508169416` (Events Manager), and does a GA4 property / Google Ads account / Merchant Center a",
-      "GA4 property + web data stream configured; enhanced measurement + ecommerce events checked end to end in Realtime/DebugView (purchase trails the plan flip)"
-     ],
-     "unblocks": [
-      "SOMA-24"
-     ],
-     "band": "new",
-     "delta": {
-      "kind": "created",
-      "summary": "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator a",
-      "at": "2026-08-27T15:27:01-07:00",
-      "days": 0
-     },
-     "flip_me": false,
-     "actor": {
-      "who": "seat",
-      "hit": null
-     },
-     "rot": false
-    }
-   ],
-   "focal": false,
-   "counts": {
-    "closed_7d": 0,
-    "progressed_7d": 5,
-    "new_7d": 1,
-    "no_change": 0
-   },
-   "queue": {
-    "verify": [],
-    "ready": [
-     {
-      "id": "SOMA-27",
-      "title": "somaguard.net link preview image is pixelated in WhatsApp (no og:image on the home page; social sharing image unset)",
-      "lane": "SomaGuard",
-      "status": "ready",
-      "due": null,
-      "tasks_done": 5,
-      "tasks_total": 9,
-      "last_touch": "2026-08-27T00:09:38-07:00",
-      "last_focused": "2026-08-27T00:09:38-07:00",
-      "age_days": 1,
-      "due_in": null,
-      "next": "Reply to David with the one-liner: the store's social sharing image was never set, so the preview fell back to a tiny video thumbnail; fixed by uploading one.",
-      "done_when": "A curl of https://somaguard.net/ shows an og:image tag pointing at a 1200x630 share image, and David confirms a fresh WhatsApp send of the home link renders it sharp.",
-      "next_tasks": [
-       "Reply to David with the one-liner: the store's social sharing image was never set, so the preview fell back to a tiny video thumbnail; fixed by uploading one.",
-       "Send David the logo render: the finished 1200x630 share image plus a clean high-res logo file (PNG on transparent + on brand background), so he has something sharp to send directly",
-       "Advertising: ask David to check conversion events (operator simplification, session 909; the earlier test-order plan is dropped). Ask: Google Ads > Goals > Conversions > Summary, s",
-       "Mirror the share-image fallback to the rebuild store (tactical note \"content fixes ship twice until cutover\"): confirm which rebuild theme is canonical now (`somaguard-preview/main"
-      ],
-      "unblocks": [],
-      "band": "progressed",
-      "delta": {
-       "kind": "task",
-       "summary": "Reply to David with the one-liner: the store's social sharing image was never set, so the preview fell back to a tiny video thumbnail; fixed",
-       "at": "2026-08-27T00:09:38-07:00",
-       "days": 1
-      },
-      "flip_me": false,
-      "actor": {
-       "who": "them",
-       "hit": "david"
-      },
-      "rot": false
-     },
-     {
-      "id": "SOMA-26",
-      "title": "PageSpeed follow-ups on somaguard.net — hero video on phones, third-party tag weight, contrast, Horizon core ARIA, image sizing",
-      "lane": "SomaGuard",
-      "status": "ready",
-      "due": null,
-      "tasks_done": 4,
-      "tasks_total": 7,
-      "last_touch": "2026-08-27T02:05:35-07:00",
-      "last_focused": "2026-08-27T02:05:35-07:00",
-      "age_days": 1,
-      "due_in": null,
-      "next": "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop run logs `…HD-1080p-7.2Mbps-89899929.mp4 E",
-      "done_when": "Each bullet is either shipped (with the commit) or explicitly declined by the operator, and a post-deploy PageSpeed run is recorded in the WI with its four mobile scores.",
-      "next_tasks": [
-       "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop run logs `…HD-1080p-7.2Mbps-89899929.mp4 E",
-       "Third-party tag weight (most of the TBT). gtag for GA4 `G-NKXV0ZM5DQ` + Ads `AW-183…` (471 KiB, ~650 ms of long tasks) via the Google & YouTube channel, the Meta pixel (182 KiB), a",
-       "Re-run PSI after the accessibility deploy and record the new scores here. Deployed 2026-08-27 (session 908, live main `1f63e7b`). Local Lighthouse 12 on the deployed page, same run"
-      ],
-      "unblocks": [],
-      "band": "progressed",
-      "delta": {
-       "kind": "task",
-       "summary": "Hero video: lighter desktop rendition. The 61 MB / 7.2 Mbps 1080p MP4 still streams to every desktop visitor; the post-deploy PSI desktop ru",
-       "at": "2026-08-27T02:05:35-07:00",
-       "days": 1
-      },
-      "flip_me": false,
-      "actor": {
-       "who": "seat",
-       "hit": null
-      },
-      "rot": false
-     },
-     {
-      "id": "SOMA-23",
-      "title": "Analytics + conversion tracking on somaguard.net (GA4, Ads tag, GSC) — gates all paid spend",
-      "lane": "SomaGuard",
-      "status": "ready",
-      "due": null,
-      "tasks_done": 0,
-      "tasks_total": 9,
-      "last_touch": "2026-08-27T15:27:01-07:00",
-      "last_focused": "2026-08-27T15:27:01-07:00",
-      "age_days": 0,
-      "due_in": null,
-      "next": "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator as a user on each. He already has one (used at postmaster.goo",
-      "done_when": "A GA4 property owned by a named account is receiving view_item / add_to_cart / begin_checkout / purchase from somaguard.net (confirmed in Realtime or DebugView), a Google Ads conversion action is importing purchases, Search Console is verified for the domain, and the owner of the existing Meta pixel 580682508169416 is confirmed in writing",
-      "next_tasks": [
-       "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator as a user on each. He already has one (used at postmaster.goo",
-       "2. Install the Google & YouTube sales channel on `312534-2` and connect that Google account — channel/app installs need full store admin, which the Online-Store-only collaborator g",
-       "3. Start Search Console verification for somaguard.net — either the channel connect auto-verifies it, or he creates the property and sends the HTML meta tag (we have theme write ac",
-       "4. Flip the plan — already the #1 handoff item; per the finding above it also gates purchase conversions and the Google feed",
-       "5. Answer two prior-agency questions from his own accounts: who owns Meta pixel `580682508169416` (Events Manager), and does a GA4 property / Google Ads account / Merchant Center a",
-       "GA4 property + web data stream configured; enhanced measurement + ecommerce events checked end to end in Realtime/DebugView (purchase trails the plan flip)"
-      ],
-      "unblocks": [
-       "SOMA-24"
-      ],
-      "band": "new",
-      "delta": {
-       "kind": "created",
-       "summary": "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator a",
-       "at": "2026-08-27T15:27:01-07:00",
-       "days": 0
-      },
-      "flip_me": false,
-      "actor": {
-       "who": "seat",
-       "hit": null
-      },
-      "rot": false
-     }
-    ]
-   },
-   "last_session": {
-    "n": 909,
-    "date": "2026-08-27",
-    "note": "Closed with SOMA-27 built out and an MM analytics handoff written but not started.",
-    "arc": null,
-    "arc_label": null
    }
   },
   {
@@ -740,7 +670,7 @@
      "tasks_total": 30,
      "last_touch": "2026-08-27T04:15:24-07:00",
      "last_focused": "2026-08-27T04:15:24-07:00",
-     "age_days": 0,
+     "age_days": 1,
      "due_in": null,
      "next": "Operator: decisions (a) and (b); naming call",
      "done_when": "matzekmedia.com serves the showcase page in the nav with the System Map embedded (data block regenerated by build-system-map-data.py, zero hand-edits), at least one scrubbed real-use capture published on it, buy.md/outputs.md drift corrected, and no WI-146/SYS-482 claim live before those are proven",
@@ -758,7 +688,7 @@
       "kind": "task",
       "summary": "Operator: decisions (a) and (b); naming call",
       "at": "2026-08-27T04:15:24-07:00",
-      "days": 0
+      "days": 1
      },
      "flip_me": false,
      "actor": {
@@ -940,6 +870,7 @@
     "new_7d": 1,
     "no_change": 0
    },
+   "last_session": null,
    "queue": {
     "verify": [
      {
@@ -1078,8 +1009,7 @@
       "rot": false
      }
     ]
-   },
-   "last_session": null
+   }
   },
   {
    "lane": "MatzekMedia",
@@ -1312,6 +1242,13 @@
     "new_7d": 0,
     "no_change": 0
    },
+   "last_session": {
+    "n": 910,
+    "date": "2026-08-27",
+    "note": "Resumed the 906 push-product thread across the two unrelated SomaGuard sessions in between: found and fixed a sanitizer gap, then ran the real push. Deliverable was a rule added to push-ship.md, not a WI.",
+    "arc": "matzekmedia/push-product-ship@906",
+    "arc_label": null
+   },
    "queue": {
     "verify": [],
     "ready": [
@@ -1422,13 +1359,6 @@
       "rot": false
      }
     ]
-   },
-   "last_session": {
-    "n": 910,
-    "date": "2026-08-27",
-    "note": "Resumed the 906 push-product thread across the two unrelated SomaGuard sessions in between: found and fixed a sanitizer gap, then ran the real push. Deliverable was a rule added to push-ship.md, not a WI.",
-    "arc": "matzekmedia/push-product-ship@906",
-    "arc_label": null
    }
   }
  ],
@@ -1437,14 +1367,14 @@
    "lane": "_System",
    "wis_7d": 45,
    "wis_28d": 112,
-   "commits_7d": 6,
-   "commits_28d": 27,
+   "commits_7d": 7,
+   "commits_28d": 28,
    "repos": [
     "obsidian-dashboard",
     "obsidian-workspace-shell",
     "obsidian-vault-search-indexer"
    ],
-   "files_7d": 29
+   "files_7d": 40
   },
   {
    "lane": "SomaGuard",
@@ -1480,7 +1410,7 @@
    "repos": [
     "matzekmedia-site"
    ],
-   "files_7d": 4
+   "files_7d": 9
   },
   {
    "lane": "ContentHoarder",
@@ -1559,12 +1489,12 @@
   {
    "repo": "obsidian-dashboard",
    "lane": "_System",
-   "commits_7d": 4,
-   "commits_28d": 5,
-   "last": "2026-08-27T15:31-07:00",
-   "last_subject": "Sessions table: resume + uuid on every open row; drop focus and cmd",
+   "commits_7d": 5,
+   "commits_28d": 6,
+   "last": "2026-08-28T04:46-07:00",
+   "last_subject": "Dashboard v4: arc strip, band-classified lanes, cross-lane triage panel",
    "dirty": false,
-   "ahead": 4
+   "ahead": 5
   },
   {
    "repo": "somaguard-live",
@@ -1729,12 +1659,12 @@
     {
      "repo": "obsidian-dashboard",
      "lane": "_System",
-     "commits_7d": 4,
-     "commits_28d": 5,
-     "last": "2026-08-27T15:31-07:00",
-     "last_subject": "Sessions table: resume + uuid on every open row; drop focus and cmd",
+     "commits_7d": 5,
+     "commits_28d": 6,
+     "last": "2026-08-28T04:46-07:00",
+     "last_subject": "Dashboard v4: arc strip, band-classified lanes, cross-lane triage panel",
      "dirty": false,
-     "ahead": 4
+     "ahead": 5
     },
     {
      "repo": "obsidian-workspace-shell",
@@ -1757,7 +1687,7 @@
      "ahead": 0
     }
    ],
-   "files_7d": 29,
+   "files_7d": 40,
    "wis": [
     {
      "id": "SYS-354",
@@ -1795,8 +1725,8 @@
      "lane": "_System",
      "status": "active",
      "due": null,
-     "tasks_done": 4,
-     "tasks_total": 10,
+     "tasks_done": 5,
+     "tasks_total": 15,
      "last_touch": "2026-08-27T13:31:39-07:00",
      "last_focused": "2026-08-27T13:31:39-07:00",
      "age_days": 0,
@@ -1909,7 +1839,7 @@
      "tasks_total": 6,
      "last_touch": "2026-08-27T04:15:24-07:00",
      "last_focused": "2026-08-27T04:15:24-07:00",
-     "age_days": 0,
+     "age_days": 1,
      "due_in": null,
      "next": "Hook writer (emits per-seat state files)",
      "unblocks": []
@@ -2738,8 +2668,8 @@
    "counts": {
     "done": 3,
     "deferred": 4,
-    "ready": 13,
-    "active": 6,
+    "ready": 11,
+    "active": 8,
     "waiting": 1,
     "needs-testing": 2,
     "blocked": 1
@@ -2799,21 +2729,66 @@
    "files_7d": 1,
    "wis": [
     {
+     "id": "SOMA-20",
+     "title": "Cold-email go-live — David presses Start on 3809441",
+     "lane": "SomaGuard",
+     "status": "active",
+     "due": "2026-08-26",
+     "tasks_done": 2,
+     "tasks_total": 13,
+     "last_touch": "2026-08-28T04:22:10-07:00",
+     "last_focused": "2026-08-28T04:22:10-07:00",
+     "age_days": 0,
+     "due_in": -2,
+     "next": "Operator sends David the kit: runbook (on GitHub in the shared repo since session 887, `d643132`: s878's body kept as reference, asks-first action list added on top, de-dashed, 00_",
+     "unblocks": []
+    },
+    {
      "id": "SOMA-23",
      "title": "Analytics + conversion tracking on somaguard.net (GA4, Ads tag, GSC) — gates all paid spend",
      "lane": "SomaGuard",
-     "status": "ready",
+     "status": "active",
      "due": null,
-     "tasks_done": 0,
+     "tasks_done": 3,
      "tasks_total": 9,
-     "last_touch": "2026-08-27T15:27:01-07:00",
-     "last_focused": "2026-08-27T15:27:01-07:00",
+     "last_touch": "2026-08-28T04:22:10-07:00",
+     "last_focused": "2026-08-28T04:22:10-07:00",
      "age_days": 0,
      "due_in": null,
      "next": "1. Nominate the Google account that will own GA4 + Search Console + Google Ads + Merchant Center, and add the operator as a user on each. He already has one (used at postmaster.goo",
      "unblocks": [
       "SOMA-24"
      ]
+    },
+    {
+     "id": "SOMA-27",
+     "title": "somaguard.net link preview image is pixelated in WhatsApp (no og:image on the home page; social sharing image unset)",
+     "lane": "SomaGuard",
+     "status": "active",
+     "due": null,
+     "tasks_done": 6,
+     "tasks_total": 9,
+     "last_touch": "2026-08-28T04:22:10-07:00",
+     "last_focused": "2026-08-28T04:22:10-07:00",
+     "age_days": 0,
+     "due_in": null,
+     "next": "Send David the logo render: the finished 1200x630 share image plus a clean high-res logo file (PNG on transparent + on brand background), so he has something sharp to send directly",
+     "unblocks": []
+    },
+    {
+     "id": "SOMA-18",
+     "title": "Port the somaguard-2 build into the live somaguard.net store",
+     "lane": "SomaGuard",
+     "status": "active",
+     "due": null,
+     "tasks_done": 14,
+     "tasks_total": 21,
+     "last_touch": "2026-08-28T04:21:20-07:00",
+     "last_focused": "2026-08-28T04:21:20-07:00",
+     "age_days": 0,
+     "due_in": null,
+     "next": "Live-site copy findings (session 896, found while building the cold-email Copy Brief against the live store — all four are unverified-as-intentional, surface to David/Adam before c",
+     "unblocks": []
     },
     {
      "id": "SOMA-26",
@@ -2876,27 +2851,12 @@
      "unblocks": []
     },
     {
-     "id": "SOMA-27",
-     "title": "somaguard.net link preview image is pixelated in WhatsApp (no og:image on the home page; social sharing image unset)",
-     "lane": "SomaGuard",
-     "status": "ready",
-     "due": null,
-     "tasks_done": 5,
-     "tasks_total": 9,
-     "last_touch": "2026-08-27T00:09:38-07:00",
-     "last_focused": "2026-08-27T00:09:38-07:00",
-     "age_days": 1,
-     "due_in": null,
-     "next": "Reply to David with the one-liner: the store's social sharing image was never set, so the preview fell back to a tiny video thumbnail; fixed by uploading one.",
-     "unblocks": []
-    },
-    {
      "id": "SOMA-22",
      "title": "David retainer proposal + testimonial ask + AI-retention-manager scoping (from the 2026-08-18 call)",
      "lane": "SomaGuard",
      "status": "ready",
      "due": null,
-     "tasks_done": 0,
+     "tasks_done": 1,
      "tasks_total": 5,
      "last_touch": "2026-08-21T14:46:26-07:00",
      "last_focused": "2026-08-21T14:46:26-07:00",
@@ -2918,36 +2878,6 @@
      "age_days": 7,
      "due_in": null,
      "next": "Put the recommendation to David in writing and get an explicit yes/no on auto-publishing — record his answer here",
-     "unblocks": []
-    },
-    {
-     "id": "SOMA-20",
-     "title": "Cold-email go-live — David presses Start on 3809441",
-     "lane": "SomaGuard",
-     "status": "active",
-     "due": "2026-08-26",
-     "tasks_done": 1,
-     "tasks_total": 13,
-     "last_touch": "2026-08-27T06:40:07-07:00",
-     "last_focused": "2026-08-20T15:47:48-07:00",
-     "age_days": 7,
-     "due_in": -2,
-     "next": "Operator sends David the kit: runbook (on GitHub in the shared repo since session 887, `d643132`: s878's body kept as reference, asks-first action list added on top, de-dashed, 00_",
-     "unblocks": []
-    },
-    {
-     "id": "SOMA-18",
-     "title": "Port the somaguard-2 build into the live somaguard.net store",
-     "lane": "SomaGuard",
-     "status": "active",
-     "due": null,
-     "tasks_done": 13,
-     "tasks_total": 21,
-     "last_touch": "2026-08-20T15:35:03-07:00",
-     "last_focused": "2026-08-20T15:35:03-07:00",
-     "age_days": 7,
-     "due_in": null,
-     "next": "David's plan upgrade (Pause and Build → Basic) if DTC-live is the intent — operator: already known. Now also gates SOMA-20 Start (session 896 ruling) and SOMA-23 purchase conversio",
      "unblocks": []
     },
     {
@@ -3050,7 +2980,7 @@
      "tasks_total": 21,
      "last_touch": "2026-08-18T04:09:41-07:00",
      "last_focused": "2026-08-18T04:09:41-07:00",
-     "age_days": 9,
+     "age_days": 10,
      "due_in": null,
      "next": "Session 877 overnight deep dive → executable plan: `03_Areas/SomaGuard/01_Projects/Supabase Deep Dive 2026-08-16/00_Read Me First — Tomorrow.md` (D1 org placement recommended (b): ",
      "unblocks": []
@@ -3142,7 +3072,7 @@
      "ahead": 0
     }
    ],
-   "files_7d": 4,
+   "files_7d": 9,
    "wis": [
     {
      "id": "MM-29",
@@ -3306,7 +3236,7 @@
      "tasks_total": 7,
      "last_touch": "2026-08-21T14:38:53-07:00",
      "last_focused": "2026-08-14T04:29:23-07:00",
-     "age_days": 13,
+     "age_days": 14,
      "due_in": null,
      "next": "Run scaffold one-liner for SomaGuard",
      "unblocks": [
@@ -3323,7 +3253,7 @@
      "tasks_total": 2,
      "last_touch": "2026-08-14T04:28:40-07:00",
      "last_focused": "2026-08-14T04:28:40-07:00",
-     "age_days": 13,
+     "age_days": 14,
      "due_in": null,
      "next": "Operator: skeleton-write vs exclusion call per niche (6 niches)",
      "unblocks": []
@@ -3474,7 +3404,7 @@
      "tasks_total": 30,
      "last_touch": "2026-08-27T04:15:24-07:00",
      "last_focused": "2026-08-27T04:15:24-07:00",
-     "age_days": 0,
+     "age_days": 1,
      "due_in": null,
      "next": "Operator: decisions (a) and (b); naming call",
      "unblocks": []
@@ -3642,7 +3572,7 @@
      "tasks_total": 3,
      "last_touch": "2026-07-11T15:25:18-07:00",
      "last_focused": "2026-07-01T04:04:42-07:00",
-     "age_days": 57,
+     "age_days": 58,
      "due_in": null,
      "next": "Hook nightly harvester output into ingest-ads.py / page-less ingest",
      "unblocks": []
@@ -3788,11 +3718,11 @@
    "lane": "SomaGuard",
    "status": "active",
    "due": "2026-08-26",
-   "tasks_done": 1,
+   "tasks_done": 2,
    "tasks_total": 13,
-   "last_touch": "2026-08-27T06:40:07-07:00",
-   "last_focused": "2026-08-20T15:47:48-07:00",
-   "age_days": 7,
+   "last_touch": "2026-08-28T04:22:10-07:00",
+   "last_focused": "2026-08-28T04:22:10-07:00",
+   "age_days": 0,
    "due_in": -2,
    "next": "Operator sends David the kit: runbook (on GitHub in the shared repo since session 887, `d643132`: s878's body kept as reference, asks-first action list added on top, de-dashed, 00_"
   },
@@ -3811,6 +3741,7 @@
    "next": "operator: in an open session, `/loop 10m /group-sync poll somaguard-shared`; keep the box awake overnight. (`.claude/agents/board-egress-judge.md` is installed but loads NEXT sessi"
   }
  ],
+ "blocked_overdue": [],
  "swept": {
   "stalled_active": [
    {
@@ -3943,7 +3874,7 @@
     "tasks_total": 7,
     "last_touch": "2026-08-21T14:38:53-07:00",
     "last_focused": "2026-08-14T04:29:23-07:00",
-    "age_days": 13,
+    "age_days": 14,
     "due_in": null,
     "next": "Run scaffold one-liner for SomaGuard",
     "box": "Confirm artifacts inform live Soma copy work (cold-email angles, wholesale SEO, future PPC)"
@@ -3958,7 +3889,7 @@
     "tasks_total": 2,
     "last_touch": "2026-08-14T04:28:40-07:00",
     "last_focused": "2026-08-14T04:28:40-07:00",
-    "age_days": 13,
+    "age_days": 14,
     "due_in": null,
     "next": "Operator: skeleton-write vs exclusion call per niche (6 niches)",
     "box": "Operator: skeleton-write vs exclusion call per niche (6 niches)"
@@ -4075,14 +4006,14 @@
    {
     "repo": "obsidian-dashboard",
     "lane": "_System",
-    "ahead": 4,
-    "last": "2026-08-27T15:31-07:00"
+    "ahead": 5,
+    "last": "2026-08-28T04:46-07:00"
    }
   ]
  },
  "could_do": {
-  "ranked": false,
-  "explicit_tags": 3,
+  "ranked": true,
+  "explicit_tags": 10,
   "items": [
    {
     "id": "SOMA-3",
@@ -4110,317 +4041,269 @@
    }
   ]
  },
- "week": {
-  "days": [
-   {
-    "date": "2026-08-28",
-    "dow": "Fri",
-    "today": true,
-    "events": [],
-    "clock": []
-   },
-   {
-    "date": "2026-08-29",
-    "dow": "Sat",
-    "today": false,
-    "events": [],
-    "clock": []
-   },
-   {
-    "date": "2026-08-30",
-    "dow": "Sun",
-    "today": false,
-    "events": [],
-    "clock": [
-     {
-      "id": "SYS-482",
-      "title": "group-sync agent board + membrane primitive + in-session dri"
-     }
-    ]
-   },
-   {
-    "date": "2026-08-31",
-    "dow": "Mon",
-    "today": false,
-    "events": [],
-    "clock": []
-   },
-   {
-    "date": "2026-09-01",
-    "dow": "Tue",
-    "today": false,
-    "events": [],
-    "clock": []
-   },
-   {
-    "date": "2026-09-02",
-    "dow": "Wed",
-    "today": false,
-    "events": [],
-    "clock": []
-   },
-   {
-    "date": "2026-09-03",
-    "dow": "Thu",
-    "today": false,
-    "events": [],
-    "clock": []
-   }
-  ],
-  "managed_hidden": 11,
-  "error": null,
-  "overdue": [
-   {
-    "id": "WI-111",
-    "title": "File DBA (AZ Trade Name) — Casual Cosplay LLC d/b/a MatzekMe",
-    "days": 63
-   },
-   {
-    "id": "MM-32",
-    "title": "Lead Surfacing Machine — Places-API knowledge-work lead harv",
-    "days": 11
-   },
-   {
-    "id": "SOMA-6",
-    "title": "Ask Adam/David — Barrier Film line + inactive Beige-50 mask",
-    "days": 10
-   },
-   {
-    "id": "MM-43",
-    "title": "Hand-send MM-32 batch-2 assist rows + log CRM touches from S",
-    "days": 7
-   },
-   {
-    "id": "SOMA-20",
-    "title": "Cold-email go-live — David presses Start on 3809441",
-    "days": 2
-   }
-  ]
- },
- "sessions": [
+ "arcs": [
   {
-   "n": 913,
-   "date": "2026-08-27",
-   "age_days": 1,
-   "active_min": 0,
-   "user_min": 0,
-   "focus": null,
-   "zone": null,
-   "lane": null,
-   "wis": [],
-   "tier": "hot"
-  },
-  {
-   "n": 911,
-   "date": "2026-08-27",
-   "age_days": 1,
-   "active_min": 0,
-   "user_min": 3,
-   "focus": "SYS-485 operator dashboard build (s883 prototype -> live, plugin rework, calendar panel)",
-   "zone": "Scratchpad/session-883-dashboard/,tools/dashboard/,C:/Dev/obsidian-das",
+   "id": "system/escape-key-bug@882",
    "lane": "_System",
-   "wis": [
-    "SYS-485"
+   "lanes": [
+    "_System"
    ],
-   "tier": "hot"
+   "label": "Escape-key containment bug",
+   "sessions": [
+    {
+     "n": 882,
+     "date": "2026-08-19",
+     "dead": false,
+     "events": [
+      {
+       "type": "found_broken",
+       "text": "Escape key reopens Obsidian instead of staying in the seat",
+       "wi": null
+      }
+     ],
+     "note": "First diagnosis of the workspace-shell Escape-key containment bug — Escape was closing the seat's focus instead of being consumed by the PTY."
+    },
+    {
+     "n": 883,
+     "date": "2026-08-20",
+     "dead": false,
+     "events": [
+      {
+       "type": "declared_done",
+       "text": "shipped a window-capture-phase fix, called it done",
+       "wi": "SYS-474"
+      }
+     ],
+     "note": "Shipped a fix reasoning from a capture-phase keydown handler on the view's own containerEl; declared the Escape bug fixed."
+    },
+    {
+     "n": 884,
+     "date": "2026-08-20",
+     "dead": true,
+     "events": [],
+     "note": "Dead session — retry aborted at startup, zero deliverable."
+    },
+    {
+     "n": 889,
+     "date": "2026-08-24",
+     "dead": false,
+     "events": [
+      {
+       "type": "found_broken",
+       "text": "operator reports Escape still opens Obsidian",
+       "wi": "SYS-474"
+      }
+     ],
+     "note": "Operator reports the Escape bug is still live in a real seat; the 883 fix never actually held."
+    },
+    {
+     "n": 890,
+     "date": "2026-08-25",
+     "dead": false,
+     "events": [
+      {
+       "type": "root_caused",
+       "text": "actor is Obsidian's own Workspace class, not the plugin",
+       "wi": "SYS-474"
+      },
+      {
+       "type": "shipped",
+       "text": "v0.5.6 window-capture-phase fix, keyed on e.target",
+       "wi": "SYS-474"
+      }
+     ],
+     "note": "Root-caused the bug by reading Obsidian's own compiled Workspace source: the real actor is the host app's main-window bubble handler, not plugin code. Shipped v0.5.6, live-verified."
+    }
+   ],
+   "wis": [
+    "SYS-474"
+   ],
+   "open": false,
+   "first": 882,
+   "last": 890
   },
   {
-   "n": 914,
-   "date": "2026-08-27",
-   "age_days": 1,
-   "active_min": 22,
-   "user_min": 758,
-   "focus": "s911 freeze forensics (SYS-491 pipe-block evidence) + startup",
-   "zone": "AI Technician Log.md,Scratchpad/session-914*",
+   "id": "system/freeze-investigation@892",
    "lane": "_System",
-   "wis": [
-    "SYS-491"
+   "lanes": [
+    "_System"
    ],
-   "tier": "warm"
+   "label": "Freeze investigation",
+   "sessions": [
+    {
+     "n": 892,
+     "date": "2026-08-26",
+     "dead": false,
+     "events": [
+      {
+       "type": "found_broken",
+       "text": "seat freezes mid-session, writes stop, sockets stay ESTABLISHED",
+       "wi": "SYS-491"
+      }
+     ],
+     "note": "First live freeze capture: writes and process-spawns fail while TCP sockets stay open and the UI keeps rendering."
+    },
+    {
+     "n": 893,
+     "date": "2026-08-26",
+     "dead": false,
+     "events": [
+      {
+       "type": "found_broken",
+       "text": "second freeze, same signature, display-stall theory",
+       "wi": "SYS-491"
+      }
+     ],
+     "note": "Second freeze with the identical signature; spent the session chasing a display-stall theory upstream of node-pty's onData."
+    },
+    {
+     "n": 894,
+     "date": "2026-08-26",
+     "dead": true,
+     "events": [],
+     "note": "Dead session — startup only, aborted."
+    },
+    {
+     "n": 895,
+     "date": "2026-08-27",
+     "dead": false,
+     "events": [
+      {
+       "type": "root_caused",
+       "text": "root cause is commit-charge exhaustion, not display-stall",
+       "wi": "SYS-492"
+      },
+      {
+       "type": "shipped",
+       "text": "lazy fastembed import, five autostarts killed, ~2.9GB freed",
+       "wi": "SYS-492"
+      }
+     ],
+     "note": "Root-caused the freeze to commit-charge exhaustion (not the display-stall theory 892/893 spent two sessions chasing) and shipped the fix: lazy fastembed import, five autostarts killed, ~2.9GB freed."
+    }
+   ],
+   "wis": [
+    "SYS-491",
+    "SYS-492"
+   ],
+   "open": false,
+   "first": 892,
+   "last": 895
   },
   {
-   "n": 909,
-   "date": "2026-08-26",
-   "age_days": 2,
-   "active_min": 26,
-   "user_min": 757,
-   "focus": "SomaGuard GA4+Ads tag verification (read-only probe)",
-   "zone": "Scratchpad/session-909",
+   "id": "somaguard/shopify-rebuild@872",
    "lane": "SomaGuard",
-   "wis": [
-    "SOMA-27"
+   "lanes": [
+    "SomaGuard"
    ],
-   "tier": "warm"
-  },
-  {
-   "n": 908,
-   "date": "2026-08-26",
-   "age_days": 2,
-   "active_min": 26,
-   "user_min": 1372,
-   "focus": "SomaGuard: Quick Shop lost colour chooser after per-colour split (David 8/26) - fix + veri",
-   "zone": "Roadmaps/SomaGuard Roadmap.md,03_Areas/SomaGuard/,03_Areas/SomaGuard S",
-   "lane": "SomaGuard",
+   "label": "Shopify rebuild + sync false alarm",
+   "sessions": [
+    {
+     "n": 872,
+     "date": "2026-08-15",
+     "dead": false,
+     "events": [
+      {
+       "type": "found_broken",
+       "text": "sync looks broken between somaguard-2 and live theme",
+       "wi": "SOMA-13"
+      }
+     ],
+     "note": "Multi-hour diagnostic on what looked like a sync crisis between the somaguard-2 build and the live Shopify theme; inconclusive, left open."
+    },
+    {
+     "n": 875,
+     "date": "2026-08-16",
+     "dead": false,
+     "events": [
+      {
+       "type": "root_caused",
+       "text": "re-verified with normalized hashing",
+       "wi": "SOMA-17"
+      },
+      {
+       "type": "false_alarm",
+       "text": "the 872 sync crisis was a CRLF misread the whole time",
+       "wi": "SOMA-13"
+      }
+     ],
+     "note": "Re-verified the sync with normalized hashing and found the 872 'crisis' was a CRLF line-ending misread, not a real desync — no data was ever actually out of sync."
+    },
+    {
+     "n": 876,
+     "date": "2026-08-17",
+     "dead": false,
+     "events": [
+      {
+       "type": "shipped",
+       "text": "somaguard-2 build ported and pushed to the live theme",
+       "wi": "SOMA-18"
+      }
+     ],
+     "note": "Ported the somaguard-2 build to the live theme (SOMA-17/18), closing out the rebuild arc that 872 nearly burned a full session chasing a phantom bug."
+    }
+   ],
    "wis": [
+    "SOMA-13",
     "SOMA-17",
-    "SOMA-26"
+    "SOMA-18"
    ],
-   "tier": "warm"
+   "open": false,
+   "first": 872,
+   "last": 876
   },
   {
-   "n": 412,
-   "date": "2026-05-22",
-   "age_days": 98,
-   "active_min": null,
-   "user_min": null,
-   "focus": "GHOST: claim-session re-invocation with --focus created dup of 409 (memory gotcha)",
-   "zone": null,
-   "lane": null,
+   "id": "matzekmedia/push-product-ship@906",
+   "lane": "MatzekMedia",
+   "lanes": [
+    "MatzekMedia",
+    "_System"
+   ],
+   "label": "push-product / group-sync ship",
+   "sessions": [
+    {
+     "n": 906,
+     "date": "2026-08-27",
+     "dead": false,
+     "events": [
+      {
+       "type": "decision",
+       "text": "dry-run + handoff written; which model's rewrite wins per page slot still open",
+       "wi": null
+      }
+     ],
+     "note": "Ran a 4-model copy audit of matzekmedia.com (89.7KB doc, no WI); the busiest session of the week, with one decision still open."
+    },
+    {
+     "n": 910,
+     "date": "2026-08-27",
+     "dead": false,
+     "events": [
+      {
+       "type": "found_broken",
+       "text": "sanitizer gap found in the security pass",
+       "wi": null
+      },
+      {
+       "type": "shipped",
+       "text": "security fix + real push-product ship",
+       "wi": null
+      },
+      {
+       "type": "filed",
+       "text": "push-ship.md rule added",
+       "wi": null
+      }
+     ],
+     "note": "Resumed the 906 push-product thread across the two unrelated SomaGuard sessions in between: found and fixed a sanitizer gap, then ran the real push. Deliverable was a rule added to push-ship.md, not a WI."
+    }
+   ],
    "wis": [],
-   "tier": "idle"
-  },
-  {
-   "n": 395,
-   "date": "2026-05-19",
-   "age_days": 101,
-   "active_min": null,
-   "user_min": null,
-   "focus": "abandoned ghost - duplicate claim from session 393",
-   "zone": null,
-   "lane": null,
-   "wis": [],
-   "tier": "idle"
-  },
-  {
-   "n": 394,
-   "date": "2026-05-19",
-   "age_days": 101,
-   "active_min": null,
-   "user_min": null,
-   "focus": "abandoned ghost - duplicate claim from session 393",
-   "zone": null,
-   "lane": null,
-   "wis": [],
-   "tier": "idle"
+   "open": false,
+   "first": 906,
+   "last": 910
   }
  ],
- "capture": [
-  {
-   "title": "🗺️ System Map v3.4 saved; three actions are yours",
-   "date": "2026-08-27",
-   "age_days": 1
-  },
-  {
-   "title": "✍️ Copy audit × 4 models — writeup ready; two decisions need a ruling",
-   "date": "2026-08-26",
-   "age_days": 2
-  },
-  {
-   "title": "🛒 SomaGuard — Adam's answers are live; one pricing decision open",
-   "date": "2026-08-19",
-   "age_days": 9
-  },
-  {
-   "title": "📈 SomaGuard — David wants ads + a blog; the store has no analytics at all",
-   "date": "2026-08-19",
-   "age_days": 9
-  },
-  {
-   "title": "📨 TWO OPERATOR ACTIONS — David update + start the board loop",
-   "date": "2026-08-16",
-   "age_days": 12
-  },
-  {
-   "title": "☀️ MORNING — SomaGuard Supabase build is ready to apply",
-   "date": "2026-08-16",
-   "age_days": 12
-  },
-  {
-   "title": "📋 SYS-437 Candidate 4 — parked for a lower-energy read",
-   "date": "2026-08-14",
-   "age_days": 14
-  },
-  {
-   "title": "🛠 SYS WI proposal — deep-research pipeline defects (session 877, 2026-08-15) — file on the System roadmap when",
-   "date": "2026-08-15",
-   "age_days": 13
-  },
-  {
-   "title": "🤝 SomaGuard handoff — APPLIED session 877 (2026-08-15); entry can be dropped at the next Capture Zone sweep",
-   "date": "2026-08-15",
-   "age_days": 13
-  },
-  {
-   "title": "🧭 Teardown slate — RATIFIED AND CLEARED",
-   "date": "2026-07-29",
-   "age_days": 30
-  }
- ],
- "capture_total": 23,
- "signal": [
-  {
-   "group": "contenthoarder",
-   "messages": 0,
-   "unread": 0,
-   "quarantined": 0,
-   "held": 0,
-   "threads": "-"
-  },
-  {
-   "group": "somaguard-shared",
-   "messages": 2,
-   "unread": 0,
-   "quarantined": 0,
-   "held": 0,
-   "threads": "hello, scroll-analysis"
-  }
- ],
- "infra": {
-  "age_s": 2,
-  "procs": [
-   {
-    "label": "indexer-daemon",
-    "ok": true
-   },
-   {
-    "label": "vault-search-watcher",
-    "ok": true
-   },
-   {
-    "label": "discord-bot",
-    "ok": false
-   },
-   {
-    "label": "dictation",
-    "ok": true
-   },
-   {
-    "label": "dashboard-collector",
-    "ok": true
-   },
-   {
-    "label": "other python (24)",
-    "ok": true
-   }
-  ]
- },
- "stats": {
-  "open_working": 119,
-  "waiting": 20,
-  "deferred": 168,
-  "by_status": {
-   "done": 327,
-   "superseded": 4,
-   "ready": 79,
-   "waiting": 2,
-   "killed": 106,
-   "deferred": 168,
-   "needs-testing": 19,
-   "active": 21,
-   "blocked": 18,
-   "dormant": 17
-  }
- },
  "sessions_log": [
   {
    "n": 872,
@@ -4837,256 +4720,6 @@
    "note": "Freeze forensics session gathering SYS-491 pipe-block evidence; startup housekeeping."
   }
  ],
- "arcs": [
-  {
-   "id": "system/escape-key-bug@882",
-   "lane": "_System",
-   "label": "Escape-key containment bug",
-   "sessions": [
-    {
-     "n": 882,
-     "date": "2026-08-19",
-     "dead": false,
-     "events": [
-      {
-       "type": "found_broken",
-       "text": "Escape key reopens Obsidian instead of staying in the seat",
-       "wi": null
-      }
-     ],
-     "note": "First diagnosis of the workspace-shell Escape-key containment bug — Escape was closing the seat's focus instead of being consumed by the PTY."
-    },
-    {
-     "n": 883,
-     "date": "2026-08-20",
-     "dead": false,
-     "events": [
-      {
-       "type": "declared_done",
-       "text": "shipped a window-capture-phase fix, called it done",
-       "wi": "SYS-474"
-      }
-     ],
-     "note": "Shipped a fix reasoning from a capture-phase keydown handler on the view's own containerEl; declared the Escape bug fixed."
-    },
-    {
-     "n": 884,
-     "date": "2026-08-20",
-     "dead": true,
-     "events": [],
-     "note": "Dead session — retry aborted at startup, zero deliverable."
-    },
-    {
-     "n": 889,
-     "date": "2026-08-24",
-     "dead": false,
-     "events": [
-      {
-       "type": "found_broken",
-       "text": "operator reports Escape still opens Obsidian",
-       "wi": "SYS-474"
-      }
-     ],
-     "note": "Operator reports the Escape bug is still live in a real seat; the 883 fix never actually held."
-    },
-    {
-     "n": 890,
-     "date": "2026-08-25",
-     "dead": false,
-     "events": [
-      {
-       "type": "root_caused",
-       "text": "actor is Obsidian's own Workspace class, not the plugin",
-       "wi": "SYS-474"
-      },
-      {
-       "type": "shipped",
-       "text": "v0.5.6 window-capture-phase fix, keyed on e.target",
-       "wi": "SYS-474"
-      }
-     ],
-     "note": "Root-caused the bug by reading Obsidian's own compiled Workspace source: the real actor is the host app's main-window bubble handler, not plugin code. Shipped v0.5.6, live-verified."
-    }
-   ],
-   "wis": [
-    "SYS-474"
-   ],
-   "open": false,
-   "first": 882,
-   "last": 890
-  },
-  {
-   "id": "system/freeze-investigation@892",
-   "lane": "_System",
-   "label": "Freeze investigation",
-   "sessions": [
-    {
-     "n": 892,
-     "date": "2026-08-26",
-     "dead": false,
-     "events": [
-      {
-       "type": "found_broken",
-       "text": "seat freezes mid-session, writes stop, sockets stay ESTABLISHED",
-       "wi": "SYS-491"
-      }
-     ],
-     "note": "First live freeze capture: writes and process-spawns fail while TCP sockets stay open and the UI keeps rendering."
-    },
-    {
-     "n": 893,
-     "date": "2026-08-26",
-     "dead": false,
-     "events": [
-      {
-       "type": "found_broken",
-       "text": "second freeze, same signature, display-stall theory",
-       "wi": "SYS-491"
-      }
-     ],
-     "note": "Second freeze with the identical signature; spent the session chasing a display-stall theory upstream of node-pty's onData."
-    },
-    {
-     "n": 894,
-     "date": "2026-08-26",
-     "dead": true,
-     "events": [],
-     "note": "Dead session — startup only, aborted."
-    },
-    {
-     "n": 895,
-     "date": "2026-08-27",
-     "dead": false,
-     "events": [
-      {
-       "type": "root_caused",
-       "text": "root cause is commit-charge exhaustion, not display-stall",
-       "wi": "SYS-492"
-      },
-      {
-       "type": "shipped",
-       "text": "lazy fastembed import, five autostarts killed, ~2.9GB freed",
-       "wi": "SYS-492"
-      }
-     ],
-     "note": "Root-caused the freeze to commit-charge exhaustion (not the display-stall theory 892/893 spent two sessions chasing) and shipped the fix: lazy fastembed import, five autostarts killed, ~2.9GB freed."
-    }
-   ],
-   "wis": [
-    "SYS-491",
-    "SYS-492"
-   ],
-   "open": false,
-   "first": 892,
-   "last": 895
-  },
-  {
-   "id": "somaguard/shopify-rebuild@872",
-   "lane": "SomaGuard",
-   "label": "Shopify rebuild + sync false alarm",
-   "sessions": [
-    {
-     "n": 872,
-     "date": "2026-08-15",
-     "dead": false,
-     "events": [
-      {
-       "type": "found_broken",
-       "text": "sync looks broken between somaguard-2 and live theme",
-       "wi": "SOMA-13"
-      }
-     ],
-     "note": "Multi-hour diagnostic on what looked like a sync crisis between the somaguard-2 build and the live Shopify theme; inconclusive, left open."
-    },
-    {
-     "n": 875,
-     "date": "2026-08-16",
-     "dead": false,
-     "events": [
-      {
-       "type": "root_caused",
-       "text": "re-verified with normalized hashing",
-       "wi": "SOMA-17"
-      },
-      {
-       "type": "false_alarm",
-       "text": "the 872 sync crisis was a CRLF misread the whole time",
-       "wi": "SOMA-13"
-      }
-     ],
-     "note": "Re-verified the sync with normalized hashing and found the 872 'crisis' was a CRLF line-ending misread, not a real desync — no data was ever actually out of sync."
-    },
-    {
-     "n": 876,
-     "date": "2026-08-17",
-     "dead": false,
-     "events": [
-      {
-       "type": "shipped",
-       "text": "somaguard-2 build ported and pushed to the live theme",
-       "wi": "SOMA-18"
-      }
-     ],
-     "note": "Ported the somaguard-2 build to the live theme (SOMA-17/18), closing out the rebuild arc that 872 nearly burned a full session chasing a phantom bug."
-    }
-   ],
-   "wis": [
-    "SOMA-13",
-    "SOMA-17",
-    "SOMA-18"
-   ],
-   "open": false,
-   "first": 872,
-   "last": 876
-  },
-  {
-   "id": "matzekmedia/push-product-ship@906",
-   "lane": "MatzekMedia",
-   "label": "push-product / group-sync ship",
-   "sessions": [
-    {
-     "n": 906,
-     "date": "2026-08-27",
-     "dead": false,
-     "events": [
-      {
-       "type": "decision",
-       "text": "dry-run + handoff written; which model's rewrite wins per page slot still open",
-       "wi": null
-      }
-     ],
-     "note": "Ran a 4-model copy audit of matzekmedia.com (89.7KB doc, no WI); the busiest session of the week, with one decision still open."
-    },
-    {
-     "n": 910,
-     "date": "2026-08-27",
-     "dead": false,
-     "events": [
-      {
-       "type": "found_broken",
-       "text": "sanitizer gap found in the security pass",
-       "wi": null
-      },
-      {
-       "type": "shipped",
-       "text": "security fix + real push-product ship",
-       "wi": null
-      },
-      {
-       "type": "filed",
-       "text": "push-ship.md rule added",
-       "wi": null
-      }
-     ],
-     "note": "Resumed the 906 push-product thread across the two unrelated SomaGuard sessions in between: found and fixed a sanitizer gap, then ran the real push. Deliverable was a rule added to push-ship.md, not a WI."
-    }
-   ],
-   "wis": [],
-   "open": false,
-   "first": 906,
-   "last": 910
-  }
- ],
  "triage": {
   "you": [
    {
@@ -5170,11 +4803,11 @@
   ],
   "them": [],
   "seat": {
-   "_System": {
+   "SomaGuard": {
     "count": 0,
     "stalled": []
    },
-   "SomaGuard": {
+   "_System": {
     "count": 0,
     "stalled": []
    },
@@ -5198,20 +4831,312 @@
    }
   ]
  },
- "blocked_overdue": [
+ "week": {
+  "days": [
+   {
+    "date": "2026-08-28",
+    "dow": "Fri",
+    "today": true,
+    "events": [],
+    "clock": []
+   },
+   {
+    "date": "2026-08-29",
+    "dow": "Sat",
+    "today": false,
+    "events": [],
+    "clock": []
+   },
+   {
+    "date": "2026-08-30",
+    "dow": "Sun",
+    "today": false,
+    "events": [],
+    "clock": [
+     {
+      "id": "SYS-482",
+      "title": "group-sync agent board + membrane primitive + in-session dri"
+     }
+    ]
+   },
+   {
+    "date": "2026-08-31",
+    "dow": "Mon",
+    "today": false,
+    "events": [],
+    "clock": []
+   },
+   {
+    "date": "2026-09-01",
+    "dow": "Tue",
+    "today": false,
+    "events": [],
+    "clock": []
+   },
+   {
+    "date": "2026-09-02",
+    "dow": "Wed",
+    "today": false,
+    "events": [],
+    "clock": []
+   },
+   {
+    "date": "2026-09-03",
+    "dow": "Thu",
+    "today": false,
+    "events": [],
+    "clock": []
+   }
+  ],
+  "managed_hidden": 11,
+  "error": null,
+  "overdue": [
+   {
+    "id": "MM-32",
+    "title": "Lead Surfacing Machine — Places-API knowledge-work lead harv",
+    "days": 11
+   },
+   {
+    "id": "SOMA-6",
+    "title": "Ask Adam/David — Barrier Film line + inactive Beige-50 mask",
+    "days": 10
+   },
+   {
+    "id": "MM-43",
+    "title": "Hand-send MM-32 batch-2 assist rows + log CRM touches from S",
+    "days": 7
+   },
+   {
+    "id": "SOMA-20",
+    "title": "Cold-email go-live — David presses Start on 3809441",
+    "days": 2
+   }
+  ]
+ },
+ "sessions": [
   {
-   "id": "WI-111",
-   "title": "File DBA (AZ Trade Name) — Casual Cosplay LLC d/b/a MatzekMedia",
-   "lane": "PKM",
-   "status": "blocked",
-   "due": "2026-06-26",
-   "tasks_done": 2,
-   "tasks_total": 8,
-   "last_touch": "2026-08-13T17:05:00-07:00",
-   "last_focused": "2026-08-13T17:05:00-07:00",
-   "age_days": 14,
-   "due_in": -63,
-   "next": "NEXT: File AZ Trade Name (expedited, $35) via Arizona Business One Stop — once mailbox address is active"
+   "n": 911,
+   "date": "2026-08-27",
+   "age_days": 1,
+   "active_min": 0,
+   "user_min": 37,
+   "focus": "SYS-485 operator dashboard build (s883 prototype -> live, plugin rework, calendar panel)",
+   "zone": "Scratchpad/session-883-dashboard/,tools/dashboard/,C:/Dev/obsidian-das",
+   "lane": "_System",
+   "wis": [
+    "SYS-485"
+   ],
+   "tier": "hot"
+  },
+  {
+   "n": 909,
+   "date": "2026-08-26",
+   "age_days": 2,
+   "active_min": 3,
+   "user_min": 19,
+   "focus": "SomaGuard GA4+Ads tag verification (read-only probe)",
+   "zone": "Scratchpad/session-909",
+   "lane": "SomaGuard",
+   "wis": [
+    "SOMA-27"
+   ],
+   "tier": "hot"
+  },
+  {
+   "n": 913,
+   "date": "2026-08-27",
+   "age_days": 1,
+   "active_min": 31,
+   "user_min": 48,
+   "focus": "SOMA-20 live state + cold-email test design; build MM 03_Knowledge/Email Outreach folder",
+   "zone": "03_Areas/MatzekMedia/03_Knowledge/Email Outreach/, 03_Areas/MatzekMedi",
+   "lane": "SomaGuard",
+   "wis": [
+    "SOMA-20"
+   ],
+   "tier": "warm"
+  },
+  {
+   "n": 908,
+   "date": "2026-08-26",
+   "age_days": 2,
+   "active_min": 36,
+   "user_min": 1420,
+   "focus": "SomaGuard: Quick Shop lost colour chooser after per-colour split (David 8/26) - fix + veri",
+   "zone": "Roadmaps/SomaGuard Roadmap.md,03_Areas/SomaGuard/,03_Areas/SomaGuard S",
+   "lane": "SomaGuard",
+   "wis": [
+    "SOMA-17",
+    "SOMA-26"
+   ],
+   "tier": "warm"
+  },
+  {
+   "n": 914,
+   "date": "2026-08-27",
+   "age_days": 1,
+   "active_min": 37,
+   "user_min": 46,
+   "focus": "s911 freeze forensics (SYS-491 pipe-block evidence) + startup",
+   "zone": "AI Technician Log.md,Scratchpad/session-914*",
+   "lane": "_System",
+   "wis": [
+    "SYS-491"
+   ],
+   "tier": "warm"
+  },
+  {
+   "n": 412,
+   "date": "2026-05-22",
+   "age_days": 98,
+   "active_min": null,
+   "user_min": null,
+   "focus": "GHOST: claim-session re-invocation with --focus created dup of 409 (memory gotcha)",
+   "zone": null,
+   "lane": null,
+   "wis": [],
+   "tier": "idle"
+  },
+  {
+   "n": 395,
+   "date": "2026-05-19",
+   "age_days": 101,
+   "active_min": null,
+   "user_min": null,
+   "focus": "abandoned ghost - duplicate claim from session 393",
+   "zone": null,
+   "lane": null,
+   "wis": [],
+   "tier": "idle"
+  },
+  {
+   "n": 394,
+   "date": "2026-05-19",
+   "age_days": 101,
+   "active_min": null,
+   "user_min": null,
+   "focus": "abandoned ghost - duplicate claim from session 393",
+   "zone": null,
+   "lane": null,
+   "wis": [],
+   "tier": "idle"
   }
- ]
+ ],
+ "capture": [
+  {
+   "title": "⚖️ One ruling for the dashboard rework: keep filing retroactive WIs for no-WI work?",
+   "date": "2026-08-28",
+   "age_days": 0
+  },
+  {
+   "title": "🗺️ System Map v3.4 saved; three actions are yours",
+   "date": "2026-08-27",
+   "age_days": 1
+  },
+  {
+   "title": "✍️ Copy audit × 4 models — writeup ready; two decisions need a ruling",
+   "date": "2026-08-26",
+   "age_days": 2
+  },
+  {
+   "title": "🛒 SomaGuard — Adam's answers are live; one pricing decision open",
+   "date": "2026-08-19",
+   "age_days": 9
+  },
+  {
+   "title": "📈 SomaGuard — David wants ads + a blog; the store has no analytics at all",
+   "date": "2026-08-19",
+   "age_days": 9
+  },
+  {
+   "title": "📨 TWO OPERATOR ACTIONS — David update + start the board loop",
+   "date": "2026-08-16",
+   "age_days": 12
+  },
+  {
+   "title": "☀️ MORNING — SomaGuard Supabase build is ready to apply",
+   "date": "2026-08-16",
+   "age_days": 12
+  },
+  {
+   "title": "📋 SYS-437 Candidate 4 — parked for a lower-energy read",
+   "date": "2026-08-14",
+   "age_days": 14
+  },
+  {
+   "title": "🛠 SYS WI proposal — deep-research pipeline defects (session 877, 2026-08-15) — file on the System roadmap when",
+   "date": "2026-08-15",
+   "age_days": 13
+  },
+  {
+   "title": "🤝 SomaGuard handoff — APPLIED session 877 (2026-08-15); entry can be dropped at the next Capture Zone sweep",
+   "date": "2026-08-15",
+   "age_days": 13
+  }
+ ],
+ "capture_total": 24,
+ "signal": [
+  {
+   "group": "contenthoarder",
+   "messages": 0,
+   "unread": 0,
+   "quarantined": 0,
+   "held": 0,
+   "threads": "-"
+  },
+  {
+   "group": "somaguard-shared",
+   "messages": 2,
+   "unread": 0,
+   "quarantined": 0,
+   "held": 0,
+   "threads": "hello, scroll-analysis"
+  }
+ ],
+ "infra": {
+  "age_s": 1,
+  "procs": [
+   {
+    "label": "indexer-daemon",
+    "ok": true
+   },
+   {
+    "label": "vault-search-watcher",
+    "ok": true
+   },
+   {
+    "label": "discord-bot",
+    "ok": false
+   },
+   {
+    "label": "dictation",
+    "ok": true
+   },
+   {
+    "label": "dashboard-collector",
+    "ok": true
+   },
+   {
+    "label": "other python (13)",
+    "ok": true
+   }
+  ]
+ },
+ "stats": {
+  "open_working": 119,
+  "waiting": 20,
+  "deferred": 168,
+  "by_status": {
+   "done": 327,
+   "superseded": 4,
+   "ready": 77,
+   "waiting": 2,
+   "killed": 106,
+   "deferred": 168,
+   "needs-testing": 19,
+   "active": 23,
+   "blocked": 18,
+   "dormant": 17
+  }
+ }
 }

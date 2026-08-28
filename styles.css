@@ -782,9 +782,11 @@
 .op-panel .arc-strip::-webkit-scrollbar-thumb { background: var(--background-modifier-border); border-radius: 3px; }
 .op-panel .arc-strip-track { position: relative; }
 .op-panel .arc-bars { position: relative; margin: 6px 0 0; }
-.op-panel .arc-bar { position: absolute; height: 11px; border-radius: 4px; background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); border: 1px solid color-mix(in srgb, var(--interactive-accent) 45%, transparent); cursor: default; overflow: hidden; }
+.op-panel .arc-bar { position: absolute; height: 11px; border-radius: 4px; background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); border: 1px solid color-mix(in srgb, var(--interactive-accent) 45%, transparent); cursor: default; overflow: hidden; display: flex; align-items: center; }
 .op-panel .arc-bar.open { background: color-mix(in srgb, #d6b25e 26%, transparent); border-color: color-mix(in srgb, #d6b25e 55%, transparent); }
-.op-panel .arc-bar-lbl { font-size: 9px; line-height: 11px; color: var(--text-normal); padding: 0 5px; white-space: nowrap; opacity: 0.85; }
+.op-panel .arc-bar-lbl { font-size: 9px; line-height: 11px; color: var(--text-normal); padding: 0 5px; white-space: nowrap; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+.op-panel .arc-bar.foreign { border-style: dashed; }
+.op-panel .arc-bar-origin { font-size: 8px; line-height: 11px; color: var(--text-faint); padding: 0 4px 0 0; opacity: 0.8; flex: 0 0 auto; }
 .op-panel .arc-nodes { position: relative; height: 30px; margin-top: 2px; }
 .op-panel .arc-node { position: absolute; top: 2px; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 9.5px; color: var(--text-muted); white-space: nowrap; }
 .op-panel .arc-node-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--interactive-accent); }
