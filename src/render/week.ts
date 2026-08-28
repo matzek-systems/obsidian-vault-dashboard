@@ -19,13 +19,14 @@ import { Any, esc, laneOf } from "./common";
 import { laneAbbrev } from "./arc-strip";
 
 /** One WI row inside a day cell: lane chip + id + title, single-line
- *  ellipsis (CSS, not JS truncation -- title="" and the WiHover card both
- *  already carry the untruncated text). `overdueDays` present -> red +
- *  "-Nd"; absent -> the plain "due" tint. */
+ *  ellipsis (CSS, not JS truncation -- the WiHover card carries the
+ *  untruncated text; no title="" any more, operator double-popup complaint
+ *  s916 follow-up). `overdueDays` present -> red + "-Nd"; absent -> the
+ *  plain "due" tint. */
 function weekWiRow(w: Any, overdueDays?: number): string {
 	const lane = laneOf(w);
 	const over = overdueDays != null ? `<span class="wk-over">-${esc(overdueDays)}d</span>` : "";
-	return `<div class="wk-wi${overdueDays != null ? " wk-wi-over" : ""}" data-act="open" data-id="${esc(w.id)}" data-lane="${esc(lane)}" title="${esc(w.title)}">`
+	return `<div class="wk-wi${overdueDays != null ? " wk-wi-over" : ""}" data-act="open" data-id="${esc(w.id)}" data-lane="${esc(lane)}">`
 		+ `<span class="wk-lane">${esc(laneAbbrev(lane))}</span><span class="tid">${esc(w.id)}</span><span class="wk-ttl">${esc(w.title)}</span>${over}`
 		+ `</div>`;
 }
@@ -36,7 +37,7 @@ function planHtml(plan: Any): string {
 	if (!plan) return "";
 	const kind = plan.kind === "q2" ? "q2" : "deep";
 	const label = kind === "q2" ? "Q2" : "AM";
-	return `<div class="wk-plan wk-plan-${kind}" data-act="open" data-id="${esc(plan.id)}" data-lane="${esc(laneOf(plan))}" title="${esc(plan.title)}">`
+	return `<div class="wk-plan wk-plan-${kind}" data-act="open" data-id="${esc(plan.id)}" data-lane="${esc(laneOf(plan))}">`
 		+ `<span class="wk-plan-tag">${label}</span><span class="wk-plan-ttl">${esc(plan.title)}</span></div>`;
 }
 

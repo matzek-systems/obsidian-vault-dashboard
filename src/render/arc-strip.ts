@@ -102,21 +102,26 @@ export function arcSpan(a: Any): string {
 	return a.first === a.last ? (firstRow?.date || "") : `${firstRow?.date ?? "?"} → ${lastRow?.date ?? "?"}`;
 }
 
-/** Gutter + hover tooltip text: full label, first→last span, and wis. */
-function arcTooltip(a: Any, lane: string): string {
+/** Hover tooltip text: full label, first→last span, and wis. Used by
+ *  renderSingleNode only -- multi-row gutters dropped their title (operator
+ *  double-popup complaint, s916 follow-up: ArcHover already carries this
+ *  same text). No `foreign`/from-lane suffix any more: arc tabs now filter
+ *  by ORIGIN lane only (renderArcStrip's laneArcs, below), so every arc this
+ *  runs on already has a.lane === the tab it's rendering on. */
+function arcTooltip(a: Any): string {
 	const wis = a.wis && a.wis.length ? a.wis.join(", ") : "no WIs";
-	const foreign = a.lane && a.lane !== lane;
-	return `${a.label} · ${arcSpan(a)} · ${wis}${a.open ? " · open" : " · closed"}${foreign ? ` · from ${a.lane}` : ""}`;
+	return `${a.label} · ${arcSpan(a)} · ${wis}${a.open ? " · open" : " · closed"}`;
 }
 
 /** Gutter label markup (operator ruling s914): a label shaped "Name: what
  *  happened" splits into a bold name line + a muted description line (2
  *  lines total, ellipsis on line 2 if the description overflows); a label
  *  with no colon just wraps to 2 lines with an ellipsis. The FULL
- *  untruncated label always lives in the gutter's title="" tooltip
- *  (arcTooltip, above) and the ArcHover card (arc-hover.ts) for anything
- *  long enough to clip here -- this is display-only truncation, never data
- *  loss. */
+ *  untruncated label always lives in the ArcHover card (arc-hover.ts) for
+ *  anything long enough to clip here -- this is display-only truncation,
+ *  never data loss. No title="" fallback any more (s916 follow-up:
+ *  native tooltip + ArcHover card both firing was the reported double
+ *  popup) -- the card is the one source of the untruncated text now. */
 function gutterLabelHtml(label: string): string {
 	const idx = label.indexOf(":");
 	if (idx === -1) {
@@ -141,12 +146,14 @@ function renderNode(row: Any, x: number, closedArc: boolean): string {
 	return `<div class="${cls.join(" ")}" data-sess="${esc(row?.n)}" style="left:${x}px" title="s${esc(row?.n)} · ${esc(row?.date)}">${nodeMarks(row?.events)}</div>`;
 }
 
-/** A singles-row node: title carries the arc's full label (the "label on
- *  hover only" requirement) — plain native tooltip, no extra plumbing. */
-function renderSingleNode(a: Any, row: Any, x: number, lane: string): string {
+/** A singles-row node: title carries the arc's full label. Kept (unlike the
+ *  multi-row gutter's title, dropped below) -- SessionHover's [data-sess]
+ *  card on this same node shows the SESSION's own note/events, not the
+ *  arc's label/span/wis, so the two aren't a duplicate popup pair. */
+function renderSingleNode(a: Any, row: Any, x: number): string {
 	const cls = ["arc-node"];
 	if (!a.open) cls.push("closed-arc");
-	const title = arcTooltip(a, lane);
+	const title = arcTooltip(a);
 	if (row?.dead) {
 		cls.push("dead");
 		return `<div class="${cls.join(" ")}" data-sess="${esc(a.first)}" data-arc="${esc(a.id)}" style="left:${x}px" title="${esc(title)}">×</div>`;
@@ -155,27 +162,31 @@ function renderSingleNode(a: Any, row: Any, x: number, lane: string): string {
 	return `<div class="${cls.join(" ")}" data-sess="${esc(a.first)}" data-arc="${esc(a.id)}" style="left:${x}px" title="${esc(title)}">${nodeMarks(row?.events)}</div>`;
 }
 
-function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, trackWidth: number, gutterPx: number, jumpHtml: string): string {
-	const foreign = !!(a.lane && a.lane !== lane);
-	const cls = ["arc-row", a.open ? "open" : "closed", foreign ? "foreign" : ""].filter(Boolean).join(" ");
-	const originChip = foreign ? `<span class="arc-row-origin" title="from ${esc(a.lane)}">${esc(laneAbbrev(a.lane))}</span>` : "";
+function renderMultiRow(a: Any, colX: (n: number) => number, trackWidth: number, gutterPx: number, jumpHtml: string): string {
+	const cls = ["arc-row", a.open ? "open" : "closed"].join(" ");
 	const members: Any[] = a.sessions || [];
 	const memberXs = members.map((s) => colX(s.n));
 	const lineHtml = memberXs.length > 1
 		? `<div class="arc-line" style="left:${Math.min(...memberXs)}px;width:${Math.max(2, Math.max(...memberXs) - Math.min(...memberXs))}px"></div>`
 		: "";
 	const nodesHtml = members.map((s) => renderNode(s, colX(s.n), !a.open)).join("");
+	// No title="" on the gutter -- ArcHover's [data-arc] card (arc-hover.ts)
+	// already shows this same label/span/wis text; native title + card both
+	// firing was the operator's reported double-popup (s916 follow-up).
 	return `<div class="${cls}">`
-		+ `<div class="arc-gutter" data-arc="${esc(a.id)}" style="${gutterStyleAttr(gutterPx)}" title="${esc(arcTooltip(a, lane))}">${originChip}${gutterLabelHtml(a.label)}${jumpHtml}</div>`
+		+ `<div class="arc-gutter" data-arc="${esc(a.id)}" style="${gutterStyleAttr(gutterPx)}">${gutterLabelHtml(a.label)}${jumpHtml}</div>`
 		+ `<div class="arc-track" style="width:${trackWidth}px">${lineHtml}${nodesHtml}</div>`
 		+ `</div>`;
 }
 
 /** lane = the lane this strip is scoped to; arcs/sessionsLog are the
  *  top-level (all-lane) schema-3 arrays, filtered here. An arc shows on a
- *  lane tab when the tab's lane is IN arc.lanes (the union of every lane
- *  any member session touched), not just arc.lane (its origin lane) —
- *  missing `lanes` on older/mock data falls back to [lane]. Only OPEN arcs
+ *  lane tab only when the tab IS the arc's ORIGIN lane (arc.lane) -- s916
+ *  follow-up, operator ruling ("why is SomaGuard on the System page?"):
+ *  session-touch was too loose (a single member session filing an
+ *  off-lane WI put e.g. somaguard/shopify-rebuild-soma17@872 on _System via
+ *  arc.lanes' cross-lane union). `lanes` stays in the JSON/generator
+ *  untouched -- this is a render-layer filter change only. Only OPEN arcs
  *  render (operator ruling s914: "he doesn't want inactive arcs on the
  *  strip") — a lane with zero open arcs renders a one-line empty state
  *  instead of an axis with nothing on it, regardless of recent session
@@ -189,7 +200,7 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 	const windowStart = now - WINDOW_DAYS * DAY_MS;
 	const all: Any[] = sessionsLog || [];
 
-	const laneArcs = (arcs || []).filter((a) => (a.lanes && a.lanes.length ? a.lanes : [a.lane]).includes(lane));
+	const laneArcs = (arcs || []).filter((a) => a.lane === lane);
 	const openArcs = laneArcs.filter((a) => a.open);
 
 	if (!openArcs.length) {
@@ -309,10 +320,10 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 	const multiRows = multi.map((a) => {
 		const members: Any[] = a.sessions || [];
 		const items = members.map((s) => ({ id: String(s.n), x: colX(s.n) }));
-		return renderMultiRow(a, lane, colX, trackWidth, gutterPx, jumpMarker(items));
+		return renderMultiRow(a, colX, trackWidth, gutterPx, jumpMarker(items));
 	}).join("");
 
-	const singlesNodes = singles.map((a) => renderSingleNode(a, rowByN.get(a.first) || (a.sessions && a.sessions[0]), colX(a.first), lane)).join("");
+	const singlesNodes = singles.map((a) => renderSingleNode(a, rowByN.get(a.first) || (a.sessions && a.sessions[0]), colX(a.first))).join("");
 	// Singles share ONE row across every one-off arc, so the "all nodes
 	// hidden" check runs over the whole set at once -- a partially-visible
 	// singles row already satisfies "no row reads as empty."

@@ -3,9 +3,10 @@
 // styles.css) -- this card shows the FULL untruncated label + span/WIs/
 // status, same skin as session-hover.ts, triggered on a multi-row's
 // [data-arc] .arc-gutter (singles-row gutters carry no data-arc; their
-// nodes already have their own [data-sess] session card). The gutter's
-// native title="" attribute still carries the same text for anyone who
-// prefers a plain OS tooltip -- this is the richer/faster-to-read version.
+// nodes already have their own [data-sess] session card). The gutter has
+// no title="" any more (s916 follow-up: it duplicated this same text and
+// the operator reported both popping at once) -- this card is now the
+// only source of the untruncated label.
 //
 // s916: the card's WI list prefers arcs[].wi_rows (each
 // {id,status,tasks_done,tasks_total,band,delta} -- gen-deltas is adding

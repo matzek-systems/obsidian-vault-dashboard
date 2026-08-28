@@ -902,8 +902,6 @@
 .op-panel .arc-gutter-name { display: block; font-weight: 600; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
 .op-panel .arc-gutter-desc { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; color: var(--text-muted); font-size: .94em; line-height: 1.2; }
 .op-panel .arc-row.closed .arc-gutter-lbl { color: var(--text-faint); opacity: .75; }
-.op-panel .arc-row.foreign .arc-gutter-lbl { font-style: italic; }
-.op-panel .arc-row-origin { font-size: 8px; color: var(--text-faint); flex: 0 0 auto; opacity: .8; }
 .op-panel .arc-row-singles .arc-gutter { color: var(--text-faint); font-style: italic; }
 .op-panel .arc-row-n { font-size: 9px; opacity: .7; }
 /* "<- earlier" jump marker (arc-strip.ts jumpMarker): fixed-width+scroll
@@ -929,15 +927,6 @@
 .op-panel .arc-line { position: absolute; top: 10px; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--interactive-accent) 35%, transparent); }
 .op-panel .arc-row.open .arc-line { background: color-mix(in srgb, #d6b25e 60%, transparent); }
 .op-panel .arc-row.closed .arc-line { background: var(--background-modifier-border); }
-/* border-top:dashed on a near-zero-height line rendered SOLID in testing
-   (Chromium dash-rendering degenerates on a hairline box) -- a striped
-   background is the robust cross-engine way to draw a dashed line here.
-   Combined open/closed selectors (5 classes, more specific than the 4-class
-   .open/.closed rules above) so a foreign row still shows open-vs-closed
-   brightness, not just origin. */
-.op-panel .arc-row.foreign .arc-line { background: repeating-linear-gradient(to right, color-mix(in srgb, var(--interactive-accent) 55%, transparent) 0 5px, transparent 5px 10px); }
-.op-panel .arc-row.open.foreign .arc-line { background: repeating-linear-gradient(to right, color-mix(in srgb, #d6b25e 70%, transparent) 0 5px, transparent 5px 10px); }
-.op-panel .arc-row.closed.foreign .arc-line { background: repeating-linear-gradient(to right, var(--background-modifier-border) 0 5px, transparent 5px 10px); }
 .op-panel .arc-node { position: absolute; top: 5px; width: 12px; height: 12px; border-radius: 50%; transform: translateX(-50%); cursor: default; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .op-panel .arc-node.closed-arc { opacity: .55; }
 .op-panel .nc-shipped { background: #7ec77e; }

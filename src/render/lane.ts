@@ -15,9 +15,10 @@ function flipCallout(all: Any[]): string {
 
 /** One "new this week" compact chip: id + title, hover card via the same
  *  [data-id] delegation WiHover already listens on (wi-card.ts) — no new
- *  wiring needed. */
+ *  wiring needed. No title="" (operator double-popup complaint, s916
+ *  follow-up: the card already carries the same text). */
 function newChip(w: Any, lane: string): string {
-	return `<div class="chip-wi" data-act="open" data-id="${esc(w.id)}" data-lane="${esc(lane)}" title="${esc(w.title)}">`
+	return `<div class="chip-wi" data-act="open" data-id="${esc(w.id)}" data-lane="${esc(lane)}">`
 		+ `<span class="chip-id c-${esc(w.status)}">${esc(w.id)}</span><span class="chip-ttl">${esc(w.title)}</span></div>`;
 }
 

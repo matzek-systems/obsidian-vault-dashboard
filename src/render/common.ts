@@ -101,7 +101,11 @@ export function wiRow(w: Any, sub?: string | null, opts?: RowOpts): string {
 		opts?.showRot ? rotPill(w) : "",
 		w.tasks_total ? `<span>${w.tasks_done}/${w.tasks_total}</span>` : "",
 		ageBadge(w.age_days),
-		`<button class="rcopy" data-act="copy" data-id="${esc(w.id)}" title="copy continue-prompt">⧉</button>`,
+		// No title="" -- this button's own data-id makes closest("[data-id]")
+		// match itself, so it already triggers WiHover's card on hover
+		// (double-popup family, s916 follow-up: triage/could-do/full-status
+		// rows all render via this one wiRow()).
+		`<button class="rcopy" data-act="copy" data-id="${esc(w.id)}">⧉</button>`,
 	].filter(Boolean).join("");
 	const cls = `row${opts?.rowCls ? ` ${opts.rowCls}` : ""}${opts?.showRot && w.rot ? " row-rot" : ""}`;
 	return `<div class="${cls}">${idCell(w)}<span class="ttl">${esc(w.title)}</span><span class="meta">${meta}</span>${sub ? `<span class="sub">${esc(sub)}</span>` : ""}</div>`;
