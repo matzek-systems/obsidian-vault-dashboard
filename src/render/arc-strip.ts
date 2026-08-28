@@ -180,7 +180,6 @@ function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, track
 export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], now: number = Date.now(), availableWidth?: number): string {
 	const windowStart = now - WINDOW_DAYS * DAY_MS;
 	const all: Any[] = sessionsLog || [];
-	const inLane = (r: Any) => (r.lanes && r.lanes.length ? r.lanes : [r.lane]).includes(lane);
 
 	const laneArcs = (arcs || []).filter((a) => (a.lanes && a.lanes.length ? a.lanes : [a.lane]).includes(lane));
 	const openArcs = laneArcs.filter((a) => a.open);
@@ -189,14 +188,30 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 		return `<div class="arc-empty">no open arcs in the last ${WINDOW_DAYS}d</div>`;
 	}
 
-	const baseCols = all.filter((r) => inLane(r) && new Date(`${r.date}T12:00:00`).getTime() >= windowStart).map((r) => r.n);
-
-	// One column per session that touched this lane inside the window, PLUS
-	// any open-arc member session missing from that set (an arc reaching
-	// further back than WINDOW_DAYS, or a session that lived entirely in
-	// another lane) — appended so the arc's line/node never drops mid-track.
+	// Column set = every member session of every OPEN arc rendered on this
+	// strip (multi-row AND singles) -- NOT every session that merely touched
+	// the lane in the window. That distinction is the actual fix for a
+	// reported "row renders with no nodes" defect (s916 follow-up): the
+	// prior version unioned in `baseCols` (every lane-touching session
+	// inside WINDOW_DAYS, node-bearing or not) BEFORE adding arc members --
+	// on a lane with heavy session traffic that's a lot of columns that can
+	// never draw a node (measured live: 28 lane-touch sessions vs 23 real
+	// arc-member sessions for _System, i.e. 11 pure-filler columns once
+	// de-duplicated against the 23 that matter). Diagnosis correction: every
+	// arc member session WAS already getting a column and a node -- the
+	// original bug report's symptom (rows reading empty to the operator) was
+	// real, but its cause was axis-space dilution pushing genuine nodes far
+	// enough apart that neither scroll extreme (default right-anchor or
+	// hard-left) showed every row at once, not a missing-column bug.
+	// Dropping the filler columns narrows the track (measured: 34 -> 23
+	// columns for the same _System render, ~32% less to scroll through) --
+	// it does not shrink the true span when an open arc's own founding
+	// session is genuinely old (Teardown fleet's s842, 32 days back): that
+	// residual scroll distance is real activity, not waste, and compressing
+	// it further would be a visual redesign, not a bugfix -- left for the
+	// operator/team-lead to weigh in on separately if it's still a problem.
 	const rowByN = new Map<number, Any>(all.map((r) => [r.n, r]));
-	const colSet = new Set<number>(baseCols);
+	const colSet = new Set<number>();
 	for (const a of openArcs) {
 		for (const s of a.sessions || []) {
 			colSet.add(s.n);

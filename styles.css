@@ -796,18 +796,27 @@
 .op-panel .wk-plan-ttl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-normal); font-size: 10px; }
 .op-panel .wk-blocked-note { font-size: 9.5px; color: var(--text-faint); margin-top: 2px; }
 .op-panel .op-weeknote { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
-/* 7 columns leaves ~44px of usable content width per day cell at a narrow
-   panel width -- .wk-lane + .tid + .wk-over are all flex:0 0 auto (never
-   shrink) and their combined width alone already exceeds that budget for
-   most WI ids, so .wk-ttl (the only shrinkable child) was left with zero
-   space and rendered no visible title at all. Drop the lane chip and the
-   day-count badge below the same breakpoint the cross-lane triage board
-   already collapses to one column at -- the id (colored red when overdue
-   via .wk-wi-over, same as before) plus whatever of the title still fits
-   survives; full detail is one hover away via the [data-id] card either way. */
+/* below 560px (same breakpoint the cross-lane triage board collapses to one
+   column at), 7 squeezed ~44px columns is the wrong shape entirely --
+   .wk-lane + .tid + .wk-over (all flex:0 0 auto, never shrink) alone
+   exceeded that budget for most WI ids, leaving .wk-ttl zero space and no
+   visible title (operator-reported, s916 follow-up). Fix: go vertical, one
+   row per day, day label left + items wrapped to the right -- every item
+   gets real width again instead of being squeezed into a narrow column, so
+   the lane chip + badge that had to be dropped in the grid layout come
+   back. .day-items (week.ts renderDay) is a no-op wrapper in the default
+   7-column grid above; here it becomes the flex row's second column. An
+   empty day (weekend, just "—") naturally renders as a short single row --
+   no min-height forcing it taller. */
 @container (max-width: 560px) {
-	.op-panel .wk-wi .wk-lane, .op-panel .wk-wi .wk-over { display: none; }
-	.op-panel .wk-wi { font-size: 10px; gap: 2px; }
+	.op-panel .op-week { display: flex; flex-direction: column; gap: 4px; }
+	.op-panel .day { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; padding: 4px 8px; min-height: 0; }
+	.op-panel .day .dh { flex: 0 0 40px; display: flex; flex-direction: column; gap: 1px; margin-bottom: 0; }
+	.op-panel .day .day-items { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px; }
+	.op-panel .day .none { padding: 1px 0; }
+	.op-panel .day .wk-wi { flex: 0 1 auto; max-width: 100%; }
+	.op-panel .day .wk-wi .wk-ttl { max-width: 160px; }
+	.op-panel .day .wk-plan, .op-panel .day .wk-ev { margin-top: 0; }
 }
 
 /* capture zone */

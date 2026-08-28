@@ -54,9 +54,15 @@ function renderDay(day: Any, weekOverdue: Any[], blockedOverdue?: Any[]): string
 	const footnote = isToday && blockedOverdue && blockedOverdue.length
 		? `<div class="wk-blocked-note">+${blockedOverdue.length} blocked &amp; overdue, not shown as live urgency</div>`
 		: "";
+	// day-items wraps everything except the label -- a no-op grouping div in
+	// the default (>560px) 7-column grid, but load-bearing below it: the
+	// vertical-list breakpoint (styles.css, s916 operator follow-up) turns
+	// .day into a flex row with .dh as a fixed-width label column and this
+	// div as the wrapped items area to its right. The footnote stays a
+	// sibling, not part of the wrap -- it's a full-width caption, not an item.
 	return `<div class="day ${isToday ? "today" : ""}">`
 		+ `<div class="dh"><span>${esc(day.dow)}</span><span>${esc(String(day.date).slice(5))}</span></div>`
-		+ (body.length ? body.join("") : `<div class="none">—</div>`)
+		+ `<div class="day-items">${body.length ? body.join("") : `<div class="none">—</div>`}</div>`
 		+ footnote
 		+ `</div>`;
 }
