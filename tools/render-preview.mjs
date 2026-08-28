@@ -124,13 +124,20 @@ async function main() {
 <script>
   if (new URLSearchParams(location.search).get("dark") === "1") document.body.classList.add("theme-dark");
   window.addEventListener("DOMContentLoaded", () => {
+    // mirrors operator-panel.ts paintLane() -- see its comments for why
+    // each step must run in this exact order.
     document.querySelectorAll(".arc-strip").forEach((el) => {
-      el.scrollLeft = el.scrollWidth;
-      // mirrors operator-panel.ts paintLane() -- a bar too narrow for its
-      // own label moves the label outside instead of ellipsis-clipping it.
       el.querySelectorAll(".arc-bar").forEach((bar) => {
         const lbl = bar.querySelector(".arc-bar-lbl");
         if (lbl && lbl.scrollWidth > lbl.clientWidth + 1) bar.classList.add("lbl-out");
+      });
+      el.scrollLeft = el.scrollWidth;
+      el.querySelectorAll(".arc-bar.lbl-out").forEach((bar) => {
+        const lbl = bar.querySelector(".arc-bar-lbl");
+        if (!lbl) return;
+        const natural = bar.offsetWidth;
+        const clamped = Math.max(natural, el.scrollLeft - bar.offsetLeft + 2);
+        lbl.style.left = clamped + "px";
       });
     });
   });
