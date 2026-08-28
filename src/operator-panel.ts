@@ -269,6 +269,19 @@ export class DashboardView extends ItemView {
 		// remains: the operator cares about "what just happened," not
 		// day-1-of-the-window; older history is a scroll-left away.
 		const strip = this.els.lane.querySelector(".arc-strip") as HTMLElement | null;
-		if (strip) strip.scrollLeft = strip.scrollWidth;
+		if (strip) {
+			strip.scrollLeft = strip.scrollWidth;
+			// "<- earlier" jump markers (arc-strip.ts jumpMarker, s916
+			// follow-up): click scrolls the strip so a row's fully-hidden
+			// nodes come into view. Delegated fresh each paint since .op-lane
+			// (and everything inside it, including .arc-strip) is rebuilt by
+			// the innerHTML assignment above.
+			strip.addEventListener("click", (ev) => {
+				const jump = (ev.target as HTMLElement).closest(".arc-jump") as HTMLElement | null;
+				if (!jump) return;
+				const to = parseInt(jump.dataset.jumpTo || "", 10);
+				if (!Number.isNaN(to)) strip.scrollLeft = to;
+			});
+		}
 	}
 }

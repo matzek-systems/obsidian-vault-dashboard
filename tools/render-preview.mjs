@@ -166,8 +166,19 @@ async function main() {
     // mirrors operator-panel.ts paintLane() -- the swimlane's label gutter
     // is CSS position:sticky;left:0 (styles.css .arc-gutter), so the only
     // JS left is the right-anchor scroll default (most recent sessions
-    // visible without a manual scroll).
-    document.querySelectorAll(".arc-strip").forEach((el) => { el.scrollLeft = el.scrollWidth; });
+    // visible without a manual scroll) plus the "<- earlier" jump-marker
+    // click delegation (arc-strip.ts jumpMarker, s916 follow-up) -- kept
+    // here too so a headless-Playwright .click() on .arc-jump exercises the
+    // real behaviour, not just static markup.
+    document.querySelectorAll(".arc-strip").forEach((el) => {
+      el.scrollLeft = el.scrollWidth;
+      el.addEventListener("click", (ev) => {
+        const jump = ev.target.closest(".arc-jump");
+        if (!jump) return;
+        const to = parseInt(jump.dataset.jumpTo || "", 10);
+        if (!Number.isNaN(to)) el.scrollLeft = to;
+      });
+    });
   });
 </script>
 ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>

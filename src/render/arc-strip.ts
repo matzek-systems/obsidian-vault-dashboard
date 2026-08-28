@@ -25,6 +25,13 @@ const GUTTER_DEFAULT = 220;
 const COL_MIN = 56;
 const COL_MAX = 96;
 const COL_DEFAULT = 64;    // used only when no availableWidth is supplied
+// Fit-to-track floor (operator ruling s916 follow-up, axis-compression
+// pass): when every column can be at least 24px wide within the track's
+// available space, columns size to fill it exactly and the strip needs no
+// horizontal scroll at all. Distinct from COL_MIN(56) above, which stays
+// the floor for the fixed-width+SCROLL fallback used only when even 24px
+// per column can't fit (narrow sidebar widths).
+const COL_MIN_FIT = 24;
 
 function computeGutterPx(availableWidth?: number): number {
 	if (!availableWidth) return GUTTER_DEFAULT;
@@ -148,7 +155,7 @@ function renderSingleNode(a: Any, row: Any, x: number, lane: string): string {
 	return `<div class="${cls.join(" ")}" data-sess="${esc(a.first)}" data-arc="${esc(a.id)}" style="left:${x}px" title="${esc(title)}">${nodeMarks(row?.events)}</div>`;
 }
 
-function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, trackWidth: number, gutterPx: number): string {
+function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, trackWidth: number, gutterPx: number, jumpHtml: string): string {
 	const foreign = !!(a.lane && a.lane !== lane);
 	const cls = ["arc-row", a.open ? "open" : "closed", foreign ? "foreign" : ""].filter(Boolean).join(" ");
 	const originChip = foreign ? `<span class="arc-row-origin" title="from ${esc(a.lane)}">${esc(laneAbbrev(a.lane))}</span>` : "";
@@ -159,7 +166,7 @@ function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, track
 		: "";
 	const nodesHtml = members.map((s) => renderNode(s, colX(s.n), !a.open)).join("");
 	return `<div class="${cls}">`
-		+ `<div class="arc-gutter" data-arc="${esc(a.id)}" style="${gutterStyleAttr(gutterPx)}" title="${esc(arcTooltip(a, lane))}">${originChip}${gutterLabelHtml(a.label)}</div>`
+		+ `<div class="arc-gutter" data-arc="${esc(a.id)}" style="${gutterStyleAttr(gutterPx)}" title="${esc(arcTooltip(a, lane))}">${originChip}${gutterLabelHtml(a.label)}${jumpHtml}</div>`
 		+ `<div class="arc-track" style="width:${trackWidth}px">${lineHtml}${nodesHtml}</div>`
 		+ `</div>`;
 }
@@ -174,9 +181,10 @@ function renderMultiRow(a: Any, lane: string, colX: (n: number) => number, track
  *  instead of an axis with nothing on it, regardless of recent session
  *  activity. `availableWidth` is the caller-measured px width of the
  *  strip's container (`.op-lane` in the real plugin, an arithmetic estimate
- *  in render-preview.mjs); when given, column width fills it (capped 56-96px,
- *  index count permitting) instead of using the fixed default — see
- *  COL_MIN/COL_MAX above — and the gutter scales off it too (GUTTER_MIN/MAX). */
+ *  in render-preview.mjs); when given, columns fit the track exactly with no
+ *  scroll if every column clears 24px (COL_MIN_FIT), else fall back to a
+ *  fixed 56-96px width with horizontal scroll (COL_MIN/COL_MAX) — see the
+ *  fitsNoScroll block below — and the gutter scales off it too (GUTTER_MIN/MAX). */
 export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], now: number = Date.now(), availableWidth?: number): string {
 	const windowStart = now - WINDOW_DAYS * DAY_MS;
 	const all: Any[] = sessionsLog || [];
@@ -222,8 +230,19 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 	const numCols = colNs.length || 1;
 
 	const gutterPx = computeGutterPx(availableWidth);
-	const colW = availableWidth
-		? Math.max(COL_MIN, Math.min(COL_MAX, Math.floor((availableWidth - gutterPx) / numCols)))
+	// trackAvail = the strip's visible width minus the sticky gutter -- the
+	// actual horizontal space columns have to work with. fitsNoScroll: can
+	// every column get at least COL_MIN_FIT(24px) inside that space? If so,
+	// colW fills trackAvail exactly (capped at COL_MAX so a lane with only a
+	// couple of columns doesn't stretch to absurd spacing) and the strip
+	// needs no scroll. Otherwise, unchanged fixed-width(56-96px)+scroll
+	// fallback from before this pass.
+	const trackAvail = availableWidth ? Math.max(0, availableWidth - gutterPx) : undefined;
+	const fitsNoScroll = !!trackAvail && numCols * COL_MIN_FIT <= trackAvail;
+	const colW = trackAvail
+		? (fitsNoScroll
+			? Math.max(COL_MIN_FIT, Math.min(COL_MAX, Math.floor(trackAvail / numCols)))
+			: Math.max(COL_MIN, Math.min(COL_MAX, Math.floor(trackAvail / numCols))))
 		: COL_DEFAULT;
 	const colIndex = new Map<number, number>(colNs.map((n, i) => [n, i]));
 	const colX = (n: number): number => (colIndex.get(n) ?? 0) * colW + colW / 2;
@@ -241,21 +260,65 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 		if (d.getDate() === 1 || week !== lastWeek) { ticks.add(n); lastWeek = week; }
 	}
 
-	const hdrCols = colNs.map((n) => {
+	// Thinned session labels (operator ruling s916 follow-up): a compressed
+	// fit-to-track column can drop below the ~44px an "s914"-shaped label
+	// needs to avoid overlapping its neighbours -- label every column at
+	// full width, every 2nd once it's tight, every 3rd once it's very tight,
+	// but the first column, the last column, and any date-tick column are
+	// ALWAYS labelled regardless of stride (a reader needs the axis's start,
+	// end, and week markers even on the narrowest render).
+	const labelStride = colW >= 44 ? 1 : colW >= 30 ? 2 : 3;
+	const hdrCols = colNs.map((n, i) => {
 		const row = rowByN.get(n);
 		const tick = ticks.has(n);
-		return `<div class="arc-col-lbl" style="left:${colX(n)}px">s${esc(n)}${tick ? `<span class="arc-col-date">${esc(shortDate(row?.date))}</span>` : ""}</div>`;
+		const show = tick || i === 0 || i === colNs.length - 1 || i % labelStride === 0;
+		return `<div class="arc-col-lbl" style="left:${colX(n)}px">${show ? `s${esc(n)}` : ""}${tick ? `<span class="arc-col-date">${esc(shortDate(row?.date))}</span>` : ""}</div>`;
 	}).join("");
 	const hdrRow = `<div class="arc-row arc-row-hdr"><div class="arc-gutter" style="${gutterStyleAttr(gutterPx)}"></div><div class="arc-track" style="width:${trackWidth}px">${hdrCols}</div></div>`;
+
+	// "<- earlier" jump markers (fallback scroll case only, operator
+	// complaint "rows read empty" -- s916 follow-up): the strip default-
+	// scrolls to its right edge (operator-panel.ts paintLane(), mirrored in
+	// render-preview.mjs), so the default-visible window in TRACK-relative
+	// x-coordinates (the same space colX() already uses) is exactly
+	// [trackWidth - viewportTrackW, trackWidth] -- viewportTrackW being the
+	// space available to the track once the sticky gutter is excluded, same
+	// quantity as trackAvail above (falls back to trackWidth itself, i.e. a
+	// window covering the whole track, when availableWidth was never
+	// measured -- correctly produces zero markers rather than guessing).
+	// A row whose nodes are ALL to the left of that window reads as empty on
+	// first paint; a muted, clickable marker at its gutter names what's
+	// hidden. Naturally inert in the fit-to-track case: trackWidth <=
+	// viewportTrackW there by construction, so defaultVisibleLeft clamps to
+	// 0 and no node position (always >= 0) is ever "before" it.
+	const viewportTrackW = trackAvail ?? trackWidth;
+	const defaultVisibleLeft = Math.max(0, trackWidth - viewportTrackW);
+	function jumpMarker(items: { id: string; x: number }[]): string {
+		if (!items.length) return "";
+		const hidden = items.filter((it) => it.x < defaultVisibleLeft);
+		if (!hidden.length || hidden.length < items.length) return "";
+		const jumpTo = Math.max(0, Math.min(...hidden.map((h) => h.x)) - 40);
+		const label = hidden.length <= 2 ? `← ${hidden.map((h) => `s${h.id}`).join("·")}` : `← ${hidden.length} earlier`;
+		const title = `scroll to ${hidden.map((h) => `s${h.id}`).join(", ")}`;
+		return `<span class="arc-jump" data-jump-to="${jumpTo}" title="${esc(title)}">${esc(label)}</span>`;
+	}
 
 	const multi = openArcs.filter((a) => a.first !== a.last).slice().sort((a, b) => (b.last ?? 0) - (a.last ?? 0));
 	const singles = openArcs.filter((a) => a.first === a.last);
 
-	const multiRows = multi.map((a) => renderMultiRow(a, lane, colX, trackWidth, gutterPx)).join("");
+	const multiRows = multi.map((a) => {
+		const members: Any[] = a.sessions || [];
+		const items = members.map((s) => ({ id: String(s.n), x: colX(s.n) }));
+		return renderMultiRow(a, lane, colX, trackWidth, gutterPx, jumpMarker(items));
+	}).join("");
 
 	const singlesNodes = singles.map((a) => renderSingleNode(a, rowByN.get(a.first) || (a.sessions && a.sessions[0]), colX(a.first), lane)).join("");
+	// Singles share ONE row across every one-off arc, so the "all nodes
+	// hidden" check runs over the whole set at once -- a partially-visible
+	// singles row already satisfies "no row reads as empty."
+	const singlesJump = jumpMarker(singles.map((a) => ({ id: String(a.first), x: colX(a.first) })));
 	const singlesRow = singles.length
-		? `<div class="arc-row arc-row-singles"><div class="arc-gutter" style="${gutterStyleAttr(gutterPx)}">singles <span class="arc-row-n">${singles.length}</span></div><div class="arc-track" style="width:${trackWidth}px">${singlesNodes}</div></div>`
+		? `<div class="arc-row arc-row-singles"><div class="arc-gutter" style="${gutterStyleAttr(gutterPx)}">singles <span class="arc-row-n">${singles.length}</span>${singlesJump}</div><div class="arc-track" style="width:${trackWidth}px">${singlesNodes}</div></div>`
 		: "";
 
 	const NODE_LEGEND: [string, string][] = [

@@ -906,6 +906,14 @@
 .op-panel .arc-row-origin { font-size: 8px; color: var(--text-faint); flex: 0 0 auto; opacity: .8; }
 .op-panel .arc-row-singles .arc-gutter { color: var(--text-faint); font-style: italic; }
 .op-panel .arc-row-n { font-size: 9px; opacity: .7; }
+/* "<- earlier" jump marker (arc-strip.ts jumpMarker): fixed-width+scroll
+   fallback only -- names a row's nodes that are all outside the strip's
+   default-scrolled view and, on click, scrolls the track to them
+   (operator-panel.ts / render-preview.mjs both delegate .arc-strip clicks
+   to this class). Not italic even inside .arc-row-singles -- it's a
+   control, not part of the (already-italic) label. */
+.op-panel .arc-jump { flex: 0 0 auto; font-style: normal; font-size: 9px; color: var(--text-faint); background: var(--background-modifier-hover); border-radius: 3px; padding: 1px 5px; cursor: pointer; white-space: nowrap; }
+.op-panel .arc-jump:hover { color: var(--text-normal); background: var(--background-modifier-border); }
 /* align-self: center -- .arc-track keeps a fixed height (its nodes are
    absolutely positioned at fixed top offsets within it), so under the
    row's align-items: stretch it would otherwise pin to the row's TOP edge
