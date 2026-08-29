@@ -384,9 +384,13 @@ function arcRowV5Html(a: Any): string {
 		return `<span class="v5-adot nc-${b}" data-sess="${esc(s.n)}" title="s${esc(s.n)} · ${esc(s.date)}">${nodeMarks(s.events)}</span>`;
 	}).join("");
 	const phase = a.phase || "open";
+	// Date range wrapped in its own span (`.v5-adate`) and hidden below the
+	// 560px ARCS-stack breakpoint (team-lead, s918): the meta line was
+	// truncating from the right at 460px and cutting the phase tag, which
+	// must always stay visible -- dates are the least important token here.
 	return `<div class="v5-arow">`
 		+ `<div class="v5-agutter arc-gutter" data-arc="${esc(a.id)}">${gutterLabelHtml(a.label)}</div>`
-		+ `<div class="v5-ameta">${n} sess · ${esc(span)}${lastGlyph ? ` <span class="v5-lastglyph">${lastGlyph}</span>` : ""} · <span class="v5-phase ${phaseClass(phase)}">${esc(phase)}</span></div>`
+		+ `<div class="v5-ameta">${n} sess<span class="v5-adate"> · ${esc(span)}</span>${lastGlyph ? ` <span class="v5-lastglyph">${lastGlyph}</span>` : ""} · <span class="v5-phase ${phaseClass(phase)}">${esc(phase)}</span></div>`
 		+ `<div class="v5-atrack">${dots}</div>`
 		+ `</div>`;
 }

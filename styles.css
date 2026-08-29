@@ -1145,6 +1145,12 @@
 	.op-panel .v5-arow { grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); row-gap: 2px; }
 	.op-panel .v5-ameta { overflow: hidden; text-overflow: ellipsis; }
 	.op-panel .v5-atrack { grid-column: 1 / -1; justify-content: flex-start; margin-top: 1px; }
+	/* Team-lead follow-up (s918): the ellipsis fix above still truncated the
+	   PHASE tag off the right edge at 460px -- dates are the least important
+	   token here and phase must always stay visible. Hide the date-range
+	   span (arc-strip.ts's .v5-adate) entirely below this breakpoint instead
+	   of relying on ellipsis to pick a good cut point. */
+	.op-panel .v5-adate { display: none; }
 }
 
 /* NEXT (5) */
