@@ -10,7 +10,7 @@ esbuild.build({
   entryPoints: ["src/main.ts"],
   bundle: true,
   external: [
-    "obsidian", "electron", "child_process", "fs",
+    "obsidian", "electron", "child_process", "fs", "os",
     "@codemirror/autocomplete", "@codemirror/collab", "@codemirror/commands",
     "@codemirror/language", "@codemirror/lint", "@codemirror/search",
     "@codemirror/state", "@codemirror/view",
