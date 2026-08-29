@@ -1035,3 +1035,144 @@
 .op-sess-card-ev { font-size: 10.5px; color: var(--text-muted); line-height: 1.35; }
 .op-sess-card-ev b { color: var(--text-normal); text-transform: uppercase; font-size: 9.5px; letter-spacing: .04em; margin-right: 5px; }
 .op-sess-card-wi { font-family: var(--font-monospace); color: var(--interactive-accent); font-size: 10px; }
+
+/* ── v5 lane view (SYS-485 schema 4, session 916/917) ───────────────────
+   New per-lane sections (NOW/DECISIONS/THIS WEEK compact/ARCS compact/NEXT/
+   WAITING/backlog/INBOX) + the cross-lane TODAY line, per the operator-
+   approved mock. Reuses existing tokens/classes wherever the shape matches
+   (.tid, h2 .n, .empty, .arc-legend/.lg/.lg-mark, .nc-*, the
+   `details > summary { cursor: pointer }` reset above) -- only genuinely
+   new visual shapes get a new class, namespaced `.v5-*` so it's grep-able
+   apart from the older (still-present, now-unused by this path) render
+   code's own classes above. */
+
+.op-panel .hint { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-faint); font-style: italic; }
+
+/* today line */
+.op-panel .v5-today { font-size: 11.5px; color: var(--text-muted); background: var(--background-secondary); border-left: 2px solid var(--interactive-accent); border-radius: 4px; padding: 6px 9px; margin-bottom: 8px; line-height: 1.5; }
+.op-panel .v5-today b { color: var(--text-normal); }
+
+/* tab badge: overdue + decisions, red, omitted at 0 (roster size is gone) */
+.op-panel .v5-tabn { background: var(--color-red); color: var(--text-on-accent); font-size: 10px; font-weight: 700; padding: 0 6px; border-radius: 8px; }
+
+/* NOW 3/3 -- the one large element on the page, same weight as the mock */
+.op-panel .v5-now-row { border: 1px solid var(--background-modifier-border); border-radius: 7px; padding: 9px 11px; margin-bottom: 7px; background: var(--background-primary); }
+.op-panel .v5-row-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; font-size: 13px; }
+.op-panel .v5-row-top .tid { font-size: 12.5px; }
+.op-panel .v5-now-row .v5-ttl { font-weight: 600; color: var(--text-normal); }
+.op-panel .v5-row-meta { margin-left: auto; display: flex; gap: 8px; align-items: baseline; font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+.op-panel .v5-why { color: var(--text-muted); }
+.op-panel .v5-prog { font-variant-numeric: tabular-nums; }
+.op-panel .v5-sub { margin-top: 4px; font-size: 11.5px; color: var(--text-muted); }
+.op-panel .v5-chip-wait { background: color-mix(in srgb, var(--color-purple) 14%, transparent); color: var(--color-purple); border-radius: 8px; padding: 1px 7px; font-size: 10.5px; font-weight: 600; }
+
+/* DECISIONS OWED */
+.op-panel .v5-drow { font-size: 12px; color: var(--text-normal); padding: 3px 2px; }
+.op-panel .v5-dglyph { color: var(--color-purple); font-weight: 700; }
+/* Own "+N ▸" glyph is baked into the summary text (now-next.ts renderDecisions)
+   -- suppress the native <details> marker here only, so it doesn't double up
+   with it (confirmed rendering as "▸ +3 ▸" in QA screenshots). Scoped to
+   .v5-more specifically: WAITING/backlog/INBOX summaries carry no manual
+   glyph of their own and still rely on the native triangle for affordance. */
+.op-panel .v5-more summary { font-size: 10.5px; color: var(--text-faint); padding: 2px 6px; list-style: none; }
+.op-panel .v5-more summary::-webkit-details-marker { display: none; }
+.op-panel .v5-more[open] summary { margin-bottom: 2px; }
+
+/* THIS WEEK compact: 5 weekday cells + 1 combined weekend cell */
+.op-panel .v5-week { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 0.8fr); gap: 6px; margin-bottom: 4px; }
+.op-panel .v5-wcell { border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 6px 8px; font-size: 10.5px; min-width: 0; }
+.op-panel .v5-wcell-today { border-color: var(--interactive-accent); }
+.op-panel .v5-wcell-wknd { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-style: italic; }
+.op-panel .v5-whd { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; color: var(--text-faint); margin-bottom: 3px; }
+.op-panel .v5-wcell-today .v5-whd { color: var(--interactive-accent); font-weight: 600; }
+.op-panel .v5-wdue summary { display: inline; color: var(--text-on-accent); background: var(--color-red); border-radius: 8px; padding: 0 6px; font-size: 9.5px; font-weight: 700; }
+.op-panel .v5-wduelist { margin-top: 3px; font-size: 10px; color: var(--text-muted); }
+.op-panel .v5-wduelist > div { cursor: pointer; padding: 1px 0; }
+.op-panel .v5-wduelist > div:hover { text-decoration: underline; }
+.op-panel .v5-wlane { font-size: 8.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--text-faint); }
+.op-panel .v5-wplan { display: flex; align-items: center; gap: 4px; padding: 2px 5px; border-radius: 6px; background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); min-width: 0; cursor: pointer; }
+.op-panel .v5-wplan:hover { background: color-mix(in srgb, var(--interactive-accent) 20%, transparent); }
+.op-panel .v5-wplan-q2 { background: color-mix(in srgb, var(--color-purple) 14%, transparent); }
+.op-panel .v5-wplan-q2:hover { background: color-mix(in srgb, var(--color-purple) 22%, transparent); }
+.op-panel .v5-wtag { font-weight: 700; font-size: 8.5px; color: var(--interactive-accent); flex: 0 0 auto; }
+.op-panel .v5-wplan-q2 .v5-wtag { color: var(--color-purple); }
+.op-panel .v5-wttl { color: var(--text-normal); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.op-panel .v5-wnone { color: var(--text-faint); font-style: italic; font-size: 10px; }
+
+/* THIS WEEK compact's own <560px vertical stack (contract: "keep the <560px
+   vertical stack" -- same breakpoint/behavior family as renderThisWeek's
+   .op-week rule above, adapted to the compact cell shape: cells go from a
+   grid to a column of short rows instead of squeezing 6 columns into no
+   room). */
+@container (max-width: 560px) {
+	.op-panel .v5-week { display: flex; flex-direction: column; gap: 4px; }
+	.op-panel .v5-wcell { display: flex; align-items: center; gap: 8px; }
+	.op-panel .v5-wcell-wknd { justify-content: flex-start; }
+}
+
+/* ARCS compact: one row per arc (gutter | meta | inline-wrapped dots), no
+   axis, no horizontal scroll -- the mock's shape, distinct from the older
+   index-spaced axis-strip's .arc-row/.arc-gutter/.arc-track above. Dot
+   fills reuse the existing .nc-* colour classes; the two surviving marks
+   reuse .arc-mark/.mk-broken/.mk-wait (just re-scoped to static, non-
+   absolute positioning inside a dot instead of a node's corner-badge). */
+.op-panel .v5-arow { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr) auto; gap: 4px 10px; align-items: center; padding: 5px 2px; border-top: 1px solid var(--background-modifier-border); font-size: 11px; }
+.op-panel .v5-arow:first-of-type { border-top: none; }
+.op-panel .v5-agutter { min-width: 0; cursor: default; }
+.op-panel .v5-ameta { color: var(--text-faint); font-size: 10.5px; white-space: nowrap; }
+.op-panel .v5-phase { font-weight: 600; }
+.op-panel .v5-phase-figuring-out { color: var(--color-yellow); }
+.op-panel .v5-phase-executing { color: var(--color-green); }
+.op-panel .v5-phase-waiting { color: var(--color-purple); }
+.op-panel .v5-phase-open { color: var(--text-faint); }
+.op-panel .v5-atrack { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
+.op-panel .v5-adot { position: relative; width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+.op-panel .v5-adot .arc-mark { position: static; font-size: 8px; }
+.op-panel .v5-lastglyph { display: inline-block; }
+.op-panel .v5-lastglyph .arc-mark { position: static; font-size: 11px; }
+
+/* ARCS compact <560px stack (team-lead, s918: confirmed overlap on
+   v5-soma-460-light.png -- the dots track is an `auto`-sized 3rd grid
+   column with no width cap, so a row with several sessions claims real
+   space and squeezes .v5-ameta's `white-space:nowrap` text into a column
+   too narrow to hold it, visually overlapping the dots. Fix: same family as
+   THIS WEEK's own <560px stack above -- gutter+meta keep sharing one row
+   (2-column grid instead of 3), the dots track drops to its own full-width
+   row below via `grid-column: 1 / -1` (grid auto-placement puts a 3rd DOM
+   child straight into row 2 without any markup change) and wraps freely
+   with no column to be squeezed by. */
+@container (max-width: 560px) {
+	.op-panel .v5-arow { grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); row-gap: 2px; }
+	.op-panel .v5-ameta { overflow: hidden; text-overflow: ellipsis; }
+	.op-panel .v5-atrack { grid-column: 1 / -1; justify-content: flex-start; margin-top: 1px; }
+}
+
+/* NEXT (5) */
+.op-panel .v5-next-row { display: grid; grid-template-columns: 9ch minmax(0,1fr) auto; gap: 0 8px; align-items: baseline; font-size: 11.5px; color: var(--text-muted); padding: 3px 2px; }
+.op-panel .v5-next-row .v5-ttl { color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.op-panel .v5-next-row .v5-why { color: var(--text-faint); font-size: 10.5px; white-space: nowrap; }
+
+/* WAITING / backlog / INBOX -- collapsed sections, per-lane open state
+   persisted by operator-panel.ts's wireCollapsed() (contract item 4). */
+.op-panel .v5-waiting summary, .op-panel .v5-backlog summary, .op-panel .v5-inbox summary { font-size: 10.5px; color: var(--text-faint); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 3px 2px; }
+.op-panel .v5-waiting[open] summary, .op-panel .v5-backlog[open] summary, .op-panel .v5-inbox[open] summary { margin-bottom: 4px; }
+.op-panel .v5-waitrow, .op-panel .v5-brow, .op-panel .v5-irow { font-size: 11.5px; color: var(--text-muted); padding: 3px 2px; }
+.op-panel .v5-waitname { color: var(--color-purple); }
+.op-panel .v5-waitage { color: var(--text-faint); }
+.op-panel .v5-bgroup { margin-bottom: 6px; }
+.op-panel .v5-bgroup-h { font-size: 10px; color: var(--text-faint); font-weight: 600; margin: 4px 0 2px; }
+.op-panel .v5-bnote { color: var(--text-faint); font-style: italic; font-size: 10.5px; padding: 2px; }
+.op-panel .v5-irow { display: flex; align-items: center; gap: 8px; }
+
+/* flip_me nudge ("all N/N ticked · close it?") -- muted blue, not red/urgent
+   (team-lead shape note, s917). Reuses the same accent already used for
+   THIS WEEK's plan chip (.wk-plan) elsewhere in this file. */
+.op-panel .v5-why.v5-flip, .op-panel .v5-bnote.v5-flip { color: var(--interactive-accent); font-style: normal; }
+
+/* INBOX row defaulted to _System with no real attribution cue -- faint tag,
+   not a real claim (team-lead shape note, s917: attributed: false). */
+.op-panel .v5-unattr { font-size: 9px; color: var(--text-faint); border: 1px solid var(--background-modifier-border); border-radius: 4px; padding: 0 4px; text-transform: uppercase; letter-spacing: .03em; flex: 0 0 auto; }
+.op-panel .v5-itxt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.op-panel .v5-iage { color: var(--text-faint); flex: 0 0 auto; }
+.op-panel .v5-ibtn { font: inherit; font-size: 10px; border: 1px solid var(--background-modifier-border); background: var(--background-secondary); color: var(--text-muted); border-radius: 4px; padding: 2px 7px; cursor: pointer; flex: 0 0 auto; }
+.op-panel .v5-ibtn:hover { color: var(--text-normal); border-color: var(--interactive-accent); }

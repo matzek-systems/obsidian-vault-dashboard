@@ -343,3 +343,68 @@ export function renderArcStrip(lane: string, arcs: Any[], sessionsLog: Any[], no
 
 	return `<div class="arc-strip">${hdrRow}${multiRows}${singlesRow}</div><div class="arc-legend">${legend}</div>`;
 }
+
+// ── ARCS compact (v5, SYS-485 schema 4) ───────────────────────────────
+// A different visual shape from renderArcStrip above -- one ROW per arc
+// (gutter label | meta text | inline flex-wrapped session dots), no
+// index-spaced axis and no horizontal scroll, matching the approved mock's
+// arcRowHtml. Added alongside renderArcStrip rather than replacing it: the
+// axis-strip machinery above (fit-to-track sizing, jump markers, the sticky
+// gutter) was purpose-built and verified over two prior rounds (s916), and
+// nothing in the v5 contract asks for it to be deleted -- only for the ARCS
+// PANEL to render the mock's compact shape. Left in place, unused by the v5
+// path, for rollback safety; flagged to team-lead as a judgment call.
+//
+// `arc.phase` is now generator-computed (contract: derived from the arc's
+// most-recent session's last 1-2 events) -- no client-side phaseOf() needed,
+// unlike the mock's own placeholder version of this function.
+//
+// The gutter carries BOTH .agutter (v5 layout) and the pre-existing
+// .arc-gutter[data-arc] (arc-hover.ts's exact delegation selector) so
+// ArcHover's card keeps working with zero new wiring ("hover unchanged" per
+// the contract). Each dot carries data-sess (SessionHover's delegation
+// selector) plus a short title -- same judgment call as renderNode/
+// renderSingleNode above (s916 follow-up): SessionHover's card shows the
+// session's own note/events, genuinely different content from a bare
+// "s842 · date" tooltip, so this isn't the native-title/card duplicate-text
+// pair the double-popup fix targeted elsewhere.
+
+function phaseClass(phase: string): string {
+	return `v5-phase-${String(phase || "open").replace(/\s+/g, "-")}`;
+}
+
+function arcRowV5Html(a: Any): string {
+	const sessions: Any[] = a.sessions || [];
+	const n = sessions.length;
+	const span = arcSpan(a);
+	const lastSess = sessions[sessions.length - 1];
+	const lastGlyph = nodeMarks(lastSess?.events);
+	const dots = sessions.map((s) => {
+		const b = lastEventBucket(s.events);
+		return `<span class="v5-adot nc-${b}" data-sess="${esc(s.n)}" title="s${esc(s.n)} · ${esc(s.date)}">${nodeMarks(s.events)}</span>`;
+	}).join("");
+	const phase = a.phase || "open";
+	return `<div class="v5-arow">`
+		+ `<div class="v5-agutter arc-gutter" data-arc="${esc(a.id)}">${gutterLabelHtml(a.label)}</div>`
+		+ `<div class="v5-ameta">${n} sess · ${esc(span)}${lastGlyph ? ` <span class="v5-lastglyph">${lastGlyph}</span>` : ""} · <span class="v5-phase ${phaseClass(phase)}">${esc(phase)}</span></div>`
+		+ `<div class="v5-atrack">${dots}</div>`
+		+ `</div>`;
+}
+
+/** Origin-lane filter, open only, cap 5, most-recent session first (contract
+ *  "Unchanged but load-bearing" arcs[] rules -- same laneArcs semantics as
+ *  renderArcStrip's, s916 follow-up: `a.lane === lane`, not the wider
+ *  `a.lanes` union). Only two glyphs survive in the legend now (× found
+ *  broken, ‖ waiting) -- the 9-symbol node-colour legend is gone. */
+export function renderArcsV5(lane: string, arcs: Any[]): string {
+	const laneArcs = (arcs || []).filter((a) => a.lane === lane && a.open)
+		.slice().sort((a, b) => (b.last ?? 0) - (a.last ?? 0)).slice(0, 5);
+	const head = `<h2>ARCS <span class="n">${laneArcs.length}</span></h2>`;
+	if (!laneArcs.length) return head + `<div class="empty">no open arcs</div>`;
+	const rows = laneArcs.map(arcRowV5Html).join("");
+	// Reuses the existing .arc-legend/.lg/.lg-mark skin (renderArcStrip's own
+	// legend below) verbatim -- just two entries instead of the old 9-glyph
+	// node-colour spread.
+	const legend = `<div class="arc-legend"><span class="lg"><span class="lg-mark">×</span>found broken</span><span class="lg"><span class="lg-mark">‖</span>waiting</span></div>`;
+	return head + rows + legend;
+}

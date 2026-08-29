@@ -79,6 +79,14 @@ interface DashboardSettings {
 	// LWP Call-Day board: bridge to the lwp-crm CLI (state machine lives in ops.py).
 	lwpCrmDir: string;
 	pythonCmd: string;
+	// v5 lane view (SYS-485, schema 4): per-lane collapsed/open state for the
+	// WAITING / backlog / INBOX / decisions "+N" <details> sections, keyed
+	// "<lane>::<sectionKey>" -> open(true)/closed(false, or absent). Written
+	// directly via this.plugin.saveData() from operator-panel.ts's toggle
+	// listeners (NOT via saveSettings(), which re-renders every open dashboard
+	// leaf -- a repaint on every collapse/expand click would be janky and can
+	// fight the very <details> being toggled).
+	collapsed: Record<string, boolean>;
 }
 
 const DEFAULT_SETTINGS: DashboardSettings = {
@@ -86,6 +94,7 @@ const DEFAULT_SETTINGS: DashboardSettings = {
 	openOnStartup: false,
 	lwpCrmDir: "C:/Dev/lwp-crm",
 	pythonCmd: "python",
+	collapsed: {},
 };
 
 // ── LWP CRM shapes (mirror lwp-crm cli.py --json) ──

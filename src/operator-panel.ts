@@ -1,53 +1,89 @@
-// ── Dashboard (SYS-485, session 911) ─────────────────────────────────
+// ── Dashboard (SYS-485, v5 lane view landed session 916/917) ──────────
 // The dashboard view, a thin shell over src/render/*.ts (pure functions from
 // dashboard-data.json to HTML strings — no roadmap parsing, no hand-fed
 // state, importable from Node for tools/render-preview.mjs). This file owns
-// the DOM skeleton, the refresh/regenerate lifecycle, and click/hover
-// delegation; every panel's *content* is delegated to a render function.
+// the DOM skeleton, the refresh/regenerate lifecycle, click/hover
+// delegation, and the INBOX Accept/Expire file writes; every panel's
+// *content* is delegated to a render function.
 //
-// Shape (operator verdicts, s911, reworked below-the-strip s916): lane tabs
-// are the spine and sit at the top; the default tab is the lane the operator
-// last typed in. Each tab (renderLane, src/render/lane.ts) holds: kicker +
-// counts, last-session note, the arc strip (session-level history), THIS
-// WEEK (cross-lane 7-day strip, same content on every tab), a per-lane
-// top-4 YOUR MOVE/THEM triage, NEW-this-week chips, a moved-outside-arcs
-// line, the flip-me callout, then the lane's full WI roster grouped by
-// status and collapsed by default. Below the tabs: COULD DO + CAPTURE ZONE,
-// then a collapsed cross-lane triage board (the old always-open TRIAGE
-// panel, now closed by default with its open/closed state persisted in
-// localStorage) at the very bottom. No title bar, no infra dots, no
-// open-seats panel (Processes covers seats), no standalone CLOCK section
-// (its due/overdue rows moved into THIS WEEK's per-day cells; only its
-// blocked-overdue footnote survives, inside the TODAY cell). Every WI id
-// hovers a card (wi-card.ts); every arc-strip session node hovers a card too
-// (session-hover.ts), and a multi-row's gutter label hovers the full
-// untruncated arc label + its WIs' progress (arc-hover.ts) -- all three
-// share the hover-card.ts skin.
+// Shape (v5 contract, session 916/917, mock approved by the operator "sure
+// build it out"): gated on `schema >= 4` -- an older payload shows one line
+// ("regenerate (schema N)") + the refresh button, nothing else (paint()).
+// On schema 4+: generated line -> tabs (renderTabsV5, badge = overdue +
+// decisions, red, omitted at 0) -> TODAY (renderToday, cross-lane, painted
+// once above the lane content, same on every tab) -> per-lane content
+// (renderLaneV5, src/render/lane.ts): NOW 3/3 -> DECISIONS OWED -> THIS WEEK
+// compact -> ARCS (compact per-arc rows, origin-lane filter, phase tag) ->
+// NEXT(5) -> WAITING -> backlog summary -> INBOX. COULD DO, the full
+// cross-lane triage board, the 9-symbol arc legend, the standalone last-
+// session note, and the old PROGRESSED/NEW band chrome are all gone from
+// this path (contract item 3) -- their render functions (renderLane,
+// renderCouldDo, renderTriage, renderCapture, renderThisWeek, renderArcStrip)
+// stay in the codebase, unused, for rollback safety (flagged to team-lead).
+// Every WI id hovers a card (wi-card.ts); every arc-row session dot hovers a
+// card too (session-hover.ts), and an arc's gutter label hovers the full
+// untruncated label + its WIs' progress (arc-hover.ts) -- all three share
+// the hover-card.ts skin, unchanged by the v5 rework.
 //
 // Render discipline (the s883-s911 "renders twice" bug): the skeleton is
 // built ONCE in onOpen; refresh() is serialized (one in flight, at most one
 // pending) and carries a generation counter so a superseded async load
-// never paints. Sub-panels are repainted by replacing their own innerHTML.
+// never paints. Sub-panels are repainted by replacing their own innerHTML;
+// per-lane <details> open/closed state (WAITING/backlog/INBOX/decisions
+// "+N") survives that wholesale replacement via wireCollapsed() + plugin
+// saveData (contract item 4), same discipline the old cross-triage board
+// used for its own localStorage toggle.
 
-import { ItemView, WorkspaceLeaf, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, TFile } from "obsidian";
 import { execFile } from "child_process";
+import * as fs from "fs/promises";
+import * as os from "os";
 import type DashboardPlugin from "./main";
 import { WiIndex, WiHover } from "./wi-card";
 import { SessionHover } from "./session-hover";
 import { ArcHover } from "./arc-hover";
+import { AcceptModal, AcceptResult } from "./accept-modal";
 import {
-	Any, esc, laneList, contPrompt,
-	renderHeader, renderTabs, renderLane, renderTriage, triageTotal, renderCouldDo, renderCapture,
+	Any, esc, laneListV5, contPrompt,
+	renderHeader, renderTabsV5, renderLaneV5, renderToday,
 } from "./render";
-
-const CROSS_TRIAGE_KEY = "vault-dashboard-cross-triage-open";
 
 const CLAUDE_DIR = "00_System/AI/Claude";
 const DATA_FILE = `${CLAUDE_DIR}/System Operations/state/dashboard-data.json`;
 const GENERATOR = `${CLAUDE_DIR}/tools/dashboard/dashboard_data.py`;
 const ROADMAPS_DIR = `${CLAUDE_DIR}/Roadmaps`;
+const HOME_FILE = `${CLAUDE_DIR}/00_Home.md`;
+const NEXT_WI_ID = `${CLAUDE_DIR}/tools/next-wi-id.py`;
+const APPLY_ROADMAP_ACTION = `${CLAUDE_DIR}/tools/apply-roadmap-action.py`;
 const REFRESH_MS = 60_000;      // repaint cadence while the pane is open
 const REGEN_STALE_MS = 20_000;  // don't spawn the generator more often than this
+const MIN_SCHEMA = 4;           // v5 lane view gate (SYS-485) -- older payloads get "regenerate" only
+
+/** Splits on \r\n | \r | \n, keeping each line's own terminator alongside it
+ *  (empty string for the final line if there's no trailing one). 00_Home.md
+ *  is CRLF on disk (confirmed against the live file, not assumed) -- a bare
+ *  `content.split("\n")` leaves a trailing \r on every line, which silently
+ *  breaks any `$`-anchored regex against that line (JS's `.` excludes \r,
+ *  same CRLF-vs-LF family as the windows-tooling.md roadmap gotcha).
+ *  Reconstructing via `lines.map((l,i)=>l+eols[i]).join("")` round-trips
+ *  byte-identical to the original for every UNTOUCHED line -- markHeading
+ *  needs that so a one-line marker append never silently renormalizes the
+ *  rest of the file's line endings. */
+function splitPreserveEol(content: string): { lines: string[]; eols: string[] } {
+	const lines: string[] = [];
+	const eols: string[] = [];
+	const re = /\r\n|\r|\n/g;
+	let last = 0;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(content))) {
+		lines.push(content.slice(last, m.index));
+		eols.push(m[0]);
+		last = re.lastIndex;
+	}
+	lines.push(content.slice(last));
+	eols.push("");
+	return { lines, eols };
+}
 
 export class DashboardView extends ItemView {
 	private plugin: DashboardPlugin;
@@ -147,6 +183,14 @@ export class DashboardView extends ItemView {
 
 	// ── skeleton ───────────────────────────────────────────────────
 
+	// v5 (SYS-485 schema 4): COULD DO, CAPTURE ZONE (superseded by per-lane
+	// INBOX -- the contract: "only `inbox` is rendered"), and the FULL TRIAGE
+	// BOARD are all gone from the skeleton, not just unpainted -- the
+	// schema<4 fallback is "one line + the refresh button, nothing else," and
+	// schema>=4's own lane order (renderLaneV5) never calls their render
+	// functions either. .op-today is new: TODAY is cross-lane (contract, "one
+	// wrapping line"), so it's painted once here, not per lane, same as
+	// .op-top/.op-tabs.
 	private buildSkeleton(): void {
 		const c = this.contentEl;
 		c.empty();
@@ -154,33 +198,15 @@ export class DashboardView extends ItemView {
 		<div class="op-wrap">
 			<div class="op-top"><span class="op-gen">loading…</span><button class="op-btn" data-act="refresh" title="regenerate now">↻</button></div>
 			<div class="op-tabs"></div>
+			<div class="op-today"></div>
 			<div class="op-lane"></div>
-			<div class="op-grid op-grid-bottom">
-				<section><h2>could do</h2><div class="op-could"></div></section>
-				<section><h2>capture zone <span class="n op-cap-n"></span></h2><div class="op-cap"></div></section>
-			</div>
-			<details class="op-cross-triage"><summary>full triage board <span class="n op-triage-n"></span></summary><div class="op-triage"></div></details>
 			<footer class="op-foot"><span class="op-stats"></span></footer>
 		</div>`;
 		const q = (sel: string): HTMLElement => c.querySelector(sel) as HTMLElement;
 		this.els = {
-			gen: q(".op-gen"), tabs: q(".op-tabs"), lane: q(".op-lane"),
-			could: q(".op-could"), capN: q(".op-cap-n"), cap: q(".op-cap"),
-			crossTriage: q(".op-cross-triage"), triageN: q(".op-triage-n"), triage: q(".op-triage"),
+			gen: q(".op-gen"), tabs: q(".op-tabs"), today: q(".op-today"), lane: q(".op-lane"),
 			stats: q(".op-stats"),
 		};
-		// The collapsed cross-lane triage board's open/closed state persists
-		// across sessions (operator ruling s916) -- restore it once here, then
-		// save on every toggle. paint() only ever writes .op-triage's
-		// innerHTML, never touches the `open` attribute again, so a repaint
-		// (e.g. the 60s refresh interval) never fights the operator's choice.
-		try {
-			if (window.localStorage.getItem(CROSS_TRIAGE_KEY) === "1") (this.els.crossTriage as HTMLDetailsElement).open = true;
-		} catch { /* localStorage unavailable -- default closed */ }
-		this.els.crossTriage.addEventListener("toggle", () => {
-			try { window.localStorage.setItem(CROSS_TRIAGE_KEY, (this.els.crossTriage as HTMLDetailsElement).open ? "1" : "0"); }
-			catch { /* non-fatal -- state just won't persist this session */ }
-		});
 	}
 
 	// ── actions ────────────────────────────────────────────────────
@@ -194,6 +220,8 @@ export class DashboardView extends ItemView {
 		else if (act === "copy") void this.copyPrompt(t.dataset.id || "");
 		else if (act === "togglenote") t.classList.toggle("expanded");
 		else if (act === "open") { this.wiHover?.hide(); void this.openRoadmap(t.dataset.lane || "", t.dataset.id || ""); }
+		else if (act === "inbox-expire") void this.inboxExpire(t.dataset.heading || "", t.dataset.date);
+		else if (act === "inbox-accept") this.openAcceptModal(t.dataset.heading || "", t.dataset.date, t.dataset.lane || "");
 	}
 
 	private async copyPrompt(id: string): Promise<void> {
@@ -217,71 +245,251 @@ export class DashboardView extends ItemView {
 		}
 	}
 
+	// ── INBOX actions (v5, SYS-485 schema 4 / SYS-395) ───────────────
+	// File access + subprocess plumbing stay here, not in src/render/ (that
+	// dir is pure functions, no Obsidian imports, importable from Node for
+	// render-preview.mjs -- see operator-panel.ts's own file-header rule).
+
+	/** Same execFile shape as runGenerator() above, generalized to any
+	 *  vault-relative script + args, returning ok/stdout/stderr instead of
+	 *  resolving void -- next-wi-id.py and apply-roadmap-action.py both need
+	 *  their actual output, unlike the generator (which just writes the data
+	 *  file as a side effect). */
+	private execPy(scriptRel: string, args: string[]): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+		const base = (this.app.vault.adapter as Any).basePath as string;
+		const py = this.plugin.settings.pythonCmd || "python";
+		return new Promise((resolve) => {
+			execFile(py, [`${base}/${scriptRel}`, ...args], { cwd: base, windowsHide: true, timeout: 150_000, maxBuffer: 8 * 1024 * 1024 },
+				(err, stdout, stderr) => {
+					resolve({ ok: !err, stdout: (stdout || "").trim(), stderr: ((stderr || "").trim() || (err ? err.message : "")) });
+				});
+		});
+	}
+
+	/** Mirrors dashboard_data.py's _parse_capture_text clean-title transform
+	 *  EXACTLY (`clean = re.sub(r"\s*[—(-]*\s*\(?session \d+[^)]*\)?\s*$", "",
+	 *  heading).strip()` then `[:110]`) -- collect_capture's `title` field is
+	 *  a LOSSY transform of the real `### ` heading line (a trailing
+	 *  "(session N ...)"-shaped suffix is stripped, then the result is
+	 *  truncated to 110 chars), so relocating that heading for Expire/Accept
+	 *  needs the SAME transform applied to each candidate line, not a naive
+	 *  exact-text match against the raw heading (which silently fails for
+	 *  the majority of real entries -- confirmed against the live
+	 *  00_Home.md/dashboard-data.json, not assumed). */
+	private static readonly CAPTURE_CLEAN_RE = /\s*[—(-]*\s*\(?session \d+[^)]*\)?\s*$/;
+	private static cleanCaptureTitle(heading: string): string {
+		const clean = heading.replace(DashboardView.CAPTURE_CLEAN_RE, "").trim();
+		// Array.from() iterates by Unicode CODE POINT (a surrogate pair counts
+		// as one element), matching Python's `clean[:110]` (code-point
+		// indexed). A bare `.slice(0, 110)` counts UTF-16 code UNITS instead --
+		// silently diverges from the generator whenever an astral-plane emoji
+		// (🛠 U+1F6E0 and several of the Capture Zone's other heading emoji
+		// are supplementary-plane, needing 2 JS units each) sits before the
+		// truncation point AND truncation actually triggers. Confirmed as a
+		// real live miss, not a theoretical one: 1 of 9 real inbox entries on
+		// the live 00_Home.md failed to resolve under the naive .slice(0,110).
+		return Array.from(clean).slice(0, 110).join("");
+	}
+
+	/** Finds the `### ` line whose generator-cleaned title matches `title`.
+	 *  `date` (the row's own c.date, embedded verbatim somewhere in the real
+	 *  heading per _parse_capture_text's own `(20\d\d-\d\d-\d\d)` scan) is a
+	 *  cheap disambiguator for the rare case two entries clean to the same
+	 *  title -- prefers whichever candidate line contains that date
+	 *  substring. Returns -1 if nothing matches. */
+	private findCaptureHeadingIndex(lines: string[], title: string, date?: string): number {
+		const candidates: number[] = [];
+		for (let i = 0; i < lines.length; i++) {
+			const m = /^###\s+(.*)$/.exec(lines[i]);
+			if (m && DashboardView.cleanCaptureTitle(m[1]) === title) candidates.push(i);
+		}
+		if (candidates.length <= 1) return candidates.length ? candidates[0] : -1;
+		if (date) {
+			const withDate = candidates.find((i) => lines[i].includes(date));
+			if (withDate !== undefined) return withDate;
+		}
+		return candidates[0];
+	}
+
+	/** collect_capture reads each `### ` entry's BODY until the next `### `
+	 *  or `## ` (contract) -- read fresh here rather than threading the body
+	 *  through the rendered HTML (a data-attribute is no place for multi-
+	 *  paragraph prose). */
+	private async readCaptureBody(heading: string, date?: string): Promise<string> {
+		const file = this.app.vault.getAbstractFileByPath(HOME_FILE);
+		if (!(file instanceof TFile)) return "";
+		const content = await this.app.vault.cachedRead(file);
+		const { lines } = splitPreserveEol(content);
+		const idx = this.findCaptureHeadingIndex(lines, heading, date);
+		if (idx === -1) return "";
+		let end = lines.length;
+		for (let i = idx + 1; i < lines.length; i++) {
+			if (/^#{2,3}\s/.test(lines[i])) { end = i; break; }
+		}
+		return lines.slice(idx + 1, end).join("\n").trim();
+	}
+
+	/** Appends ` <!-- <tag> YYYY-MM-DD -->` to the matched `### ` heading
+	 *  line in 00_Home.md via vault.process (contract: Expire -> "expired",
+	 *  Accept -> "filed <ID>"). Nothing is deleted -- the close sweep drops
+	 *  marked entries later. Throws (caller Notices) if the heading can't be
+	 *  found, so a stale/renamed entry never silently no-ops. */
+	private async markHeading(heading: string, date: string | undefined, tag: string): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(HOME_FILE);
+		if (!(file instanceof TFile)) throw new Error("00_Home.md not found");
+		const today = new Date().toISOString().slice(0, 10);
+		let found = false;
+		await this.app.vault.process(file, (content: string) => {
+			const { lines, eols } = splitPreserveEol(content);
+			const idx = this.findCaptureHeadingIndex(lines, heading, date);
+			if (idx === -1) return content;
+			found = true;
+			lines[idx] = `${lines[idx]} <!-- ${tag} ${today} -->`;
+			return lines.map((l, i) => l + eols[i]).join("");
+		});
+		if (!found) throw new Error("heading not found in 00_Home.md");
+	}
+
+	private async inboxExpire(heading: string, date?: string): Promise<void> {
+		if (!heading) return;
+		try {
+			await this.markHeading(heading, date, "expired");
+			new Notice(`Expired: ${heading}`);
+			void this.refresh(true);
+		} catch (e: any) {
+			new Notice(`Expire failed: ${String(e?.message || e)}`);
+		}
+	}
+
+	/** Best-effort WI-ID prefix for a roadmap file, read straight from its
+	 *  own content (the first `### PREFIX-N:` block) rather than guessing
+	 *  from the lane name -- PKM's roadmap uses `WI-`, not `PKM-`, so a
+	 *  lane-name-shaped guess would be wrong for exactly the case that
+	 *  matters most. */
+	private async prefixForRoadmap(basename: string): Promise<string | null> {
+		const file = this.app.vault.getAbstractFileByPath(`${ROADMAPS_DIR}/${basename}`);
+		if (!(file instanceof TFile)) return null;
+		const content = await this.app.vault.cachedRead(file);
+		const m = /^### ([A-Z]+)-\d+:/m.exec(content);
+		return m ? m[1] : null;
+	}
+
+	private openAcceptModal(heading: string, date: string | undefined, lane: string): void {
+		if (!heading) return;
+		const roadmaps = this.plugin.discoverRoadmaps().map((f) => f.name);
+		const defaultRoadmap = `${lane} Roadmap.md`;
+		new AcceptModal(this.app, roadmaps, defaultRoadmap, heading, (r) => void this.doAccept(heading, date, r)).open();
+	}
+
+	/** next-wi-id.py -> apply-roadmap-action.py --action new_wi, per the
+	 *  contract's exact sequence. Non-zero exit from either step Notices the
+	 *  stderr and leaves the heading unmarked (no marker on failure, per the
+	 *  contract). */
+	private async doAccept(heading: string, date: string | undefined, r: AcceptResult): Promise<void> {
+		let tmpPath: string | null = null;
+		try {
+			const prefix = await this.prefixForRoadmap(r.roadmapFile);
+			if (!prefix) { new Notice(`can't determine a WI prefix for ${r.roadmapFile}`); return; }
+
+			const idRes = await this.execPy(NEXT_WI_ID, [prefix]);
+			if (!idRes.ok) { new Notice(`next-wi-id.py failed: ${idRes.stderr.slice(0, 300)}`); return; }
+			const newId = idRes.stdout.trim();
+			if (!newId) { new Notice("next-wi-id.py returned no id"); return; }
+
+			const body = await this.readCaptureBody(heading, date);
+			tmpPath = `${os.tmpdir()}/${newId.replace(/[^A-Za-z0-9_-]/g, "_")}-body-${Date.now()}.txt`;
+			await fs.writeFile(tmpPath, body, "utf-8");
+
+			const applyRes = await this.execPy(APPLY_ROADMAP_ACTION, [
+				"--wi", newId, "--action", "new_wi",
+				"--roadmap", r.roadmapFile,
+				"--title", r.title,
+				"--done-when", r.doneWhen,
+				"--status", "ready",
+				"--body-file", tmpPath,
+			]);
+			if (!applyRes.ok) { new Notice(`apply-roadmap-action.py failed: ${applyRes.stderr.slice(0, 300)}`); return; }
+
+			await this.markHeading(heading, date, `filed ${newId}`);
+			new Notice(`Filed ${newId}`);
+			void this.refresh(true);
+		} catch (e: any) {
+			new Notice(`Accept failed: ${String(e?.message || e)}`);
+		} finally {
+			if (tmpPath) await fs.unlink(tmpPath).catch(() => { /* best-effort cleanup */ });
+		}
+	}
+
+	// ── collapsed-section persistence (v5, contract item 4) ──────────
+	// `<details data-persist="...">` inside .op-lane (WAITING / backlog /
+	// INBOX / decisions "+N") remember open/closed PER LANE via
+	// plugin.saveData -- NOT plugin.saveSettings(), which re-renders every
+	// open dashboard leaf (a repaint on every collapse/expand click would be
+	// janky and could fight the very <details> being toggled). Re-run after
+	// every paintLane() since that replaces .op-lane's innerHTML wholesale
+	// (including on the 60s auto-refresh) -- same "paint never touches
+	// `open` again after this runs" discipline as the old cross-triage board
+	// had (s916), now per-section instead of one global toggle.
+	private wireCollapsed(): void {
+		const lane = this.tab;
+		if (!lane) return;
+		const nodes = this.els.lane.querySelectorAll<HTMLDetailsElement>("details[data-persist]");
+		nodes.forEach((details) => {
+			const section = details.dataset.persist;
+			const key = `${lane}::${section}`;
+			if (this.plugin.settings.collapsed[key]) details.open = true;
+			details.addEventListener("toggle", () => {
+				this.plugin.settings.collapsed[key] = details.open;
+				void this.plugin.saveData(this.plugin.settings);
+			});
+		});
+	}
+
 	// ── paint ──────────────────────────────────────────────────────
 
+	/** Gate on schema >= 4 (v5, SYS-485): an older payload gets one line +
+	 *  the refresh button, nothing else -- no tabs, no TODAY, no lane
+	 *  content. The literal contract example is 'regenerate (schema 3)';
+	 *  this shows the ACTUAL detected schema number instead of hardcoding 3,
+	 *  since a stale future payload (schema 5+ before this plugin catches
+	 *  up) would otherwise print a misleading "(schema 3)". */
 	private paint(): void {
 		const d = this.data;
 		const E = this.els;
-		E.gen.innerHTML = renderHeader(d, this.genError);
+		const schema = d?.schema || 0;
 
-		const lanes = laneList(d);
+		if (schema < MIN_SCHEMA) {
+			E.gen.innerHTML = `regenerate (schema ${esc(String(schema))})`;
+			E.tabs.innerHTML = "";
+			E.today.innerHTML = "";
+			E.lane.innerHTML = "";
+			E.stats.textContent = "";
+			return;
+		}
+
+		E.gen.innerHTML = renderHeader(d, this.genError);
+		E.today.innerHTML = renderToday(d.today);
+
+		const lanes = laneListV5(d);
 		if (!this.tab || !lanes.find((b) => b.lane === this.tab)) this.tab = lanes[0]?.lane ?? null;
 		this.paintTabs();
 		this.paintLane();
-
-		E.triage.innerHTML = d.triage ? renderTriage(d.triage, d) : `<div class="empty">triage needs schema 3 data</div>`;
-		E.triageN.textContent = d.triage ? `${triageTotal(d.triage)}` : "";
-		E.could.innerHTML = renderCouldDo(d.could_do);
-
-		const cap: Any[] = d.capture || [];
-		E.capN.textContent = `${d.capture_total ?? cap.length}`;
-		E.cap.innerHTML = renderCapture(cap);
 
 		const st = d.stats || {};
 		E.stats.textContent = `${st.open_working ?? "?"} working · ${st.waiting ?? "?"} waiting · ${st.deferred ?? "?"} deferred`;
 	}
 
 	private paintTabs(): void {
-		this.els.tabs.innerHTML = renderTabs(this.data, this.tab);
+		this.els.tabs.innerHTML = renderTabsV5(this.data, this.tab);
 	}
 
 	private paintLane(): void {
-		const b = laneList(this.data).find((x) => x.lane === this.tab);
-		if (!b) { this.els.lane.innerHTML = `<div class="empty">no lane has motion, a live seat, or working WIs</div>`; return; }
-		// A lane can have working WIs (data.lanes[]) with no sprints[] entry
-		// (schema 2 always for non-busiest lanes; schema 3 only if the
-		// generator hasn't caught up yet). Synthesize just enough of a
-		// sprint shape so renderLane's schema-2 fallback can still look the
-		// lane's full WI list back up by name, without faking a fake "sprint".
-		const sp = b.sprint ?? { lane: b.lane, weight: b.weight, wis: [], seats: [], moving_count: 0 };
-		// availableWidth: the swimlane's column width fills this (capped
-		// 56-96px per column, see arc-strip.ts) instead of squeezing/scaling
-		// with session count. .op-lane is a persistent skeleton element (built
-		// once in buildSkeleton()), so its clientWidth is already correct
-		// before this first paint -- it's a block child of .op-wrap, not
-		// itself the thing being replaced.
-		this.els.lane.innerHTML = renderLane(sp, this.data, this.els.lane.clientWidth || undefined);
-		// The swimlane's label gutter is CSS `position: sticky; left: 0`
-		// (styles.css .arc-gutter) -- it stays pinned as the strip scrolls,
-		// so no JS measurement/clamp pass is needed for labels any more (the
-		// old .lbl-out class + post-layout clamp is gone along with the
-		// floating-bar design that needed it). Only the right-anchor default
-		// remains: the operator cares about "what just happened," not
-		// day-1-of-the-window; older history is a scroll-left away.
-		const strip = this.els.lane.querySelector(".arc-strip") as HTMLElement | null;
-		if (strip) {
-			strip.scrollLeft = strip.scrollWidth;
-			// "<- earlier" jump markers (arc-strip.ts jumpMarker, s916
-			// follow-up): click scrolls the strip so a row's fully-hidden
-			// nodes come into view. Delegated fresh each paint since .op-lane
-			// (and everything inside it, including .arc-strip) is rebuilt by
-			// the innerHTML assignment above.
-			strip.addEventListener("click", (ev) => {
-				const jump = (ev.target as HTMLElement).closest(".arc-jump") as HTMLElement | null;
-				if (!jump) return;
-				const to = parseInt(jump.dataset.jumpTo || "", 10);
-				if (!Number.isNaN(to)) strip.scrollLeft = to;
-			});
-		}
+		const b = laneListV5(this.data).find((x) => x.lane === this.tab);
+		this.els.lane.innerHTML = renderLaneV5(b, this.data);
+		// Restore/wire this lane's per-section <details> open state (contract
+		// item 4) -- must run AFTER the innerHTML assignment above, since it
+		// replaces .op-lane wholesale (including on the 60s auto-refresh) and
+		// a fresh render never carries an `open` attribute of its own.
+		this.wireCollapsed();
 	}
 }

@@ -83,3 +83,65 @@ export function renderThisWeek(week: Any, blockedOverdue?: Any[]): string {
 	const note = weekNote(week);
 	return `<div class="band-h">this week</div><div class="op-week">${days}</div>${note ? `<div class="op-weeknote">${note}</div>` : ""}`;
 }
+
+// ── THIS WEEK compact (v5, SYS-485 schema 4) ──────────────────────────
+// A different visual shape from renderThisWeek above (5 weekday cells + one
+// combined weekend cell, an "N DUE" collapsed badge per cell instead of
+// expanded WI rows inline) -- the mock's approved layout. Reads the SAME
+// underlying fields (day.plan/day.events/day.clock/week.overdue -- "unchanged
+// but load-bearing" per the v5 contract), still cross-lane (day.clock rows
+// carry their own `lane`, same content on every tab -- renderThisWeek's
+// "a WI belonging to a different lane still needs to be visible" reasoning
+// applies unchanged here), so the lane chip stays on each due-list row.
+
+function v5DueListHtml(rows: Any[]): string {
+	return `<div class="v5-wduelist">${rows.map((w) => {
+		const lane = laneOf(w);
+		return `<div data-act="open" data-id="${esc(w.id)}" data-lane="${esc(lane)}">`
+			+ `<span class="v5-wlane">${esc(laneAbbrev(lane))}</span> <span class="tid">${esc(w.id)}</span> ${esc(w.title)}</div>`;
+	}).join("")}</div>`;
+}
+
+/** AM/Q2 plan pill -- same fields/click target as the existing planHtml()
+ *  above, v5 class names + "no block planned" filler for an empty day
+ *  (mock parity; the non-compact renderDay leaves an empty day blank). */
+function v5PlanHtml(plan: Any): string {
+	if (!plan) return `<div class="v5-wnone">no block planned</div>`;
+	const kind = plan.kind === "q2" ? "q2" : "am";
+	const label = kind === "q2" ? "Q2" : "AM";
+	return `<div class="v5-wplan v5-wplan-${kind}" data-act="open" data-id="${esc(plan.id)}" data-lane="${esc(laneOf(plan))}">`
+		+ `<span class="v5-wtag">${label}</span><span class="v5-wttl">${esc(plan.title)}</span></div>`;
+}
+
+function v5DayCell(day: Any, weekOverdue: Any[]): string {
+	const dueRows: Any[] = [...(day.today ? weekOverdue : []), ...(day.clock || [])];
+	const n = dueRows.length;
+	const badge = n > 0
+		? `<details class="v5-wdue"><summary>${n} DUE</summary>${v5DueListHtml(dueRows)}</details>`
+		: "";
+	return `<div class="v5-wcell${day.today ? " v5-wcell-today" : ""}">`
+		+ `<div class="v5-whd"><span>${esc(day.dow)} ${esc(String(day.date || "").slice(5))}</span>${badge}</div>`
+		+ v5PlanHtml(day.plan)
+		+ `</div>`;
+}
+
+export function renderThisWeekV5(week: Any): string {
+	const head = `<h2>THIS WEEK</h2>`;
+	if (!week || !week.days) return head + `<div class="empty">calendar off</div>`;
+	const days: Any[] = week.days || [];
+	const cells: string[] = [];
+	let i = 0;
+	while (i < days.length) {
+		const d = days[i];
+		if (d.dow === "Sat" || d.dow === "Sun") {
+			while (i < days.length && (days[i].dow === "Sat" || days[i].dow === "Sun")) i++;
+			// Contract's literal cell text -- one combined cell for the whole
+			// weekend, not the TODAY line's own per-day "open day"/"free" split.
+			cells.push(`<div class="v5-wcell v5-wcell-wknd">open / free</div>`);
+			continue;
+		}
+		cells.push(v5DayCell(d, week.overdue || []));
+		i++;
+	}
+	return head + `<div class="v5-week">${cells.join("")}</div>`;
+}

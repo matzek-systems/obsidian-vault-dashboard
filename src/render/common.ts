@@ -14,6 +14,27 @@ export const esc = (s: unknown): string =>
 
 export const actTxt = (m: number): string => (m < 60 ? `${m}m` : `${Math.floor(m / 60)}h`);
 
+/** Truncates to `n` Unicode CODE POINTS (Array.from() iterates by code point,
+ *  matching the generator's own Python `[:n]` semantics -- a plain
+ *  `.slice(0,n)` counts UTF-16 units instead and silently diverges on any
+ *  supplementary-plane emoji before the cut, the same class of bug fixed in
+ *  operator-panel.ts's cleanCaptureTitle for the INBOX matcher). Appends an
+ *  ellipsis only when truncation actually happens. For inline free-flowing
+ *  text (TODAY's one wrapping line) where a CSS max-width+ellipsis box
+ *  doesn't apply -- most other truncation in this codebase is CSS-driven
+ *  (week.ts), JS truncation is the exception, not the default. Trims
+ *  trailing whitespace/opening-bracket punctuation before the ellipsis --
+ *  an exact-N cut landing right after a title's own "(" (confirmed live:
+ *  today.q2's title) otherwise reads as an orphaned "(…" immediately
+ *  followed by TODAY's own "(WI-148)" id-chip parens. */
+export function truncate(s: string | undefined | null, n: number): string {
+	if (!s) return "";
+	const chars = Array.from(s);
+	if (chars.length <= n) return s;
+	const cut = chars.slice(0, n).join("").trimEnd().replace(/[([{]+$/, "").trimEnd();
+	return `${cut}…`;
+}
+
 export function agoTxt(iso: string | null | undefined, now: number = Date.now()): string {
 	if (!iso) return "";
 	const m = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
@@ -80,6 +101,25 @@ export function laneList(data: Any): Any[] {
 	const blocks: Any[] = (data.lanes || []).filter((b: Any) => b.working > 0 || byLane[b.lane]);
 	blocks.sort((a, b) => (a.lane === focal ? -1 : b.lane === focal ? 1 : 0));
 	return blocks.map((b) => ({ ...b, sprint: byLane[b.lane] || null, focal: b.lane === focal }));
+}
+
+/** v5 (SYS-485 schema 4) tab list -- ALL `data.lanes` entries, unfiltered.
+ *  laneList()'s `working > 0 || sprint` gate is a schema-3 leftover (the old
+ *  triage/sprint-board's "only show lanes with something happening" rule) --
+ *  under v5 it silently drops any lane with zero active-session work AND no
+ *  sprint entry from the tab bar entirely, which is exactly the WCMC case
+ *  the v5 contract calls out by name (now=0/next=0/1 backlog row, "must read
+ *  cleanly") -- confirmed live: WCMC (working:0, no sprint) was invisible in
+ *  both the tab bar and any --lane WCMC lookup before this fix. Still
+ *  computes `.focal` from `data.sprints` (the "last typed in" dot + sort-
+ *  first) since that's an independent, still-meaningful concept -- only the
+ *  INCLUSION filter is dropped, not the focal decoration. */
+export function laneListV5(data: Any): Any[] {
+	const sprints: Any[] = data.sprints || [];
+	const focal = sprints.find((s) => s.focal)?.lane;
+	const blocks: Any[] = (data.lanes || []).slice();
+	blocks.sort((a, b) => (a.lane === focal ? -1 : b.lane === focal ? 1 : 0));
+	return blocks.map((b) => ({ ...b, focal: b.lane === focal }));
 }
 
 export interface RowOpts {

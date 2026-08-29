@@ -1,7 +1,9 @@
 import { Any, esc, seatBadges, wiRow, repoChip, laneList } from "./common";
-import { renderArcStrip } from "./arc-strip";
-import { renderThisWeek } from "./week";
+import { renderArcStrip, renderArcsV5 } from "./arc-strip";
+import { renderThisWeek, renderThisWeekV5 } from "./week";
 import { renderLaneTriage } from "./triage";
+import { renderNow, renderDecisions, renderNext, renderWaiting, renderBacklog } from "./now-next";
+import { renderInboxSection } from "./inbox";
 
 const ACTIVE_CAP = 15; // schema-2 fallback only
 
@@ -134,6 +136,7 @@ export function renderLane(sp: Any, data: Any, availableWidth?: number): string 
 	}
 
 	// ── schema-2 fallback: never crash on old data ──
+	// (renderLane's own fallback, unrelated to renderLaneV5 below.)
 	const block: Any = (laneList(data) || []).find((b: Any) => b.lane === sp.lane) || {};
 	const inSprint = new Set<string>((sp.wis || []).map((w: Any) => w.id));
 	if ((sp.wis || []).length) {
@@ -147,5 +150,42 @@ export function renderLane(sp: Any, data: Any, availableWidth?: number): string 
 	h += rows.length
 		? shown.map((w) => wiRow(w)).join("") + (rows.length > ACTIVE_CAP ? `<div class="more">${rows.length - ACTIVE_CAP} older hidden</div>` : "")
 		: `<div class="empty">nothing else working</div>`;
+	return h;
+}
+
+// ── v5 lane composer (SYS-485 schema 4) ───────────────────────────────
+// `b` is a laneList(data) block -- the raw data.lanes[] entry (now/next/
+// waiting/decisions/backlog/inbox/inbox_older/ranking/badge all live there
+// per the v5 contract), spread with sprint/focal by laneList(). No `sp`
+// (sprints[] entry) needed any more -- every v5 field is lane-scoped on `b`
+// directly, unlike the old renderLane(sp, data, width) which had to fall
+// back to laneList(data) internally to find the lane's full roster.
+//
+// Exact contract order: NOW 3/3 -> DECISIONS OWED -> THIS WEEK compact ->
+// ARCS -> NEXT(5) -> WAITING -> backlog summary -> INBOX. TODAY (cross-lane)
+// and the tabs sit OUTSIDE this function, in operator-panel.ts's own
+// skeleton slots -- they're painted once, not per lane, since their content
+// doesn't change when the operator switches tabs.
+//
+// Dropped entirely from this path (contract item 3, "remove from the
+// render"): COULD DO, the full cross-lane triage board, the 9-symbol arc
+// legend (renderArcsV5 already carries its own 2-item legend), the session
+// note (sp.last_session -- SessionHover's card on an arc's last dot already
+// has it), and the PROGRESSED/NEW/full-roster band chrome. Those functions
+// (renderLane, renderCouldDo, renderTriage, renderCapture, the old
+// renderThisWeek/renderArcStrip) are left in the codebase, just uncalled
+// from here -- same rollback-safety judgment call as renderArcsV5's doc
+// comment above, flagged to team-lead together.
+export function renderLaneV5(b: Any, data: Any): string {
+	if (!b) return `<div class="empty">no lane has motion, a live seat, or working WIs</div>`;
+	let h = "";
+	h += renderNow(b.now || [], !!(b.ranking && b.ranking.provisional));
+	h += renderDecisions(b.decisions || []);
+	h += renderThisWeekV5(data.week);
+	h += renderArcsV5(b.lane, data.arcs || []);
+	h += renderNext(b.next || []);
+	h += renderWaiting(b.waiting || []);
+	h += renderBacklog(b.backlog);
+	h += renderInboxSection(b.inbox || [], b.inbox_older || 0);
 	return h;
 }

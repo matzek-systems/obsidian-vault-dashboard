@@ -1,9 +1,12 @@
 #!/usr/bin/env node
-// Static screenshot-QA harness for src/render/*.ts (SYS-485, session 911).
-// Bundles the pure render layer to a temp CJS module with esbuild's Node
-// API, imports it under plain Node (no Obsidian runtime needed — that's
-// the whole point of keeping src/render/ import-free), and renders one
-// lane tab + triage into a standalone HTML page embedding styles.css.
+// Static screenshot-QA harness for src/render/*.ts (SYS-485; v5 lane view
+// landed session 916/917). Bundles the pure render layer to a temp CJS
+// module with esbuild's Node API, imports it under plain Node (no Obsidian
+// runtime needed — that's the whole point of keeping src/render/
+// import-free), and renders the generated line + tabs + TODAY + one lane's
+// v5 content into a standalone HTML page embedding styles.css. A schema<4
+// fixture renders the plugin's own "regenerate" fallback instead, mirroring
+// operator-panel.ts's paint() gate exactly.
 //
 // Usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane] [--width N] [--hover]
 //
@@ -104,6 +107,10 @@ function styleVars() {
   --text-faint: #888888;
   --text-on-accent: #ffffff;
   --interactive-accent: #4c8bf5;
+  --color-red: #e93147;
+  --color-purple: #a882ff;
+  --color-yellow: #e0ac00;
+  --color-green: #08b94e;
   --font-text: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-monospace: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
@@ -117,6 +124,10 @@ body.theme-dark {
   --text-faint: #6c6c6c;
   --text-on-accent: #ffffff;
   --interactive-accent: #5b8ff0;
+  --color-red: #fb464c;
+  --color-purple: #b3a1f7;
+  --color-yellow: #e0de71;
+  --color-green: #4bcf6f;
 }
 html, body { margin: 0; padding: 0; background: var(--background-primary); }
 `;
@@ -128,24 +139,26 @@ async function main() {
 	const data = JSON.parse(readFileSync(dataPath, "utf8"));
 	const css = readFileSync(path.join(REPO, "styles.css"), "utf8");
 
-	const lanes = R.laneList(data);
+	// v5 (SYS-485 schema 4): mirrors operator-panel.ts's own paint() gate --
+	// schema<4 renders "regenerate (schema N)" + nothing else, same as the
+	// real plugin's fallback. A schema-4+ fixture renders TODAY (once, not
+	// per lane) + tabs + the lane's v5 content (renderLaneV5). No more
+	// .op-lane.clientWidth arithmetic (renderArcsV5 has no axis/scroll to
+	// size against, unlike the old renderArcStrip) and no more could-do/
+	// capture-zone/cross-triage panels (dropped from the v5 render path).
+	const schema = data.schema || 0;
+	// laneListV5 (unlike laneList) doesn't filter out zero-activity lanes with
+	// no sprint entry -- mirrors operator-panel.ts's own paint()/paintLane(),
+	// which switched to it after WCMC (working:0, no sprint) turned up
+	// invisible in both the tab bar and a direct --lane WCMC lookup.
+	const lanes = R.laneListV5(data);
 	const tab = laneArg || lanes.find((b) => b.focal)?.lane || lanes[0]?.lane || null;
 	const laneBlock = lanes.find((b) => b.lane === tab);
-	const sp = laneBlock?.sprint ?? (laneBlock ? { lane: laneBlock.lane, weight: laneBlock.weight, wis: [], seats: [], moving_count: 0 } : null);
 
-	const header = R.renderHeader(data, null);
-	const tabs = R.renderTabs(data, tab);
-	// Mirrors the real plugin's .op-lane.clientWidth measurement (see
-	// operator-panel.ts paintLane()) with arithmetic instead of a live DOM:
-	// .op-wrap caps content at max-width:1180px with 16px side padding
-	// (styles.css), so the arc strip's real available width is never just
-	// the raw --width past that cap.
-	const availableWidth = Math.max(200, Math.min(width, 1180) - 32);
-	const laneHtml = R.renderLane(sp, data, availableWidth);
-	const triage = data.triage ? R.renderTriage(data.triage, data) : `<div class="empty">no schema-3 triage in this fixture</div>`;
-	const triageN = data.triage ? R.triageTotal(data.triage) : "";
-	const could = R.renderCouldDo(data.could_do);
-	const capture = R.renderCapture(data.capture || []);
+	const genLine = schema < 4 ? `regenerate (schema ${schema})` : R.renderHeader(data, null);
+	const todayHtml = schema < 4 ? "" : R.renderToday(data.today);
+	const tabsHtml = schema < 4 ? "" : R.renderTabsV5(data, tab);
+	const laneHtml = schema < 4 ? "" : R.renderLaneV5(laneBlock, data);
 
 	const html = `<!doctype html>
 <html>
@@ -162,31 +175,15 @@ async function main() {
 <body>
 <script>
   if (new URLSearchParams(location.search).get("dark") === "1") document.body.classList.add("theme-dark");
-  window.addEventListener("DOMContentLoaded", () => {
-    // mirrors operator-panel.ts paintLane() -- the swimlane's label gutter
-    // is CSS position:sticky;left:0 (styles.css .arc-gutter), so the only
-    // JS left is the right-anchor scroll default (most recent sessions
-    // visible without a manual scroll) plus the "<- earlier" jump-marker
-    // click delegation (arc-strip.ts jumpMarker, s916 follow-up) -- kept
-    // here too so a headless-Playwright .click() on .arc-jump exercises the
-    // real behaviour, not just static markup.
-    document.querySelectorAll(".arc-strip").forEach((el) => {
-      el.scrollLeft = el.scrollWidth;
-      el.addEventListener("click", (ev) => {
-        const jump = ev.target.closest(".arc-jump");
-        if (!jump) return;
-        const to = parseInt(jump.dataset.jumpTo || "", 10);
-        if (!Number.isNaN(to)) el.scrollLeft = to;
-      });
-    });
-  });
 </script>
 ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
 <script>
   // --hover wiring: mirrors operator-panel.ts's real init (new ArcHover(),
   // .attach(root), .setData(d.arcs)) so a headless-Playwright .hover() on a
   // real .arc-gutter[data-arc] element exercises the actual show() path,
-  // not just the static markup.
+  // not just the static markup. renderArcsV5's gutter carries the same
+  // .arc-gutter[data-arc] selector as the old axis-strip's, so this wiring
+  // is unchanged by the v5 rework ("hover unchanged" per the contract).
   window.addEventListener("DOMContentLoaded", () => {
     const ah = new VDArcHover.ArcHover();
     ah.attach(document.querySelector(".op-lane"));
@@ -196,14 +193,11 @@ ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
 <div class="preview-page">
   <div class="vault-dashboard op-panel" style="width:${width}px">
     <div class="op-wrap">
-      <div class="op-top"><span class="op-gen">${header}</span><button class="op-btn">↻</button></div>
-      <div class="op-tabs">${tabs}</div>
+      <div class="op-top"><span class="op-gen">${genLine}</span><button class="op-btn">↻</button></div>
+      <div class="op-tabs">${tabsHtml}</div>
+      <div class="op-today">${todayHtml}</div>
       <div class="op-lane">${laneHtml}</div>
-      <div class="op-grid op-grid-bottom">
-        <section><h2>could do</h2><div class="op-could">${could}</div></section>
-        <section><h2>capture zone <span class="n">${data.capture_total ?? (data.capture || []).length}</span></h2><div class="op-cap">${capture}</div></section>
-      </div>
-      <details class="op-cross-triage"><summary>full triage board <span class="n">${triageN}</span></summary><div class="op-triage">${triage}</div></details>
+      <footer class="op-foot"><span class="op-stats"></span></footer>
     </div>
   </div>
 </div>
@@ -211,7 +205,7 @@ ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
 </html>`;
 
 	writeFileSync(outPath, html, "utf8");
-	console.log(`wrote ${outPath} (lane=${tab}, width=${width}px, ${html.length} bytes)`);
+	console.log(`wrote ${outPath} (lane=${tab}, schema=${schema}, width=${width}px, ${html.length} bytes)`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
