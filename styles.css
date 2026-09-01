@@ -758,427 +758,96 @@
    set on .vault-dashboard.op-panel above). */
 @container (max-width: 760px) { .op-panel .op-grid { grid-template-columns: minmax(0, 1fr); } }
 
-/* ── this week (s916, per-lane, cross-lane data) ── */
-.op-panel .op-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 4px; }
-.op-panel .day { border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 5px 6px; min-height: 40px; font-size: 10.5px; display: flex; flex-direction: column; gap: 2px; }
-.op-panel .day.today { border-color: var(--interactive-accent); }
-/* nowrap on both spans -- at very narrow column widths (7-across, s916)
-   flex-shrink can otherwise squeeze the date span below its content width
-   and the browser soft-wraps mid-token at the date's own hyphen ("08-" /
-   "30"); nowrap forces a clean overflow instead of a broken internal wrap. */
-.op-panel .day .dh { display: flex; justify-content: space-between; gap: 3px; color: var(--text-faint); margin-bottom: 1px; font-size: 10px; overflow: hidden; }
-.op-panel .day .dh span { white-space: nowrap; }
-.op-panel .day.today .dh { color: var(--interactive-accent); }
-.op-panel .day .none { color: var(--text-faint); }
-/* one WI row: lane chip + id + title, single-line ellipsis (CSS, not JS --
-   the title="" attr and the WI hover card both already carry the full
-   text). overdue variant (TODAY cell only, from week.overdue) reads red
-   with a trailing -Nd; the plain "due this day" variant (day.clock, every
-   cell) reads in the same amber "due soon" tint the old CLOCK section used. */
-.op-panel .wk-wi { display: flex; align-items: baseline; gap: 3px; min-width: 0; cursor: pointer; color: #d6b25e; }
-.op-panel .wk-wi:hover { text-decoration: underline; }
-.op-panel .wk-wi-over { color: #c77e7e; }
-.op-panel .wk-lane { flex: 0 0 auto; font-size: 8.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--text-faint); }
-.op-panel .wk-wi .tid { font-size: 10px; flex: 0 0 auto; color: inherit; }
-.op-panel .wk-ttl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
-.op-panel .wk-over { flex: 0 0 auto; font-weight: 700; font-size: 9.5px; }
-/* events keep the old CLOCK-era muted styling */
-.op-panel .wk-ev { display: flex; gap: 4px; color: var(--text-normal); min-width: 0; }
-.op-panel .wk-ev-time { flex: 0 0 auto; color: var(--text-faint); }
-/* planned AM/Q2 block (wi_calendar.py's pick, new field -- absent on most
-   days): a small pill so it reads as "protected time," not just another row. */
-.op-panel .wk-plan { display: flex; align-items: center; gap: 4px; margin-top: 2px; padding: 1px 5px; border-radius: 8px; background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); cursor: pointer; min-width: 0; }
-.op-panel .wk-plan:hover { background: color-mix(in srgb, var(--interactive-accent) 20%, transparent); }
-.op-panel .wk-plan-tag { flex: 0 0 auto; font-size: 8.5px; font-weight: 700; color: var(--interactive-accent); }
-.op-panel .wk-plan-q2 .wk-plan-tag { color: #9b7fd4; }
-.op-panel .wk-plan-q2 { background: rgba(155, 127, 212, 0.14); }
-.op-panel .wk-plan-q2:hover { background: rgba(155, 127, 212, 0.22); }
-.op-panel .wk-plan-ttl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-normal); font-size: 10px; }
-.op-panel .wk-blocked-note { font-size: 9.5px; color: var(--text-faint); margin-top: 2px; }
-.op-panel .op-weeknote { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
-/* below 560px (same breakpoint the cross-lane triage board collapses to one
-   column at), 7 squeezed ~44px columns is the wrong shape entirely --
-   .wk-lane + .tid + .wk-over (all flex:0 0 auto, never shrink) alone
-   exceeded that budget for most WI ids, leaving .wk-ttl zero space and no
-   visible title (operator-reported, s916 follow-up). Fix: go vertical, one
-   row per day, day label left + items wrapped to the right -- every item
-   gets real width again instead of being squeezed into a narrow column, so
-   the lane chip + badge that had to be dropped in the grid layout come
-   back. .day-items (week.ts renderDay) is a no-op wrapper in the default
-   7-column grid above; here it becomes the flex row's second column. An
-   empty day (weekend, just "—") naturally renders as a short single row --
-   no min-height forcing it taller. */
-@container (max-width: 560px) {
-	.op-panel .op-week { display: flex; flex-direction: column; gap: 4px; }
-	.op-panel .day { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; padding: 4px 8px; min-height: 0; }
-	.op-panel .day .dh { flex: 0 0 40px; display: flex; flex-direction: column; gap: 1px; margin-bottom: 0; }
-	.op-panel .day .day-items { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px; }
-	.op-panel .day .none { padding: 1px 0; }
-	.op-panel .day .wk-wi { flex: 0 1 auto; max-width: 100%; }
-	.op-panel .day .wk-wi .wk-ttl { max-width: 160px; }
-	.op-panel .day .wk-plan, .op-panel .day .wk-ev { margin-top: 0; }
-}
 
-/* capture zone */
-.op-panel .crow { display: flex; justify-content: space-between; gap: 10px; padding: 3px 6px; font-size: 11.5px; color: var(--text-muted); }
-
-.op-panel .op-foot { margin-top: 14px; font-size: 10.5px; color: var(--text-faint); }
-
-/* hover card — appended to document.body, mirrors workspace-shell's .ws-wi-card */
+/* shared hover-card skin (wi-card.ts / session-hover.ts / arc-hover.ts) */
 .op-wi-card { position: fixed; z-index: 1000; width: 380px; max-width: 90vw; background: var(--background-secondary); border: 1px solid var(--interactive-accent); border-radius: 6px; padding: 10px 12px; font-family: var(--font-monospace); font-size: 12px; color: var(--text-normal); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); pointer-events: none; }
 .op-wi-card-title { font-weight: 600; margin-bottom: 4px; }
 .op-wi-card-status { color: var(--interactive-accent); font-size: 11px; margin-bottom: 6px; }
 .op-wi-card-body { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
-/* gen-deltas open_reason: "wis-working" note (arc-hover.ts, s916 FYI addon) */
 .op-wi-card-note { color: var(--text-faint); font-size: 10.5px; font-style: italic; margin-top: 4px; }
 .op-wi-card-foot { display: flex; justify-content: space-between; margin-top: 8px; color: var(--text-faint); font-size: 10px; }
-
-/* ============================================================
-   Dashboard v4 (SYS-485, session 911) — arc strip, bands, triage.
-   Additive to v3 above: same theme-var discipline, same row grid.
-   ============================================================ */
-
-/* bare lane kicker (not wrapped in a .sprint card anymore — schema 3 has
-   no separate "sprint" list, every WI shows once, classified into a band) */
-.op-panel .kicker { display: flex; gap: 10px; align-items: baseline; font-size: 11px; color: var(--text-muted); margin: 2px 0 8px; flex-wrap: wrap; }
-.op-panel .kicker b { color: var(--text-normal); font-size: 13px; letter-spacing: .02em; }
-
-.op-panel .lane-counts { font-size: 11px; color: var(--text-faint); margin: 0 0 8px; }
-.op-panel .lane-counts b { color: var(--text-muted); font-weight: 600; }
-
-/* last-session note: one line, click to expand past the 2-line clamp */
-.op-panel .last-sess { margin: 0 0 12px; padding: 6px 8px; border-radius: 6px; background: var(--background-secondary); border-left: 2px solid var(--background-modifier-border); }
-.op-panel .lsn-hd { display: flex; gap: 8px; align-items: baseline; font-size: 11px; color: var(--text-faint); margin-bottom: 2px; }
-.op-panel .lsn-hd b { color: var(--text-muted); font-family: var(--font-monospace); }
-.op-panel .lsn-note { font-size: 11.5px; color: var(--text-muted); line-height: 1.4; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.op-panel .lsn-note.expanded { -webkit-line-clamp: unset; }
-.op-panel .lsn-note:hover { color: var(--text-normal); }
-
-/* ── arc strip (swimlane, s912+) ── */
-/* overflow-y: hidden is load-bearing, not decorative: setting overflow-x
-   alone (with overflow-y left at its visible default) makes the browser
-   compute overflow-y as auto too (CSS overflow-interdependency rule -- a
-   non-visible value on one axis promotes 'visible' on the other to 'auto'),
-   so any few px of vertical rounding across the row stack (border-bottoms,
-   node/gutter box-model rounding) silently produced a real 1px vertical
-   scrollbar on the STRIP itself (operator ruling, s914: size to content, no
-   vertical scroll ever -- the panel scrolls, not the strip). overflow-y:
-   visible would just get re-promoted to auto by the same rule; hidden is
-   the value that actually holds. */
-.op-panel .arc-strip { overflow-x: auto; overflow-y: hidden; margin: 0 0 4px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-secondary); scrollbar-width: thin; }
-.op-panel .arc-strip::-webkit-scrollbar { height: 6px; }
-.op-panel .arc-strip::-webkit-scrollbar-thumb { background: var(--background-modifier-border); border-radius: 3px; }
-/* width: max-content is load-bearing: a block-level flex container defaults
-   to FILLING its parent's width, not sizing to its (wider) content -- each
-   row was silently clamped to .arc-strip's clientWidth with its track
-   overflowing invisibly (overflow:visible), which is also what was breaking
-   position:sticky on the gutter (its stick range is computed against the
-   row's own box, and that box was never actually as wide as the real
-   content). Confirmed via getBoundingClientRect() before/after -- see
-   CLAUDE.md Layout note. */
-.op-panel .arc-row { display: flex; align-items: stretch; width: max-content; border-bottom: 1px solid var(--background-modifier-border); }
-.op-panel .arc-row:last-child { border-bottom: none; }
-.op-panel .arc-row-hdr { background: var(--background-secondary); }
-/* fixed-width sticky label column -- stays pinned to the strip's left edge
-   while .arc-strip scrolls horizontally, so a row's label is never scrolled
-   out of view (this replaces the old floating .lbl-out/clamp machinery). */
-/* Fixed 220px is now just a fallback -- arc-strip.ts's gutterStyleAttr()
-   sets a per-render inline width (min(360, 30% of panel), floored at 200,
-   operator ruling s914: "less than half of the descriptions are visible")
-   that always wins over this. */
-/* white-space/overflow/ellipsis stay on the OUTER gutter too -- the singles
-   row's "singles N" label is plain text with no .arc-gutter-lbl wrapper, so
-   it relies on these directly for its own (rarely-needed) single-line
-   truncation. The multi-row 2-line label spans below override white-space
-   on themselves, which wins over this inherited value. */
-.op-panel .arc-gutter { flex: 0 0 220px; width: 220px; box-sizing: border-box; padding: 4px 8px; font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: var(--background-secondary); z-index: 1; display: flex; align-items: center; gap: 4px; }
-.op-panel .arc-gutter-lbl { flex: 1 1 auto; min-width: 0; overflow: hidden; }
-/* "Name: what happened" splits into a bold name line + a muted description
-   line (2 lines total, ellipsis on line 2); a label with no colon just
-   wraps to 2 lines with ellipsis (arc-gutter-lbl-wrap). The FULL label
-   always lives in the gutter's title="" tooltip and the ArcHover card
-   (arc-hover.ts) -- this is display truncation only, never data loss. */
-.op-panel .arc-gutter-lbl-wrap { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; line-height: 1.25; }
-.op-panel .arc-gutter-name { display: block; font-weight: 600; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
-.op-panel .arc-gutter-desc { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; color: var(--text-muted); font-size: .94em; line-height: 1.2; }
-.op-panel .arc-row.closed .arc-gutter-lbl { color: var(--text-faint); opacity: .75; }
-.op-panel .arc-row-singles .arc-gutter { color: var(--text-faint); font-style: italic; }
-.op-panel .arc-row-n { font-size: 9px; opacity: .7; }
-/* "<- earlier" jump marker (arc-strip.ts jumpMarker): fixed-width+scroll
-   fallback only -- names a row's nodes that are all outside the strip's
-   default-scrolled view and, on click, scrolls the track to them
-   (operator-panel.ts / render-preview.mjs both delegate .arc-strip clicks
-   to this class). Not italic even inside .arc-row-singles -- it's a
-   control, not part of the (already-italic) label. */
-.op-panel .arc-jump { flex: 0 0 auto; font-style: normal; font-size: 9px; color: var(--text-faint); background: var(--background-modifier-hover); border-radius: 3px; padding: 1px 5px; cursor: pointer; white-space: nowrap; }
-.op-panel .arc-jump:hover { color: var(--text-normal); background: var(--background-modifier-border); }
-/* align-self: center -- .arc-track keeps a fixed height (its nodes are
-   absolutely positioned at fixed top offsets within it), so under the
-   row's align-items: stretch it would otherwise pin to the row's TOP edge
-   once a 2-line gutter label makes the row taller than the track, drifting
-   nodes away from the now vertically-centered gutter label. */
-.op-panel .arc-track { position: relative; flex: 0 0 auto; height: 24px; align-self: center; }
-.op-panel .arc-row-hdr .arc-track, .op-panel .arc-row-hdr .arc-gutter { height: 28px; }
-/* index-spaced columns: uniform width regardless of elapsed days, so nodes
-   always line up with the header and same-day sessions can never collide
-   (arc-strip.ts computes colW once per render, no per-node collision math). */
-.op-panel .arc-col-lbl { position: absolute; top: 3px; transform: translateX(-50%); font-family: var(--font-monospace); font-size: 9.5px; color: var(--text-faint); text-align: center; white-space: nowrap; }
-.op-panel .arc-col-date { display: block; font-size: 8px; color: var(--text-faint); opacity: .65; font-family: var(--font-text); }
-.op-panel .arc-line { position: absolute; top: 10px; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--interactive-accent) 35%, transparent); }
-.op-panel .arc-row.open .arc-line { background: color-mix(in srgb, #d6b25e 60%, transparent); }
-.op-panel .arc-row.closed .arc-line { background: var(--background-modifier-border); }
-.op-panel .arc-node { position: absolute; top: 5px; width: 12px; height: 12px; border-radius: 50%; transform: translateX(-50%); cursor: default; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
-.op-panel .arc-node.closed-arc { opacity: .55; }
-.op-panel .nc-shipped { background: #7ec77e; }
-.op-panel .nc-broken { background: #c77e7e; }
-.op-panel .nc-caused { background: var(--interactive-accent); }
-.op-panel .nc-waiting { background: #d6b25e; }
-.op-panel .nc-decision { background: #9b7fd4; }
-.op-panel .nc-neutral { background: var(--text-faint); }
-/* dead session: hollow ring + thin × (never a filled dot -- distinguishes
-   "no real session" from a real node of any colour) */
-.op-panel .arc-node.dead { background: transparent; border: 1.5px solid var(--text-faint); color: var(--text-faint); font-weight: 500; font-size: 9px; line-height: 1; }
-.op-panel .arc-mark { position: absolute; font-size: 8px; line-height: 1; font-weight: 700; }
-.op-panel .arc-mark.mk-broken { top: -7px; right: -3px; color: #c77e7e; }
-.op-panel .arc-mark.mk-wait { bottom: -7px; right: -3px; color: #d6b25e; }
-.op-panel .arc-empty { padding: 8px; color: var(--text-faint); font-style: italic; font-size: 11px; }
-.op-panel .arc-legend { display: flex; flex-wrap: wrap; gap: 3px 10px; padding: 5px 8px 10px; font-size: 9.5px; color: var(--text-faint); align-items: center; }
-.op-panel .arc-legend .lg { white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
-.op-panel .lg-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
-.op-panel .lg-dot.dead { background: transparent; border: 1.5px solid var(--text-faint); }
-.op-panel .lg-mark { font-weight: 700; width: 10px; text-align: center; display: inline-block; }
-
-/* ready-to-close nudge (every task checked, status never flipped) */
-.op-panel .flip-callout { font-size: 11px; color: #d6b25e; background: rgba(214, 178, 94, 0.1); border-radius: 6px; padding: 5px 8px; margin: 0 0 8px; }
-.op-panel .flip-callout b { font-weight: 700; }
-
-/* bands: reused by the full-status-list (lane.ts fullStatusList, item 7)
-   grouping the lane's complete WI roster -- the old PROGRESSED/NEW/NO
-   CHANGE/VERIFY/READY top-level bandSections are gone (s916 ruling); those
-   facts now live in the kicker counts, arc hovers, and NEW chips. */
-.op-panel .band { margin-bottom: 4px; }
-.op-panel .band-h { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); font-weight: 600; margin: 10px 2px 2px; display: flex; align-items: baseline; gap: 6px; }
-.op-panel .band-h .n { color: var(--text-faint); letter-spacing: 0; text-transform: none; font-weight: 500; }
-.op-panel .row-rot { opacity: 0.55; }
-.op-panel .row-rot:hover { opacity: 0.9; }
-.op-panel .pill.flip { background: rgba(214, 178, 94, 0.16); color: #d6b25e; }
-.op-panel .pill.rotpill { background: var(--background-modifier-border); color: var(--text-faint); }
-
-/* actor tags: who acts on the row's next open task */
-.op-panel .actor { font-size: 9.5px; font-weight: 700; letter-spacing: .04em; padding: 1px 5px; border-radius: 4px; }
-.op-panel .actor.a-you { background: rgba(126, 199, 126, 0.15); color: #7ec77e; }
-.op-panel .actor.a-them { background: rgba(138, 130, 176, 0.16); color: #8a82b0; }
-.op-panel .actor.a-seat { background: var(--background-modifier-border); color: var(--text-faint); }
-
-/* ── triage: cross-lane board (collapsed, panel bottom, .op-cross-triage)
-   + per-lane top-4 (.lane-tri, inline in each tab, s916) share this skin ── */
-.op-panel .op-cross-triage { min-width: 0; margin-top: 10px; }
-.op-panel .tri-cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 0 14px; }
-@container (max-width: 900px) { .op-panel .tri-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 10px; } }
-@container (max-width: 560px) { .op-panel .tri-cols { grid-template-columns: minmax(0, 1fr); } }
-/* per-lane top-4: two cols only (your move | them) -- always fits, no
-   container-query narrowing needed the way the 4-col cross-lane board does. */
-.op-panel .lane-tri { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 14px; margin: 4px 0 8px; }
-@container (max-width: 400px) { .op-panel .lane-tri { grid-template-columns: minmax(0, 1fr); row-gap: 8px; } }
-.op-panel .tri-col { min-width: 0; }
-.op-panel .tri-col h3 { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); font-weight: 600; margin: 0 0 4px; display: flex; align-items: baseline; gap: 6px; }
-.op-panel .tri-col h3 .n { color: var(--text-faint); letter-spacing: 0; text-transform: none; font-weight: 500; }
-.op-panel .tri-reasons { display: flex; flex-wrap: wrap; gap: 3px; padding: 0 6px 6px; margin-top: -3px; }
-.op-panel .pill.reason { background: var(--background-modifier-border); color: var(--text-muted); }
-.op-panel .pill.reason.r-overdue { background: rgba(199, 126, 126, 0.16); color: #c77e7e; }
-.op-panel .pill.reason.r-owed { background: rgba(214, 178, 94, 0.16); color: #d6b25e; }
-.op-panel .pill.reason.r-decision { background: rgba(138, 130, 176, 0.16); color: #8a82b0; }
-.op-panel .pill.reason.r-verify { background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); color: var(--interactive-accent); }
-.op-panel .pill.reason.r-stalled { background: rgba(199, 126, 126, 0.16); color: #c77e7e; }
-.op-panel .tri-seat-row { font-size: 11px; color: var(--text-muted); padding: 4px 6px; display: flex; flex-direction: column; gap: 1px; }
-.op-panel .tri-seat-row b { color: var(--text-normal); }
-.op-panel .tri-stalled { color: #c77e7e; font-size: 10.5px; }
-.op-panel .tri-dec-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-muted); padding: 4px 6px; }
-.op-panel .tri-dec-row .age { flex-shrink: 0; }
-
-.op-panel .could-label { font-size: 10.5px; color: var(--text-faint); margin: 0 0 4px; padding: 0 6px; }
-
-/* new-this-week chips (item 5, s916): compact, wraps, hover card via the
-   same [data-id] delegation every WI reference in this panel already uses. */
-.op-panel .chip-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 8px; }
-.op-panel .chip-wi { display: flex; align-items: baseline; gap: 4px; max-width: 220px; padding: 2px 7px; border-radius: 10px; background: var(--background-modifier-hover); cursor: pointer; min-width: 0; }
-.op-panel .chip-wi:hover { background: var(--background-modifier-border); }
-.op-panel .chip-id { font-family: var(--font-monospace); font-size: 10px; flex: 0 0 auto; }
-.op-panel .chip-ttl { font-size: 10.5px; color: var(--text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* moved-outside-arcs line (item 6, s916): one muted line, omitted when the
-   miner found nothing outside a tracked arc. */
-.op-panel .moved-outside { font-size: 10.5px; color: var(--text-faint); margin: 0 0 8px; }
-.op-panel .moved-outside .tid { font-family: var(--font-monospace); color: var(--interactive-accent); cursor: pointer; }
-.op-panel .moved-outside .tid:hover { text-decoration: underline; }
-
-/* full-status-list (item 7, s916): collapsed by default, per-status counts
-   visible in the (still-collapsed) summary so volume is scannable closed. */
-.op-panel .lane-full summary { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
-.op-panel .full-counts b { color: var(--text-muted); font-weight: 600; }
-.op-panel .full-counts { margin-left: 4px; }
-
-/* per-lane triage "+N more" expander (s916) */
-.op-panel .tri-more summary { font-size: 10.5px; color: var(--text-faint); padding: 2px 6px; }
-.op-panel .tri-more[open] summary { margin-bottom: 2px; }
-
-/* shared native <details> reset — new-chevron default is fine, just needs
-   a pointer cursor + a bit of breathing room on the summary row. Covers
-   .lane-full, .tri-more, and .op-cross-triage (below) in one rule. */
-.op-panel details > summary { cursor: pointer; }
-.op-panel .op-cross-triage > summary { font-size: 11px; color: var(--text-faint); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 8px 2px; }
-.op-panel .op-cross-triage > summary .n { text-transform: none; letter-spacing: 0; font-weight: 500; }
-.op-panel .op-cross-triage[open] > summary { margin-bottom: 4px; }
-
-/* session card (arc-strip node hover) — shares .op-wi-card's skin */
 .op-sess-card-evs { margin-top: 6px; display: flex; flex-direction: column; gap: 5px; }
 .op-sess-card-ev { font-size: 10.5px; color: var(--text-muted); line-height: 1.35; }
 .op-sess-card-ev b { color: var(--text-normal); text-transform: uppercase; font-size: 9.5px; letter-spacing: .04em; margin-right: 5px; }
 .op-sess-card-wi { font-family: var(--font-monospace); color: var(--interactive-accent); font-size: 10px; }
 
-/* ── v5 lane view (SYS-485 schema 4, session 916/917) ───────────────────
-   New per-lane sections (NOW/DECISIONS/THIS WEEK compact/ARCS compact/NEXT/
-   WAITING/backlog/INBOX) + the cross-lane TODAY line, per the operator-
-   approved mock. Reuses existing tokens/classes wherever the shape matches
-   (.tid, h2 .n, .empty, .arc-legend/.lg/.lg-mark, .nc-*, the
-   `details > summary { cursor: pointer }` reset above) -- only genuinely
-   new visual shapes get a new class, namespaced `.v5-*` so it's grep-able
-   apart from the older (still-present, now-unused by this path) render
-   code's own classes above. */
+/* ============================================================
+   Thread board (SYS-485 thread-board spec s923; v3.0.0, session 927).
+   The whole panel: one row per open thread. Layout is a 2-column grid --
+   [label · lane · phase | WIs · age · ⧉ ✕] then the session chain, then
+   the last event. @container, never @media (an Obsidian pane is not the
+   viewport). Colors come from the theme; status accents match .c-*.
+   ============================================================ */
+.op-panel .op-board { display: flex; flex-direction: column; }
+.op-panel .thr-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main main" "chain meta" "last last"; gap: 3px 10px; padding: 7px 8px 8px 10px; border-radius: 6px; border-left: 3px solid transparent; }
+.op-panel .thr-row + .thr-row { border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 55%, transparent); }
+.op-panel .thr-row:hover { background: var(--background-modifier-hover); }
+.op-panel .thr-row.live { border-left-color: var(--interactive-accent); }
+.op-panel .thr-row.new { border-left-color: var(--text-faint); border-left-style: dashed; }
 
-.op-panel .hint { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-faint); font-style: italic; }
+.op-panel .thr-main { grid-area: main; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.op-panel .thr-lbl { font-weight: 600; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; cursor: default; }
+.op-panel .thr-lbl.new { color: var(--text-faint); font-weight: 500; font-style: italic; flex: none; }
+.op-panel .thr-focus { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.op-panel .thr-lane { flex: none; font-size: 10px; padding: 0 6px; border-radius: 8px; background: var(--background-modifier-border); color: var(--text-muted); font-weight: 600; line-height: 16px; }
+.op-panel .thr-phase { flex: none; font-size: 9.5px; color: var(--text-faint); letter-spacing: .06em; text-transform: uppercase; font-weight: 600; }
+.op-panel .thr-phase.waiting { color: #8a82b0; }
+.op-panel .thr-phase.figuring-out { color: #d6b25e; }
+.op-panel .thr-phase.executing { color: #7ec77e; }
 
-/* today line */
-.op-panel .v5-today { font-size: 11.5px; color: var(--text-muted); background: var(--background-secondary); border-left: 2px solid var(--interactive-accent); border-radius: 4px; padding: 6px 9px; margin-bottom: 8px; line-height: 1.5; }
-.op-panel .v5-today b { color: var(--text-normal); }
+.op-panel .thr-meta { grid-area: meta; align-self: center; justify-self: end; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.op-panel .thr-meta .tid { font-size: 10.5px; font-weight: 600; }
+.op-panel .thr-age { color: var(--text-faint); }
+.op-panel .thr-age.old { color: #d6b25e; }
+.op-panel .thr-btn { opacity: 0; background: none; border: 0; color: var(--text-faint); cursor: pointer; padding: 0 2px; font-size: 12px; line-height: 1; font-family: var(--font-text); }
+.op-panel .thr-row:hover .thr-btn, .op-panel .thr-crow:hover .thr-btn, .op-panel .thr-btn.mine { opacity: 1; }
+.op-panel .thr-btn:hover { color: var(--interactive-accent); }
+.op-panel .thr-btn.mine { font-size: 11px; color: var(--interactive-accent); padding: 0; }
 
-/* tab badge: overdue + decisions, red, omitted at 0 (roster size is gone) */
-.op-panel .v5-tabn { background: var(--color-red); color: var(--text-on-accent); font-size: 10px; font-weight: 700; padding: 0 6px; border-radius: 8px; }
+.op-panel .thr-chain { grid-area: chain; display: flex; align-items: center; flex-wrap: wrap; gap: 3px 4px; font-family: var(--font-monospace); font-size: 11px; color: var(--text-muted); }
+.op-panel .thr-s { padding: 0 6px; border-radius: 9px; border: 1px solid var(--background-modifier-border); cursor: default; line-height: 17px; }
+.op-panel .thr-s.dead { text-decoration: line-through; color: var(--text-faint); }
+.op-panel .thr-s.ev-shipped, .op-panel .thr-s.ev-declared_done { border-color: rgba(126, 199, 126, 0.55); }
+.op-panel .thr-s.ev-found_broken, .op-panel .thr-s.ev-dead { border-color: rgba(199, 126, 126, 0.55); }
+.op-panel .thr-s.ev-waiting_on_operator, .op-panel .thr-s.ev-waiting_on_them { border-color: rgba(138, 130, 176, 0.65); }
+.op-panel .thr-s.live { color: var(--text-normal); border-color: var(--interactive-accent); display: inline-flex; align-items: center; gap: 5px; }
+.op-panel .thr-s.live.probable, .op-panel .thr-s.live.new { border-style: dashed; }
+.op-panel .thr-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--interactive-accent); display: inline-block; }
+.op-panel .thr-s.live.hot .thr-dot { background: #7ec77e; box-shadow: 0 0 0 3px rgba(126, 199, 126, 0.22); }
+.op-panel .thr-s.live.warm .thr-dot { background: var(--interactive-accent); }
+.op-panel .thr-s.live.cool .thr-dot, .op-panel .thr-s.live.idle .thr-dot { background: var(--text-faint); }
+.op-panel .thr-typed { font-style: normal; color: var(--text-faint); font-family: var(--font-text); font-size: 10px; }
+.op-panel .thr-arrow { color: var(--text-faint); font-size: 10px; }
 
-/* NOW 3/3 -- the one large element on the page, same weight as the mock */
-.op-panel .v5-now-row { border: 1px solid var(--background-modifier-border); border-radius: 7px; padding: 9px 11px; margin-bottom: 7px; background: var(--background-primary); }
-.op-panel .v5-row-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; font-size: 13px; }
-.op-panel .v5-row-top .tid { font-size: 12.5px; }
-.op-panel .v5-now-row .v5-ttl { font-weight: 600; color: var(--text-normal); }
-.op-panel .v5-row-meta { margin-left: auto; display: flex; gap: 8px; align-items: baseline; font-size: 11px; color: var(--text-faint); white-space: nowrap; }
-.op-panel .v5-why { color: var(--text-muted); }
-.op-panel .v5-prog { font-variant-numeric: tabular-nums; }
-.op-panel .v5-sub { margin-top: 4px; font-size: 11.5px; color: var(--text-muted); }
-.op-panel .v5-chip-wait { background: color-mix(in srgb, var(--color-purple) 14%, transparent); color: var(--color-purple); border-radius: 8px; padding: 1px 7px; font-size: 10.5px; font-weight: 600; }
+.op-panel .thr-last { grid-area: last; display: flex; gap: 7px; align-items: baseline; min-width: 0; font-size: 11.5px; color: var(--text-muted); }
+.op-panel .thr-ev { flex: none; font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); font-weight: 600; }
+.op-panel .thr-ev.shipped, .op-panel .thr-ev.declared_done { color: #7ec77e; }
+.op-panel .thr-ev.found_broken, .op-panel .thr-ev.dead { color: #c77e7e; }
+.op-panel .thr-ev.waiting_on_operator, .op-panel .thr-ev.waiting_on_them { color: #8a82b0; }
+.op-panel .thr-ev.handoff, .op-panel .thr-ev.decision, .op-panel .thr-ev.filed, .op-panel .thr-ev.root_caused { color: var(--interactive-accent); }
+.op-panel .thr-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.op-panel .thr-none { color: var(--text-faint); font-style: italic; }
 
-/* DECISIONS OWED */
-.op-panel .v5-drow { font-size: 12px; color: var(--text-normal); padding: 3px 2px; }
-.op-panel .v5-dglyph { color: var(--color-purple); font-weight: 700; }
-/* Own "+N ▸" glyph is baked into the summary text (now-next.ts renderDecisions)
-   -- suppress the native <details> marker here only, so it doesn't double up
-   with it (confirmed rendering as "▸ +3 ▸" in QA screenshots). Scoped to
-   .v5-more specifically: WAITING/backlog/INBOX summaries carry no manual
-   glyph of their own and still rely on the native triangle for affordance. */
-.op-panel .v5-more summary { font-size: 10.5px; color: var(--text-faint); padding: 2px 6px; list-style: none; }
-.op-panel .v5-more summary::-webkit-details-marker { display: none; }
-.op-panel .v5-more[open] summary { margin-bottom: 2px; }
+/* closed fold */
+.op-panel .thr-closed { margin-top: 14px; color: var(--text-faint); font-size: 11px; }
+.op-panel .thr-closed summary { cursor: pointer; letter-spacing: .1em; text-transform: uppercase; font-size: 10.5px; font-weight: 600; user-select: none; }
+.op-panel .thr-closed summary .n { letter-spacing: 0; text-transform: none; font-weight: 500; margin-left: 4px; }
+.op-panel .thr-crow { display: flex; align-items: baseline; gap: 8px; padding: 4px 10px; min-width: 0; }
+.op-panel .thr-crow .thr-lbl { font-weight: 500; color: var(--text-muted); }
+.op-panel .thr-why { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
-/* THIS WEEK compact: 5 weekday cells + 1 combined weekend cell */
-.op-panel .v5-week { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 0.8fr); gap: 6px; margin-bottom: 4px; }
-.op-panel .v5-wcell { border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 6px 8px; font-size: 10.5px; min-width: 0; }
-.op-panel .v5-wcell-today { border-color: var(--interactive-accent); }
-.op-panel .v5-wcell-wknd { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-style: italic; }
-.op-panel .v5-whd { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; color: var(--text-faint); margin-bottom: 3px; }
-.op-panel .v5-wcell-today .v5-whd { color: var(--interactive-accent); font-weight: 600; }
-.op-panel .v5-wdue summary { display: inline; color: var(--text-on-accent); background: var(--color-red); border-radius: 8px; padding: 0 6px; font-size: 9.5px; font-weight: 700; }
-.op-panel .v5-wduelist { margin-top: 3px; font-size: 10px; color: var(--text-muted); }
-.op-panel .v5-wduelist > div { cursor: pointer; padding: 1px 0; }
-.op-panel .v5-wduelist > div:hover { text-decoration: underline; }
-.op-panel .v5-wlane { font-size: 8.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--text-faint); }
-.op-panel .v5-wplan { display: flex; align-items: center; gap: 4px; padding: 2px 5px; border-radius: 6px; background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); min-width: 0; cursor: pointer; }
-.op-panel .v5-wplan:hover { background: color-mix(in srgb, var(--interactive-accent) 20%, transparent); }
-.op-panel .v5-wplan-q2 { background: color-mix(in srgb, var(--color-purple) 14%, transparent); }
-.op-panel .v5-wplan-q2:hover { background: color-mix(in srgb, var(--color-purple) 22%, transparent); }
-.op-panel .v5-wtag { font-weight: 700; font-size: 8.5px; color: var(--interactive-accent); flex: 0 0 auto; }
-.op-panel .v5-wplan-q2 .v5-wtag { color: var(--color-purple); }
-.op-panel .v5-wttl { color: var(--text-normal); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.op-panel .v5-wnone { color: var(--text-faint); font-style: italic; font-size: 10px; }
+/* footer */
+.op-panel .op-foot { margin-top: 18px; padding-top: 8px; border-top: 1px solid var(--background-modifier-border); color: var(--text-faint); font-size: 11px; display: flex; align-items: baseline; gap: 8px; }
 
-/* THIS WEEK compact's own <560px vertical stack (contract: "keep the <560px
-   vertical stack" -- same breakpoint/behavior family as renderThisWeek's
-   .op-week rule above, adapted to the compact cell shape: cells go from a
-   grid to a column of short rows instead of squeezing 6 columns into no
-   room). */
-@container (max-width: 560px) {
-	.op-panel .v5-week { display: flex; flex-direction: column; gap: 4px; }
-	.op-panel .v5-wcell { display: flex; align-items: center; gap: 8px; }
-	.op-panel .v5-wcell-wknd { justify-content: flex-start; }
+/* tabs wrap instead of scrolling a lane off-screen (base .op-tabs scrolls) */
+.op-panel .op-tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 0; }
+
+/* narrow pane (a real Obsidian side pane, or the phone view): the meta
+   cluster gets its own line under the chain so a long chain never wraps
+   around it, and the row buttons stay visible since there is no hover on a
+   touch surface (SYS-497 read-only view) */
+@container (max-width: 540px) {
+	.op-panel .thr-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "chain" "meta" "last"; }
+	.op-panel .thr-meta { justify-self: start; flex-wrap: wrap; white-space: normal; }
+	.op-panel .thr-btn { opacity: 1; }
 }
-
-/* ARCS compact: one row per arc (gutter | meta | inline-wrapped dots), no
-   axis, no horizontal scroll -- the mock's shape, distinct from the older
-   index-spaced axis-strip's .arc-row/.arc-gutter/.arc-track above. Dot
-   fills reuse the existing .nc-* colour classes; the two surviving marks
-   reuse .arc-mark/.mk-broken/.mk-wait (just re-scoped to static, non-
-   absolute positioning inside a dot instead of a node's corner-badge). */
-.op-panel .v5-arow { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr) auto; gap: 4px 10px; align-items: center; padding: 5px 2px; border-top: 1px solid var(--background-modifier-border); font-size: 11px; }
-.op-panel .v5-arow:first-of-type { border-top: none; }
-.op-panel .v5-agutter { min-width: 0; cursor: default; }
-.op-panel .v5-ameta { color: var(--text-faint); font-size: 10.5px; white-space: nowrap; }
-.op-panel .v5-phase { font-weight: 600; }
-.op-panel .v5-phase-figuring-out { color: var(--color-yellow); }
-.op-panel .v5-phase-executing { color: var(--color-green); }
-.op-panel .v5-phase-waiting { color: var(--color-purple); }
-.op-panel .v5-phase-open { color: var(--text-faint); }
-.op-panel .v5-atrack { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
-.op-panel .v5-adot { position: relative; width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
-.op-panel .v5-adot .arc-mark { position: static; font-size: 8px; }
-.op-panel .v5-lastglyph { display: inline-block; }
-.op-panel .v5-lastglyph .arc-mark { position: static; font-size: 11px; }
-
-/* ARCS compact <560px stack (team-lead, s918: confirmed overlap on
-   v5-soma-460-light.png -- the dots track is an `auto`-sized 3rd grid
-   column with no width cap, so a row with several sessions claims real
-   space and squeezes .v5-ameta's `white-space:nowrap` text into a column
-   too narrow to hold it, visually overlapping the dots. Fix: same family as
-   THIS WEEK's own <560px stack above -- gutter+meta keep sharing one row
-   (2-column grid instead of 3), the dots track drops to its own full-width
-   row below via `grid-column: 1 / -1` (grid auto-placement puts a 3rd DOM
-   child straight into row 2 without any markup change) and wraps freely
-   with no column to be squeezed by. */
-@container (max-width: 560px) {
-	.op-panel .v5-arow { grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); row-gap: 2px; }
-	.op-panel .v5-ameta { overflow: hidden; text-overflow: ellipsis; }
-	.op-panel .v5-atrack { grid-column: 1 / -1; justify-content: flex-start; margin-top: 1px; }
-	/* Team-lead follow-up (s918): the ellipsis fix above still truncated the
-	   PHASE tag off the right edge at 460px -- dates are the least important
-	   token here and phase must always stay visible. Hide the date-range
-	   span (arc-strip.ts's .v5-adate) entirely below this breakpoint instead
-	   of relying on ellipsis to pick a good cut point. */
-	.op-panel .v5-adate { display: none; }
-}
-
-/* NEXT (5) */
-.op-panel .v5-next-row { display: grid; grid-template-columns: 9ch minmax(0,1fr) auto; gap: 0 8px; align-items: baseline; font-size: 11.5px; color: var(--text-muted); padding: 3px 2px; }
-.op-panel .v5-next-row .v5-ttl { color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.op-panel .v5-next-row .v5-why { color: var(--text-faint); font-size: 10.5px; white-space: nowrap; }
-
-/* WAITING / backlog / INBOX -- collapsed sections, per-lane open state
-   persisted by operator-panel.ts's wireCollapsed() (contract item 4). */
-.op-panel .v5-waiting summary, .op-panel .v5-backlog summary, .op-panel .v5-inbox summary { font-size: 10.5px; color: var(--text-faint); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 3px 2px; }
-.op-panel .v5-waiting[open] summary, .op-panel .v5-backlog[open] summary, .op-panel .v5-inbox[open] summary { margin-bottom: 4px; }
-.op-panel .v5-waitrow, .op-panel .v5-brow, .op-panel .v5-irow { font-size: 11.5px; color: var(--text-muted); padding: 3px 2px; }
-.op-panel .v5-waitname { color: var(--color-purple); }
-.op-panel .v5-waitage { color: var(--text-faint); }
-.op-panel .v5-bgroup { margin-bottom: 6px; }
-.op-panel .v5-bgroup-h { font-size: 10px; color: var(--text-faint); font-weight: 600; margin: 4px 0 2px; }
-.op-panel .v5-bnote { color: var(--text-faint); font-style: italic; font-size: 10.5px; padding: 2px; }
-.op-panel .v5-irow { display: flex; align-items: center; gap: 8px; }
-
-/* flip_me nudge ("all N/N ticked · close it?") -- muted blue, not red/urgent
-   (team-lead shape note, s917). Reuses the same accent already used for
-   THIS WEEK's plan chip (.wk-plan) elsewhere in this file. */
-.op-panel .v5-why.v5-flip, .op-panel .v5-bnote.v5-flip { color: var(--interactive-accent); font-style: normal; }
-
-/* INBOX row defaulted to _System with no real attribution cue -- faint tag,
-   not a real claim (team-lead shape note, s917: attributed: false). */
-.op-panel .v5-unattr { font-size: 9px; color: var(--text-faint); border: 1px solid var(--background-modifier-border); border-radius: 4px; padding: 0 4px; text-transform: uppercase; letter-spacing: .03em; flex: 0 0 auto; }
-.op-panel .v5-itxt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.op-panel .v5-iage { color: var(--text-faint); flex: 0 0 auto; }
-.op-panel .v5-ibtn { font: inherit; font-size: 10px; border: 1px solid var(--background-modifier-border); background: var(--background-secondary); color: var(--text-muted); border-radius: 4px; padding: 2px 7px; cursor: pointer; flex: 0 0 auto; }
-.op-panel .v5-ibtn:hover { color: var(--text-normal); border-color: var(--interactive-accent); }

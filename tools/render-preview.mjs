@@ -1,32 +1,26 @@
 #!/usr/bin/env node
-// Static screenshot-QA harness for src/render/*.ts (SYS-485; v5 lane view
-// landed session 916/917). Bundles the pure render layer to a temp CJS
-// module with esbuild's Node API, imports it under plain Node (no Obsidian
-// runtime needed — that's the whole point of keeping src/render/
-// import-free), and renders the generated line + tabs + TODAY + one lane's
-// v5 content into a standalone HTML page embedding styles.css. A schema<4
+// Static screenshot-QA harness for src/render/*.ts (SYS-485; thread board,
+// v3.0.0 session 927). Bundles the pure render layer to a temp CJS module
+// with esbuild's Node API, imports it under plain Node (no Obsidian runtime
+// needed -- that's the whole point of keeping src/render/ import-free), and
+// renders the generated line + tabs + the thread board + the closed fold +
+// footer into a standalone HTML page embedding styles.css. A schema<5
 // fixture renders the plugin's own "regenerate" fallback instead, mirroring
 // operator-panel.ts's paint() gate exactly.
 //
 // Usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane] [--width N] [--hover]
 //
-// --hover additionally bundles+wires the real ArcHover class (arc-hover.ts)
-// so a headless-Playwright .hover() on a real .arc-gutter[data-arc] element
-// exercises the actual mouseover -> show() path, not just static markup.
+//   lane      "" / omitted = ALL; a lane name filters like the plugin's tab.
+//   --width N sets the .vault-dashboard.op-panel element's own width (default
+//             460) -- NOT the page width. .op-panel is a CSS container, so its
+//             @container rules key off this number regardless of the window.
+//   --hover   also bundles + wires the real ArcHover class (arc-hover.ts) so a
+//             headless-Playwright .hover() on a real .thr-lbl[data-arc]
+//             exercises the actual mouseover -> show() path.
 //
-// The output page defines Obsidian's CSS custom properties itself (light
-// under :root, dark under .theme-dark) since there's no real Obsidian
-// runtime supplying them here. Append ?dark=1 to the file:// URL when
-// screenshotting to render the dark variant — a small inline script flips
-// the class before paint.
-//
-// --width N (default 460) sets the .vault-dashboard.op-panel element's own
-// width -- NOT the page/body width. .op-panel is a CSS container
-// (container-type: inline-size), so its @container rules key off this
-// number regardless of how wide the browser window/screenshot viewport is.
-// Screenshot at --window-size bigger than --width to prove the narrow-stack
-// rules fire from the panel's own size, not the window's (a real Obsidian
-// pane sits narrow inside a 1920-2560px app window).
+// The page defines Obsidian's CSS custom properties itself (light under
+// :root, dark under .theme-dark). Append ?dark=1 to the file:// URL when
+// screenshotting to render the dark variant.
 
 import esbuild from "esbuild";
 import { readFileSync, writeFileSync, mkdtempSync } from "fs";
@@ -68,19 +62,9 @@ async function bundleRenderLayer() {
 		outfile,
 		logLevel: "warning",
 	});
-	// esbuild writes CJS with `module.exports.x = ...` — a plain require() works.
-	const mod = await import(pathToFileURL(outfile).href + `?t=${Date.now()}`);
-	return mod;
+	return await import(pathToFileURL(outfile).href + `?t=${Date.now()}`);
 }
 
-// Bundles the browser-side interactive bits (ArcHover's mouseover hover
-// card) as an inline IIFE, for headless-Playwright verification that the
-// real hover wiring -- not just the static markup -- behaves. Distinct from
-// bundleRenderLayer() above: this targets platform:"browser" (arc-hover.ts
-// and its hover-card.ts dependency use `document`/`window` directly, not
-// Node-importable) and its output gets embedded as inline <script> text in
-// the page rather than require()'d from this Node process. Opt-in via
-// --hover since most callers only need the static markup/CSS.
 async function bundleArcHover() {
 	const result = await esbuild.build({
 		entryPoints: [path.join(REPO, "src", "arc-hover.ts")],
@@ -139,38 +123,22 @@ async function main() {
 	const data = JSON.parse(readFileSync(dataPath, "utf8"));
 	const css = readFileSync(path.join(REPO, "styles.css"), "utf8");
 
-	// v5 (SYS-485 schema 4): mirrors operator-panel.ts's own paint() gate --
-	// schema<4 renders "regenerate (schema N)" + nothing else, same as the
-	// real plugin's fallback. A schema-4+ fixture renders TODAY (once, not
-	// per lane) + tabs + the lane's v5 content (renderLaneV5). No more
-	// .op-lane.clientWidth arithmetic (renderArcsV5 has no axis/scroll to
-	// size against, unlike the old renderArcStrip) and no more could-do/
-	// capture-zone/cross-triage panels (dropped from the v5 render path).
 	const schema = data.schema || 0;
-	// laneListV5 (unlike laneList) doesn't filter out zero-activity lanes with
-	// no sprint entry -- mirrors operator-panel.ts's own paint()/paintLane(),
-	// which switched to it after WCMC (working:0, no sprint) turned up
-	// invisible in both the tab bar and a direct --lane WCMC lookup.
-	const lanes = R.laneListV5(data);
-	const tab = laneArg || lanes.find((b) => b.focal)?.lane || lanes[0]?.lane || null;
-	const laneBlock = lanes.find((b) => b.lane === tab);
-
-	const genLine = schema < 4 ? `regenerate (schema ${schema})` : R.renderHeader(data, null);
-	const todayHtml = schema < 4 ? "" : R.renderToday(data.today);
-	const tabsHtml = schema < 4 ? "" : R.renderTabsV5(data, tab);
-	const laneHtml = schema < 4 ? "" : R.renderLaneV5(laneBlock, data);
+	const tab = laneArg || null;
+	const genLine = schema < 5 ? `regenerate (schema ${schema}, need 5)` : R.renderHeader(data, null);
+	const tabsHtml = schema < 5 ? "" : R.renderThreadTabs(data, tab, []);
+	const boardHtml = schema < 5 ? "" : R.renderThreadBoard(data, tab);
+	const closedHtml = schema < 5 ? "" : R.renderClosed(data, tab);
+	const footHtml = schema < 5 ? "" : R.renderFoot(data);
 
 	const html = `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>vault-dashboard render preview — ${R.esc(tab || "")}</title>
+<title>vault-dashboard thread board preview — ${R.esc(tab || "ALL")}</title>
 <style>${styleVars()}</style>
 <style>${css}</style>
-<style>
-  .preview-page { padding: 8px; }
-  .preview-page h1 { font: 700 11px var(--font-text); color: var(--text-faint); text-transform: uppercase; letter-spacing: .08em; margin: 14px 4px 4px; }
-</style>
+<style> .preview-page { padding: 8px; } </style>
 </head>
 <body>
 <script>
@@ -178,16 +146,10 @@ async function main() {
 </script>
 ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
 <script>
-  // --hover wiring: mirrors operator-panel.ts's real init (new ArcHover(),
-  // .attach(root), .setData(d.arcs)) so a headless-Playwright .hover() on a
-  // real .arc-gutter[data-arc] element exercises the actual show() path,
-  // not just the static markup. renderArcsV5's gutter carries the same
-  // .arc-gutter[data-arc] selector as the old axis-strip's, so this wiring
-  // is unchanged by the v5 rework ("hover unchanged" per the contract).
   window.addEventListener("DOMContentLoaded", () => {
     const ah = new VDArcHover.ArcHover();
-    ah.attach(document.querySelector(".op-lane"));
-    ah.setData(${JSON.stringify(data.arcs || [])});
+    ah.attach(document.querySelector(".op-panel"));
+    ah.setData(${JSON.stringify([...(data.threads || []), ...(data.threads_closed || [])])});
   });
 </script>` : ""}
 <div class="preview-page">
@@ -195,9 +157,9 @@ ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
     <div class="op-wrap">
       <div class="op-top"><span class="op-gen">${genLine}</span><button class="op-btn">↻</button></div>
       <div class="op-tabs">${tabsHtml}</div>
-      <div class="op-today">${todayHtml}</div>
-      <div class="op-lane">${laneHtml}</div>
-      <footer class="op-foot"><span class="op-stats"></span></footer>
+      <div class="op-board">${boardHtml}</div>
+      <div class="op-closed">${closedHtml}</div>
+      <footer class="op-foot"><span class="op-stats">${footHtml}</span></footer>
     </div>
   </div>
 </div>
@@ -205,7 +167,7 @@ ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
 </html>`;
 
 	writeFileSync(outPath, html, "utf8");
-	console.log(`wrote ${outPath} (lane=${tab}, schema=${schema}, width=${width}px, ${html.length} bytes)`);
+	console.log(`wrote ${outPath} (tab=${tab || "ALL"}, schema=${schema}, width=${width}px, rows=${(data.threads || []).length}, ${html.length} bytes)`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
