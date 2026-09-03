@@ -782,7 +782,10 @@
 .op-panel .thr-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main main" "chain meta" "last last"; gap: 3px 10px; padding: 7px 8px 8px 10px; border-radius: 6px; border-left: 3px solid transparent; }
 .op-panel .thr-row + .thr-row { border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 55%, transparent); }
 .op-panel .thr-row:hover { background: var(--background-modifier-hover); }
-.op-panel .thr-row.live { border-left-color: var(--interactive-accent); }
+/* s931: no accent border on .thr-row.live — the blue bracket read as an
+   unexplained legend item; the live chain node (●927 typed 3m) already
+   carries "live". New-thread rows keep the dashed edge (it means "no arc
+   yet", and the row says "new thread" in words right next to it). */
 .op-panel .thr-row.new { border-left-color: var(--text-faint); border-left-style: dashed; }
 
 .op-panel .thr-main { grid-area: main; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
@@ -790,10 +793,9 @@
 .op-panel .thr-lbl.new { color: var(--text-faint); font-weight: 500; font-style: italic; flex: none; }
 .op-panel .thr-focus { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .op-panel .thr-lane { flex: none; font-size: 10px; padding: 0 6px; border-radius: 8px; background: var(--background-modifier-border); color: var(--text-muted); font-weight: 600; line-height: 16px; }
-.op-panel .thr-phase { flex: none; font-size: 9.5px; color: var(--text-faint); letter-spacing: .06em; text-transform: uppercase; font-weight: 600; }
-.op-panel .thr-phase.waiting { color: #8a82b0; }
-.op-panel .thr-phase.figuring-out { color: #d6b25e; }
-.op-panel .thr-phase.executing { color: #7ec77e; }
+/* s931: .thr-phase removed — the chip re-worded the last mined event's
+   category as a present-tense state ("executing" on threads idle 40+
+   sessions). The last-event line carries the same fact honestly. */
 
 .op-panel .thr-meta { grid-area: meta; align-self: center; justify-self: end; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .op-panel .thr-meta .tid { font-size: 10.5px; font-weight: 600; }
@@ -851,3 +853,43 @@
 	.op-panel .thr-meta { justify-self: start; flex-wrap: wrap; white-space: normal; }
 	.op-panel .thr-btn { opacity: 1; }
 }
+
+
+/* ============================================================
+   Session 931: WI chip badges + OVERDUE strip + "older" fold.
+   Badges ride inside .tid (the chip) so they move with it; only three
+   states exist: overdue (red, days), due within 7d (yellow), all tasks
+   ticked (green ✓ = "close it?"). Waiting-on-who / age are tooltip-only.
+   ============================================================ */
+.op-panel .thr-older { margin-top: 12px; color: var(--text-faint); font-size: 11px; }
+.op-panel .thr-older summary { cursor: pointer; letter-spacing: .1em; text-transform: uppercase; font-size: 10.5px; font-weight: 600; user-select: none; }
+.op-panel .thr-older summary .n { letter-spacing: 0; text-transform: none; font-weight: 500; margin-left: 4px; }
+.op-panel .thr-older .thr-row { opacity: 0.75; }
+.op-panel .tid .tb { font-family: var(--font-text); font-style: normal; font-weight: 700; font-size: 9px; margin-left: 3px; padding: 0 4px; border-radius: 7px; line-height: 13px; vertical-align: 1px; display: inline-block; letter-spacing: 0; }
+.op-panel .tb.over { background: rgba(199, 126, 126, 0.18); color: #c77e7e; }
+.op-panel .tb.due { background: rgba(214, 178, 94, 0.2); color: #b8922e; }
+.op-panel .tb.flip { background: rgba(126, 199, 126, 0.2); color: #5fa85f; }
+body.theme-dark .op-panel .tb.due { color: #d6b25e; }
+body.theme-dark .op-panel .tb.flip { color: #7ec77e; }
+
+/* OVERDUE strip: sits BELOW the active thread board (operator ruling s931:
+   "active threads area … and then overdue items"). One row per working WI
+   whose due: has passed, most overdue first. Renders nothing when clean. */
+.op-panel .op-attn { margin: 10px 0 4px; padding: 5px 0 3px; border-top: 1px solid var(--background-modifier-border); }
+.op-panel .attn-since.over { color: #c77e7e; font-weight: 700; }
+.op-panel .attn-head { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); font-weight: 600; margin: 2px 0 3px; display: flex; align-items: center; gap: 6px; }
+.op-panel .attn-head .n { padding: 0 6px; border-radius: 8px; background: rgba(199, 126, 126, 0.18); color: #c77e7e; font-size: 10px; font-weight: 700; letter-spacing: 0; }
+.op-panel .attn-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 6px 3px 4px; border-radius: 5px; font-size: 11.5px; min-width: 0; }
+.op-panel .attn-row:hover { background: var(--background-modifier-hover); }
+.op-panel .attn-row.dim { opacity: 0.5; }
+.op-panel .attn-k { flex: none; width: 14px; text-align: center; font-style: normal; font-weight: 700; font-size: 11px; color: var(--text-faint); }
+.op-panel .attn-row.rule .attn-k { color: #c77e7e; }
+.op-panel .attn-row.question .attn-k { color: var(--interactive-accent); }
+.op-panel .attn-row.handoff .attn-k { color: var(--interactive-accent); }
+.op-panel .attn-row .tid { font-size: 10.5px; flex: none; }
+.op-panel .attn-lbl { flex: none; max-width: 40%; font-weight: 600; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-panel .attn-seat { flex: none; font-family: var(--font-monospace); font-size: 10.5px; color: var(--text-muted); }
+.op-panel .attn-txt { flex: 1 1 auto; min-width: 0; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-panel .attn-files { flex: none; font-size: 10px; color: var(--text-faint); }
+.op-panel .attn-since { flex: none; font-size: 10.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.op-panel .attn-more { font-size: 10.5px; color: var(--text-faint); padding: 1px 6px 2px 25px; }

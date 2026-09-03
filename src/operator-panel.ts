@@ -28,7 +28,8 @@ import { SessionHover } from "./session-hover";
 import { ArcHover } from "./arc-hover";
 import { Any, actTxt } from "./render/common";
 import { renderHeader } from "./render/header";
-import { renderThreadTabs, renderThreadBoard, renderClosed, renderFoot } from "./render/threads";
+import { renderThreadTabs, renderThreadBoard, renderClosed, renderFoot, wiIndex } from "./render/threads";
+import { renderOverdue, overdueRows } from "./render/overdue";
 
 export const VIEW_TYPE = "vault-dashboard";
 
@@ -84,6 +85,7 @@ export class DashboardView extends ItemView {
 			+ `<div class="op-top"><span class="op-gen"></span><button class="op-btn" data-act="refresh" title="regenerate now">↻</button></div>`
 			+ `<div class="op-tabs"></div>`
 			+ `<div class="op-board"></div>`
+			+ `<div class="op-attn-wrap"></div>`
 			+ `<div class="op-closed"></div>`
 			+ `<footer class="op-foot"><span class="op-stats"></span></footer>`
 			+ `</div>`;
@@ -213,18 +215,25 @@ export class DashboardView extends ItemView {
 		const el = this.contentEl;
 		const board = el.querySelector(".op-board") as HTMLElement | null;
 		const tabs = el.querySelector(".op-tabs") as HTMLElement | null;
+		const attn = el.querySelector(".op-attn-wrap") as HTMLElement | null;
 		const closed = el.querySelector(".op-closed") as HTMLElement | null;
 		const foot = el.querySelector(".op-stats") as HTMLElement | null;
-		if (!board || !tabs || !closed || !foot) return;
+		if (!board || !tabs || !attn || !closed || !foot) return;
 		this.paintHeader();
 		if (!this.data) { board.innerHTML = `<div class="empty">no data — ↻ to generate</div>`; return; }
 		const schema = this.data.schema || 0;
 		if (schema < MIN_SCHEMA) { board.innerHTML = `<div class="empty">regenerate (schema ${schema}, need ${MIN_SCHEMA})</div>`; return; }
 		const order: string[] = this.plugin.settings.tabs || [];
-		const hash = `${this.data.threads_hash || ""}|${this.tab || ""}|${order.join(",")}|${(this.data.threads_unmined || []).length}`;
+		// The overdue strip reads due_in off lanes[].wis, which threads_hash does
+		// not cover -- fold a fingerprint of it in so a pure due-date change (no
+		// WI status flip) still repaints the strip.
+		const idx = wiIndex(this.data);
+		const odSig = overdueRows(idx).map((w) => `${w.id}:${w.due_in}`).join(",");
+		const hash = `${this.data.threads_hash || ""}|${this.tab || ""}|${order.join(",")}|${(this.data.threads_unmined || []).length}|${odSig}`;
 		if (!force && hash === this.lastHash) { this.tickLive(); return; }
 		tabs.innerHTML = renderThreadTabs(this.data, this.tab, order);
 		board.innerHTML = renderThreadBoard(this.data, this.tab);
+		attn.innerHTML = renderOverdue(this.data, this.tab, idx);
 		closed.innerHTML = renderClosed(this.data, this.tab);
 		foot.innerHTML = renderFoot(this.data);
 		this.sessHover?.setData(this.data.sessions_log || []);

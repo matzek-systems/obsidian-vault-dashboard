@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Static screenshot-QA harness for src/render/*.ts (SYS-485; thread board,
-// v3.0.0 session 927). Bundles the pure render layer to a temp CJS module
-// with esbuild's Node API, imports it under plain Node (no Obsidian runtime
+// v3.0.0 session 927; chip badges + active-window fold + OVERDUE strip
+// session 931). Bundles the pure render layer to a temp CJS module with
+// esbuild's Node API, imports it under plain Node (no Obsidian runtime
 // needed -- that's the whole point of keeping src/render/ import-free), and
-// renders the generated line + tabs + the thread board + the closed fold +
-// footer into a standalone HTML page embedding styles.css. A schema<5
-// fixture renders the plugin's own "regenerate" fallback instead, mirroring
-// operator-panel.ts's paint() gate exactly.
+// renders the generated line + tabs + the thread board (active + older fold)
+// + the overdue strip + the closed fold + footer into a standalone HTML page
+// embedding styles.css. A schema<5 fixture renders the plugin's own
+// "regenerate" fallback instead, mirroring operator-panel.ts's paint() gate
+// exactly.
 //
 // Usage: node tools/render-preview.mjs <dashboard-data.json> <out.html> [lane] [--width N] [--hover]
 //
@@ -126,6 +128,7 @@ async function main() {
 	const schema = data.schema || 0;
 	const tab = laneArg || null;
 	const genLine = schema < 5 ? `regenerate (schema ${schema}, need 5)` : R.renderHeader(data, null);
+	const overdueHtml = schema < 5 || typeof R.renderOverdue !== "function" ? "" : R.renderOverdue(data, tab, R.wiIndex(data));
 	const tabsHtml = schema < 5 ? "" : R.renderThreadTabs(data, tab, []);
 	const boardHtml = schema < 5 ? "" : R.renderThreadBoard(data, tab);
 	const closedHtml = schema < 5 ? "" : R.renderClosed(data, tab);
@@ -158,6 +161,7 @@ ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
       <div class="op-top"><span class="op-gen">${genLine}</span><button class="op-btn">↻</button></div>
       <div class="op-tabs">${tabsHtml}</div>
       <div class="op-board">${boardHtml}</div>
+      <div class="op-attn-wrap">${overdueHtml}</div>
       <div class="op-closed">${closedHtml}</div>
       <footer class="op-foot"><span class="op-stats">${footHtml}</span></footer>
     </div>
@@ -167,7 +171,7 @@ ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
 </html>`;
 
 	writeFileSync(outPath, html, "utf8");
-	console.log(`wrote ${outPath} (tab=${tab || "ALL"}, schema=${schema}, width=${width}px, rows=${(data.threads || []).length}, ${html.length} bytes)`);
+	console.log(`wrote ${outPath} (tab=${tab || "ALL"}, schema=${schema}, width=${width}px, rows=${(data.threads || []).length}, overdue=${overdueHtml ? (overdueHtml.match(/data-kind="overdue"/g) || []).length : 0}, ${html.length} bytes)`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
