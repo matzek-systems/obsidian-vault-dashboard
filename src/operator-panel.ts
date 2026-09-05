@@ -56,6 +56,7 @@ export class DashboardView extends ItemView {
 	private genError: string | null = null;
 	private tab: string | null = null;
 	private lastHash = "";
+	private editingArc: string | null = null;   // an open note editor -> don't clobber it on a background repaint
 
 	private wiIndex: WiIndex | null = null;
 	private wiHover: WiHover | null = null;
@@ -212,6 +213,10 @@ export class DashboardView extends ItemView {
 	}
 
 	private paint(force = false): void {
+		// A note editor is open and mid-edit -- a background regen/poll repaint would
+		// rebuild innerHTML and wipe the textarea. Skip it; save/cancel clears the flag
+		// and repaints. A forced repaint (tab switch, ↻) still wins.
+		if (this.editingArc && !force) return;
 		const el = this.contentEl;
 		const board = el.querySelector(".op-board") as HTMLElement | null;
 		const tabs = el.querySelector(".op-tabs") as HTMLElement | null;
@@ -272,7 +277,45 @@ export class DashboardView extends ItemView {
 		else if (act === "close" && row) { void this.closeThread(row.dataset.thr || ""); }
 		else if (act === "reopen" && row) { void this.reopenThread(row.dataset.thr || ""); }
 		else if (act === "mine") { this.mine(); }
+		else if ((act === "note" || act === "note-edit") && row) { this.toggleNote(row); }
+		else if (act === "note-save" && row) { void this.saveNote(row); }
+		else if (act === "note-cancel" && row) { this.cancelNote(row); }
 		else if (act === "open") { this.wiHover?.hide(); void this.openRoadmap(t.dataset.id || ""); }
+	}
+
+	// ------------------------------------------------------------ notes
+
+	private toggleNote(row: HTMLElement): void {
+		const ed = row.querySelector(".thr-note-editor") as HTMLElement | null;
+		if (!ed) return;
+		const opening = ed.hidden;
+		ed.hidden = !opening;
+		this.editingArc = opening ? (row.dataset.thr || null) : null;
+		if (opening) {
+			const ta = ed.querySelector(".thr-note-input") as HTMLTextAreaElement | null;
+			if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+		}
+	}
+
+	private cancelNote(row: HTMLElement): void {
+		const ed = row.querySelector(".thr-note-editor") as HTMLElement | null;
+		if (ed) ed.hidden = true;
+		this.editingArc = null;
+	}
+
+	/** Persist the note via arc_ledger.py --note (empty text clears it), then regen so
+	 *  the saved note re-renders from the ledger like every other derived field. */
+	private async saveNote(row: HTMLElement): Promise<void> {
+		const id = row.dataset.thr || "";
+		const ta = row.querySelector(".thr-note-input") as HTMLTextAreaElement | null;
+		this.editingArc = null;                                   // clear before regen so the repaint lands
+		if (!id || id.startsWith("seat:") || !ta) return;
+		const text = ta.value.trim();
+		const res = await this.runPy(LEDGER_CLI, ["--note", id, "--text", text]);
+		if (!res.ok) { new Notice(`note failed: ${(res.stderr || res.stdout).slice(0, 200)}`); return; }
+		new Notice(text ? "note saved" : "note cleared");
+		this.regenAt = 0;
+		void this.regen("note");
 	}
 
 	private setTab(lane: string | null): void {

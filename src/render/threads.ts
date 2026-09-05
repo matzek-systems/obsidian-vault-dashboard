@@ -157,12 +157,61 @@ function chainHtml(r: Any): string {
 	return nodes.join(`<span class="thr-arrow">→</span>`);
 }
 
-function lastHtml(r: Any): string {
+const CLOSERS = new Set(["shipped", "decision", "declared_done"]);
+const LIVE_WI = new Set(["active", "ready", "needs-testing", "blocked", "waiting"]);
+
+/** The live WI's next step for a thread, preferring a live wi_row that actually
+ *  carries a next task. Returns null when no WI on the thread has one. */
+function nextStep(r: Any, idx: Map<string, Any>): { id: string; text: string } | null {
+	const ids: string[] = [];
+	for (const w of r.wi_rows || []) if (w.id && LIVE_WI.has(String(w.status || ""))) ids.push(w.id);
+	for (const w of r.wi_rows || []) if (w.id && !ids.includes(w.id)) ids.push(w.id);
+	for (const id of r.wis || []) if (!ids.includes(id)) ids.push(id);
+	for (const id of ids) {
+		const w = idx.get(id);
+		const nx = w && (w.next || w.next_task);
+		if (nx) return { id, text: String(nx) };
+	}
+	return null;
+}
+
+function lastHtml(r: Any, idx: Map<string, Any>): string {
 	const l = r.last || {};
+	// An OPEN thread whose last mined event is a closer (shipped/decision/declared_done)
+	// reads as "done" -- it is only still open because a WI is live. Show that WI's next
+	// step so the row says what is LEFT, not what already shipped (session 941). The
+	// closer stays visible as a small tag on the right.
+	if (r.open && CLOSERS.has(String(l.type || ""))) {
+		const ns = nextStep(r, idx);
+		if (ns) {
+			const was = EVENT_LABEL[l.type] || l.type;
+			return `<b class="thr-ev next">next</b><span class="thr-txt">${esc(ns.text)}</span>`
+				+ `<span class="thr-was" title="last mined event on this thread">${esc(was)}</span>`;
+		}
+	}
 	if (!l.n) return `<span class="thr-none">not yet mined</span>`;
 	const ev = l.type ? `<b class="thr-ev ${esc(l.type)}">${esc(EVENT_LABEL[l.type] || l.type)}</b>` : `<b class="thr-ev">s${esc(l.n)}</b>`;
 	const txt = l.text || l.note || "";
 	return `${ev}<span class="thr-txt">${esc(txt)}</span>`;
+}
+
+/** The operator note area: the saved note (click to edit) + a hidden editor
+ *  carrying the fuller mined summary and a textarea. New-thread rows (no arc
+ *  id yet) get nothing -- a note needs an arc id to key on in the ledger. */
+function noteHtml(r: Any): string {
+	if (r.kind === "new") return "";
+	const note = r.op_note && r.op_note.text ? String(r.op_note.text) : "";
+	const summary = r.summary ? String(r.summary) : "";
+	const display = note
+		? `<div class="thr-note" data-act="note-edit" title="click to edit">📝 <span class="thr-note-txt">${esc(note)}</span></div>`
+		: "";
+	const editor = `<div class="thr-note-editor" hidden>`
+		+ (summary ? `<div class="thr-summary" title="the mined session summary">${esc(summary)}</div>` : "")
+		+ `<textarea class="thr-note-input" rows="3" placeholder="add a note — call outcomes, next moves, context…">${esc(note)}</textarea>`
+		+ `<div class="thr-note-btns"><button class="thr-btn note-save" data-act="note-save">save</button>`
+		+ `<button class="thr-btn note-cancel" data-act="note-cancel">cancel</button></div>`
+		+ `</div>`;
+	return display + editor;
 }
 
 /** Up to 4 chips. A badged chip (overdue / due-soon / all-ticked) sorts ahead
@@ -200,12 +249,14 @@ export function renderThreadRow(r: Any, showLane: boolean, idx: Map<string, Any>
 		: `<span class="thr-lbl" data-arc="${esc(r.id)}">${esc(r.label || r.id)}</span>`;
 	const age = r.age_days != null ? `<span class="thr-age${r.age_days >= 10 ? " old" : ""}">${esc(r.age_days)}d</span>` : "";
 	const btns = `<button class="thr-btn" data-act="pickup" title="copy the pickup prompt">⧉</button>`
+		+ (isNew ? "" : `<button class="thr-btn" data-act="note" title="add / edit a note">✎</button>`)
 		+ (isNew ? "" : `<button class="thr-btn" data-act="close" title="close this thread">✕</button>`);
 	return `<div class="thr-row${live ? " live" : ""}${isNew ? " new" : ""}" data-thr="${esc(r.id)}" data-pickup="${esc(r.pickup || "")}">`
 		+ `<div class="thr-main">${label}${lane}</div>`
 		+ `<div class="thr-meta">${wiChips(r, idx)}${age}${btns}</div>`
 		+ `<div class="thr-chain">${chainHtml(r)}</div>`
-		+ `<div class="thr-last">${lastHtml(r)}</div>`
+		+ `<div class="thr-last">${lastHtml(r, idx)}</div>`
+		+ (isNew ? "" : `<div class="thr-note-wrap">${noteHtml(r)}</div>`)
 		+ `</div>`;
 }
 
