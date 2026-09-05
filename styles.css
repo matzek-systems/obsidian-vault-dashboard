@@ -143,6 +143,21 @@
 .dash-ps-dot-running { color: var(--color-green); }
 .dash-ps-dot-stopped { color: var(--text-faint); }
 
+/* Launch button on a stopped row that declares a launcher (collector LAUNCH_COMMANDS) */
+.dash-ps-launch {
+  font-size: 0.85em;
+  padding: 1px 7px;
+  margin-left: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 1;
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+  border: none;
+}
+.dash-ps-launch:hover { filter: brightness(1.1); }
+.dash-ps-stopped .dash-ps-uptime { opacity: 1; }
+
 .dash-ps-pid {
   color: var(--text-muted);
 }

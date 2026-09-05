@@ -1,5 +1,5 @@
 import { Plugin, ItemView, WorkspaceLeaf, TFile, setIcon, Notice, PluginSettingTab, Setting, App } from "obsidian";
-import { execFile } from "child_process";
+import { execFile, spawn } from "child_process";
 import { DashboardView } from "./operator-panel";
 
 const VIEW_TYPE = "vault-dashboard";
@@ -28,6 +28,9 @@ interface ProcessEntry {
 	cmd_short: string | null;
 	status: "running" | "stopped";
 	instance_count?: number;
+	/** argv relative to the Claude dir, set by the collector on stopped rows that
+	 *  have a launcher (tools/process-status-collector.py LAUNCH_COMMANDS). */
+	launch?: string[] | null;
 }
 
 interface ProcessStatusPayload {
@@ -458,10 +461,34 @@ class ProcessStatusView extends ItemView {
 				indicator.textContent = p.port_listening ? "●" : "○";
 			}
 
-			row.createEl("span", {
+			const upEl = row.createEl("span", {
 				text: this.formatUptime(p.uptime_seconds),
 				cls: "dash-ps-uptime",
 			});
+			if (p.status === "stopped" && p.launch && p.launch.length) {
+				const btn = upEl.createEl("button", { text: "Launch", cls: "dash-ps-launch" });
+				btn.title = `python ${p.launch.join(" ")}`;
+				btn.onclick = (ev) => { ev.stopPropagation(); this.launchProcess(p); };
+			}
+		}
+	}
+
+	/** Run a stopped row's launcher (collector-declared, idempotent). Detached so a
+	 *  slow --ensure (Tailscale wake-up) never blocks the renderer; the 3s refresh
+	 *  flips the row to running once the port answers. */
+	private launchProcess(p: ProcessEntry): void {
+		const argv = p.launch || [];
+		if (!argv.length) return;
+		const base = (this.app.vault.adapter as any).basePath as string;
+		const claudeDir = `${base}/00_System/AI/Claude`;
+		const py = this.plugin.settings.pythonCmd || "python";
+		try {
+			const child = spawn(py, [`${claudeDir}/${argv[0]}`, ...argv.slice(1)],
+				{ cwd: claudeDir, detached: true, stdio: "ignore", windowsHide: true });
+			child.unref();
+			new Notice(`launching ${p.label}`);
+		} catch (e: any) {
+			new Notice(`${p.label} launch failed: ${String(e?.message || e).slice(0, 160)}`);
 		}
 	}
 
