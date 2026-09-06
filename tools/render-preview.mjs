@@ -84,36 +84,42 @@ async function bundleArcHover() {
 function styleVars() {
 	return `
 :root {
-  --background-primary: #ffffff;
-  --background-secondary: #f2f3f5;
-  --background-modifier-border: #e3e3e3;
-  --background-modifier-hover: rgba(0,0,0,0.04);
-  --text-normal: #2e3338;
-  --text-muted: #5c5c5c;
-  --text-faint: #888888;
+  --background-primary: #0c0c0c;
+  --background-secondary: #111111;
+  --background-modifier-border: #232323;
+  --background-modifier-hover: #1c1c1c;
+  --text-normal: #d4d4d4;
+  --text-muted: #8a8a8a;
+  --text-faint: #6b6b6b;
   --text-on-accent: #ffffff;
-  --interactive-accent: #4c8bf5;
-  --color-red: #e93147;
-  --color-purple: #a882ff;
-  --color-yellow: #e0ac00;
-  --color-green: #08b94e;
+  --interactive-accent: #5a8ec7;
+  --interactive-accent-hover: #6a9bd0;
+  --color-red: #c77e7e;
+  --color-orange: #c08a4a;
+  --color-purple: #8a82b0;
+  --color-yellow: #d6b25e;
+  --color-green: #7ec77e;
+  --color-blue: #5a8ec7;
   --font-text: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-monospace: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 body.theme-dark {
-  --background-primary: #1e1e1e;
-  --background-secondary: #161616;
-  --background-modifier-border: #333333;
-  --background-modifier-hover: rgba(255,255,255,0.05);
-  --text-normal: #dcddde;
-  --text-muted: #a3a3a3;
-  --text-faint: #6c6c6c;
+  --background-primary: #0c0c0c;
+  --background-secondary: #111111;
+  --background-modifier-border: #232323;
+  --background-modifier-hover: #1c1c1c;
+  --text-normal: #d4d4d4;
+  --text-muted: #8a8a8a;
+  --text-faint: #6b6b6b;
   --text-on-accent: #ffffff;
-  --interactive-accent: #5b8ff0;
-  --color-red: #fb464c;
-  --color-purple: #b3a1f7;
-  --color-yellow: #e0de71;
-  --color-green: #4bcf6f;
+  --interactive-accent: #5a8ec7;
+  --interactive-accent-hover: #6a9bd0;
+  --color-red: #c77e7e;
+  --color-orange: #c08a4a;
+  --color-purple: #8a82b0;
+  --color-yellow: #d6b25e;
+  --color-green: #7ec77e;
+  --color-blue: #5a8ec7;
 }
 html, body { margin: 0; padding: 0; background: var(--background-primary); }
 `;
