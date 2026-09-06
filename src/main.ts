@@ -1,6 +1,7 @@
 import { Plugin, ItemView, WorkspaceLeaf, TFile, setIcon, Notice, PluginSettingTab, Setting, App } from "obsidian";
 import { execFile, spawn } from "child_process";
 import { DashboardView } from "./operator-panel";
+import { ControlSocket, runLauncher, RemoteHost } from "./remote-control";
 
 const VIEW_TYPE = "vault-dashboard";
 const ICON = "layout-dashboard";
@@ -31,6 +32,8 @@ interface ProcessEntry {
 	/** argv relative to the Claude dir, set by the collector on stopped rows that
 	 *  have a launcher (tools/process-status-collector.py LAUNCH_COMMANDS). */
 	launch?: string[] | null;
+	/** argv for a running row's restart (collector RESTART_COMMANDS); the phone server today. */
+	restart?: string[] | null;
 }
 
 interface ProcessStatusPayload {
@@ -90,6 +93,11 @@ interface DashboardSettings {
 	// leaf -- a repaint on every collapse/expand click would be janky and can
 	// fight the very <details> being toggled).
 	collapsed: Record<string, boolean>;
+	// Remote (DL-689, session 942): the plugin runs the phone server (tools/remote) with
+	// Obsidian - restart on load, stop on unload - and opens the loopback control socket
+	// the server uses to reach workspace-shell panes.
+	remoteServer: boolean;
+	controlPort: number;
 }
 
 const DEFAULT_SETTINGS: DashboardSettings = {
@@ -98,6 +106,8 @@ const DEFAULT_SETTINGS: DashboardSettings = {
 	lwpCrmDir: "C:/Dev/lwp-crm",
 	pythonCmd: "python",
 	collapsed: {},
+	remoteServer: true,
+	controlPort: 8379,
 };
 
 // ── LWP CRM shapes (mirror lwp-crm cli.py --json) ──
@@ -163,6 +173,12 @@ interface ProjectData {
 
 export default class DashboardPlugin extends Plugin {
 	settings: DashboardSettings = DEFAULT_SETTINGS;
+	control: ControlSocket | null = null;
+
+	remoteHost(): RemoteHost {
+		const base = ((this.app.vault.adapter as any).basePath as string).replace(/\\/g, "/");
+		return { app: this.app, pythonCmd: this.settings.pythonCmd || "python", claudeDir: `${base}/00_System/AI/Claude` };
+	}
 
 	async onload() {
 		await this.loadSettings();
@@ -183,6 +199,21 @@ export default class DashboardPlugin extends Plugin {
 		if (this.settings.openOnStartup) {
 			this.app.workspace.onLayoutReady(() => this.activateDashboard());
 		}
+
+		// Remote (DL-689): control socket first (the server's first request may come at once),
+		// then the server itself. --restart, not --ensure: a plugin load must run the code on
+		// disk, and a stale server from a crashed Obsidian must not survive a fresh start.
+		this.control = new ControlSocket(() => this.remoteHost(), this.settings.controlPort);
+		this.control.start();
+		// 1.5 s late: on a plugin bounce, onunload's --stop is still terminating the old server;
+		// let it finish (and drop its pid file) before the new one starts.
+		if (this.settings.remoteServer) setTimeout(() => runLauncher(this.remoteHost(), "--restart"), 1500);
+	}
+
+	onunload() {
+		this.control?.stop();
+		this.control = null;
+		if (this.settings.remoteServer) runLauncher(this.remoteHost(), "--stop");
 	}
 
 	async activateDashboard() {
@@ -301,6 +332,34 @@ class DashboardSettingTab extends PluginSettingTab {
 				t.onChange(async v => {
 					this.plugin.settings.openOnStartup = v;
 					await this.plugin.saveSettings();
+				});
+			});
+
+		containerEl.createEl("h2", { text: "Remote (phone app)" });
+		containerEl.createEl("p", {
+			text: "The phone server (tools/remote) runs with Obsidian: restarted when this plugin loads, stopped when it unloads. Toggle the plugin to reboot it; the Processes view has a Restart too.",
+			cls: "setting-item-description",
+		});
+		new Setting(containerEl)
+			.setName("Run the phone server with Obsidian")
+			.setDesc("Off = the server is left alone (launch it by hand or from the Processes view).")
+			.addToggle(t => {
+				t.setValue(this.plugin.settings.remoteServer);
+				t.onChange(async v => {
+					this.plugin.settings.remoteServer = v;
+					await this.plugin.saveSettings();
+					if (v) runLauncher(this.plugin.remoteHost(), "--ensure");
+				});
+			});
+		new Setting(containerEl)
+			.setName("Control port")
+			.setDesc("Loopback port the server uses to reach seats through this plugin (default 8379). Takes effect on the next plugin load.")
+			.addText(t => {
+				t.setPlaceholder("8379");
+				t.setValue(String(this.plugin.settings.controlPort));
+				t.onChange(async v => {
+					const n = parseInt(v.trim(), 10);
+					if (n > 1024 && n < 65536) { this.plugin.settings.controlPort = n; await this.plugin.saveSettings(); }
 				});
 			});
 
@@ -469,6 +528,11 @@ class ProcessStatusView extends ItemView {
 				const btn = upEl.createEl("button", { text: "Launch", cls: "dash-ps-launch" });
 				btn.title = `python ${p.launch.join(" ")}`;
 				btn.onclick = (ev) => { ev.stopPropagation(); this.launchProcess(p); };
+			}
+			if (p.status === "running" && p.restart && p.restart.length) {
+				const btn = upEl.createEl("button", { text: "Restart", cls: "dash-ps-launch" });
+				btn.title = `python ${p.restart.join(" ")}`;
+				btn.onclick = (ev) => { ev.stopPropagation(); this.launchProcess({ ...p, launch: p.restart }); };
 			}
 		}
 	}
