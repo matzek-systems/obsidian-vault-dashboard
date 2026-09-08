@@ -116,6 +116,25 @@ sidebar layout.
 | Push never arrives | Notifications need the installed home-screen app and the HTTPS front door. Re-enable in Settings after reinstalling the app. |
 | Voice button says not installed | Voice is optional. It needs `ffmpeg` on PATH and a local dictation worker. |
 
+## Dependencies, in full
+
+The server renders what the vault's dashboard layer derives and runs that layer itself
+(`tools/dashboard/dashboard_data.py`) on every refresh, so it depends on the vault system,
+two Obsidian plugins, four programs and four Python packages. The complete map, with what
+each piece is for and what degrades without it, is `remote-server/README.md` (it ships in
+the installed plugin folder). The short version:
+
+| Needed | Why |
+|---|---|
+| The vault system (`00_System/AI/Claude/tools/dashboard/`, `session-registry.json`, `Roadmaps/`) | The data. Ships in the system update channel. |
+| vault-dashboard + workspace-shell | Lifecycle and control socket; the seats themselves. |
+| `python`, `tailscale`, `git`, `claude` | Runtime, front door, the generator's repo reads, session mining. |
+| `psutil`, `pywebpush` (+ `cryptography`), `pillow` | Process control (required), push (optional), icon fallback (optional). |
+
+Optional and absent on a buyer install by design: `node` + `tools/render-preview.mjs`
+(the `/desk` render), `ffmpeg` + `tools/dictation` (voice), `tools/graph_client.py`
+(Outlook week). Each degrades to a message, never a crash.
+
 ## Where things live
 
 - Server code: `<vault>/.obsidian/plugins/vault-dashboard/remote-server/`

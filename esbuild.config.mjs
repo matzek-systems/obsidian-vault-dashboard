@@ -31,7 +31,7 @@ esbuild.build({
   mkdirSync(dstDir, { recursive: true });
   let n = 0;
   for (const f of readdirSync(srcDir)) {
-    if (/\.(py|png)$/.test(f)) { copyFileSync(path.join(srcDir, f), path.join(dstDir, f)); n++; }
+    if (/\.(py|png|md)$/.test(f)) { copyFileSync(path.join(srcDir, f), path.join(dstDir, f)); n++; }
   }
   console.log(`Copied manifest.json + styles.css + remote-server/ (${n} files) to plugin dir`);
 }).catch(() => process.exit(1));

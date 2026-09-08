@@ -25,6 +25,8 @@ Secrets (VAPID private key) and device subscriptions live OUTSIDE the vault:
 Lifecycle: launch.py beside this file (--ensure / --restart / --stop / --status); the vault-dashboard
 plugin runs it on load/unload. Detached pythonw, PID in serve.pid; a detached process never reloads
 code, so edit -> `launch.py --restart`. The vault is VAULT_PATH or found by walking up (vaultpath.py).
+Dependencies (the vault's tools/dashboard generator this server RUNS on refresh, the two plugins, the
+programs and pip packages, and what degrades without each): README.md beside this file.
 """
 import argparse
 import base64
