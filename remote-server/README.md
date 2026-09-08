@@ -7,57 +7,70 @@ folder is started and stopped by the Vault Dashboard plugin; you never run it by
 
 ## Setup
 
-You need the PC that runs Obsidian, your phone, and about fifteen minutes.
+Two kinds of step. **You** do the ones that need an account, a phone, or a browser you are
+signed into. **Your AI** does everything on the PC: open a Claude seat in your vault and
+paste the block. About fifteen minutes end to end.
 
-### 1. Tailscale
+### 1. You: Tailscale
 
 1. Install Tailscale on the PC and sign in. Install it on your phone and sign in to the
    **same** account.
-2. Open the Tailscale admin console at login.tailscale.com, go to **DNS**, and turn on
-   **MagicDNS** and **HTTPS Certificates**. Both are required: MagicDNS gives the PC a
-   name, HTTPS is what push notifications and the home-screen install need.
+2. In the admin console at login.tailscale.com, open **DNS** and turn on **MagicDNS** and
+   **HTTPS Certificates**. MagicDNS gives the PC a name; HTTPS is what push notifications
+   and the home-screen install need.
 3. On the PC, open the Tailscale tray app and turn on **Run unattended**, so the
    connection comes back after a reboot without you signing in first.
 
-### 2. The PC
+### 2. You: Obsidian
 
-1. Make sure Python 3.10 or newer is installed and `python --version` works in a
-   terminal.
-2. Install the packages the server uses:
+Under Community plugins, enable **Vault Dashboard** and keep **workspace-shell** enabled:
+it provides the seats the app talks to. The plugin starts the server when Obsidian loads
+and stops it when Obsidian closes. There is nothing to run by hand.
 
-   ```
-   pip install psutil pywebpush cryptography pillow
-   ```
+### 3. Your AI: the PC
 
-3. In Obsidian, enable **Vault Dashboard** under Community plugins. Keep **workspace-shell**
-   enabled too: it provides the seats the app talks to.
-4. That is it for the server. The plugin starts it when Obsidian loads, stops it when
-   Obsidian closes, and on first start registers the HTTPS front door with Tailscale
-   (`tailscale serve --bg 8378`). The first certificate can take up to a minute.
-
-To confirm, open a terminal in
-`<your vault>/.obsidian/plugins/vault-dashboard/remote-server` and run:
+Open a Claude seat in your vault and paste this:
 
 ```
-python launch.py --status
+Set up the remote app's server on this PC.
+1. Confirm Python 3.10 or newer is on PATH. If it is not, stop and tell me.
+2. pip install psutil pywebpush cryptography pillow
+3. Confirm the tailscale CLI is on PATH and `tailscale status` shows the backend Running.
+   If it is not, tell me exactly what to click.
+4. From <vault>/.obsidian/plugins/vault-dashboard/remote-server run
+   `python launch.py --ensure`, then `python launch.py --status`.
+5. Give me the https://...ts.net address from the status output. If anything is not
+   RUNNING, fix it or tell me precisely what is wrong.
 ```
 
-You want to see `remote-app RUNNING`, an `https://...ts.net` address, `tailscale
-backend=Running` and `front door proxy -> 127.0.0.1:8378`. That address is the app.
+What you want back: `remote-app RUNNING`, `tailscale backend=Running`,
+`front door proxy -> 127.0.0.1:8378`, and an address. The first certificate can take up
+to a minute. That address is the app.
 
-### 3. The phone
+### 4. You: the phone
 
-1. With the phone on Tailscale, open the address from the status check in Safari
-   (iPhone) or Chrome (Android).
+1. With the phone on Tailscale, open the address in Safari (iPhone) or Chrome (Android).
 2. iPhone: tap Share, then **Add to Home Screen**. From now on open it from the icon;
    push notifications only work from the installed app, not from a Safari tab.
 3. In the app, open **Settings** and turn on notifications. The default is to notify
    you only when you are away from the PC.
 
-### 4. Desktop browser
+### 5. Desktop browser
 
 The same address works in any browser on a device that is on your tailnet. From 900px
 wide you get the sidebar layout: seats on the left, the conversation in the middle.
+
+### Keeping it up to date
+
+After a plugin update, or a reboot that left the app down, paste this into a seat:
+
+```
+Check the remote app. From <vault>/.obsidian/plugins/vault-dashboard/remote-server run
+`python launch.py --status`. If the server is not RUNNING, the tailscale backend is not
+Running, or it says NO serve config, run `python launch.py --ensure` and check status
+again. Make sure psutil, pywebpush, cryptography and pillow are installed and current.
+Report the address and anything you could not fix.
+```
 
 ## How to use it
 
@@ -75,6 +88,8 @@ wide you get the sidebar layout: seats on the left, the conversation in the midd
 - **Settings**: notifications, the Tailscale state, where the server and the vault are.
 
 ## Troubleshooting
+
+The commands are for your AI: paste the row into a seat.
 
 | Symptom | Fix |
 |---|---|
