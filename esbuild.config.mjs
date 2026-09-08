@@ -1,7 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import path from "path";
-import { copyFileSync } from "fs";
+import { copyFileSync, mkdirSync, readdirSync } from "fs";
 
 const VAULT_PATH = process.env.VAULT_PATH || path.join("C:", "All Vault");
 const VAULT_PLUGIN_DIR = path.join(VAULT_PATH, ".obsidian", "plugins", "vault-dashboard");
@@ -25,5 +25,13 @@ esbuild.build({
 }).then(() => {
   copyFileSync("manifest.json", path.join(VAULT_PLUGIN_DIR, "manifest.json"));
   copyFileSync("styles.css", path.join(VAULT_PLUGIN_DIR, "styles.css"));
-  console.log("Copied manifest.json + styles.css to plugin dir");
+  // The phone app's server ships inside the plugin (DL-689): copy remote-server/ source files
+  // next to main.js. Runtime files (serve.pid, logs, shots/) live only in the installed copy.
+  const srcDir = "remote-server", dstDir = path.join(VAULT_PLUGIN_DIR, "remote-server");
+  mkdirSync(dstDir, { recursive: true });
+  let n = 0;
+  for (const f of readdirSync(srcDir)) {
+    if (/\.(py|png)$/.test(f)) { copyFileSync(path.join(srcDir, f), path.join(dstDir, f)); n++; }
+  }
+  console.log(`Copied manifest.json + styles.css + remote-server/ (${n} files) to plugin dir`);
 }).catch(() => process.exit(1));

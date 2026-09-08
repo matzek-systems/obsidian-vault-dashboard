@@ -177,7 +177,9 @@ export default class DashboardPlugin extends Plugin {
 
 	remoteHost(): RemoteHost {
 		const base = ((this.app.vault.adapter as any).basePath as string).replace(/\\/g, "/");
-		return { app: this.app, pythonCmd: this.settings.pythonCmd || "python", claudeDir: `${base}/00_System/AI/Claude` };
+		const cfg = (this.app.vault.configDir as string) || ".obsidian";
+		return { app: this.app, pythonCmd: this.settings.pythonCmd || "python", vaultPath: base,
+			claudeDir: `${base}/00_System/AI/Claude`, pluginDir: `${base}/${cfg}/plugins/${this.manifest.id}` };
 	}
 
 	async onload() {
@@ -543,12 +545,15 @@ class ProcessStatusView extends ItemView {
 	private launchProcess(p: ProcessEntry): void {
 		const argv = p.launch || [];
 		if (!argv.length) return;
-		const base = (this.app.vault.adapter as any).basePath as string;
-		const claudeDir = `${base}/00_System/AI/Claude`;
-		const py = this.plugin.settings.pythonCmd || "python";
+		const host = this.plugin.remoteHost();
+		const py = host.pythonCmd;
+		// argv[0] is relative to the Claude dir, or `{plugin}/...` for a script that ships inside
+		// this plugin (the phone server's launcher, s948). VAULT_PATH rides along for either.
+		const script = argv[0].startsWith("{plugin}/") ? `${host.pluginDir}/${argv[0].slice(9)}` : `${host.claudeDir}/${argv[0]}`;
 		try {
-			const child = spawn(py, [`${claudeDir}/${argv[0]}`, ...argv.slice(1)],
-				{ cwd: claudeDir, detached: true, stdio: "ignore", windowsHide: true });
+			const child = spawn(py, [script, ...argv.slice(1)],
+				{ cwd: host.claudeDir, detached: true, stdio: "ignore", windowsHide: true,
+				  env: { ...process.env, VAULT_PATH: host.vaultPath } });
 			child.unref();
 			new Notice(`launching ${p.label}`);
 		} catch (e: any) {

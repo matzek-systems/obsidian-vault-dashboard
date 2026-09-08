@@ -1,0 +1,6 @@
+shots/
+serve.pid
+serve-err.log
+index.html
+__pycache__/
+voice-config.json

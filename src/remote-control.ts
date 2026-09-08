@@ -1,13 +1,14 @@
 /**
  * Remote (SYS-497, DL-689, session 942): the dashboard plugin owns the phone app's server.
  *
- *  - Lifecycle: `runLauncher` spawns tools/remote/launch.py (--restart on plugin load so the
- *    server always runs the code on disk, --stop on unload / Obsidian quit). Obsidian is the
- *    runtime; the community-plugin toggle is the reboot; the Processes view keeps a Restart.
+ *  - Lifecycle: `runLauncher` spawns remote-server/launch.py from the plugin's own folder
+ *    (--restart on plugin load so the server always runs the code on disk, --stop on unload /
+ *    Obsidian quit), with VAULT_PATH in the environment so the server finds the vault. Obsidian
+ *    is the runtime; the community-plugin toggle is the reboot; Processes keeps a Restart.
  *  - Control channel: `ControlSocket` is a loopback HTTP server (127.0.0.1:<port>, token in
  *    %LOCALAPPDATA%/vault-remote/control-token) that runs the pane operations the phone server
- *    needs (panes / focus / send / keys / screen / resume) in-process, instead of an
- *    `obsidian eval` CLI spawn per action (~300 ms -> a few ms). tools/remote/seat_bridge.py
+ *    needs (panes / focus / send / keys / screen / resume / new) in-process, instead of an
+ *    `obsidian eval` CLI spawn per action (~300 ms -> a few ms). remote-server/seat_bridge.py
  *    tries this first and falls back to `obsidian eval` when the socket is not there.
  *
  *  The server itself stays a separate supervised process: a renderer freeze (the SYS-491
@@ -19,14 +20,16 @@ import * as http from "http";
 import { randomBytes } from "crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "fs";
 
-const LAUNCHER = "tools/remote/launch.py";
+const LAUNCHER = "remote-server/launch.py";
 const WS_VIEW = "workspace-shell";
 const MAX_BODY = 64 * 1024;
 
 export interface RemoteHost {
 	app: App;
 	pythonCmd: string;
+	vaultPath: string;   // the vault root, forward slashes
 	claudeDir: string;   // <vault>/00_System/AI/Claude, forward slashes
+	pluginDir: string;   // <vault>/.obsidian/plugins/vault-dashboard, forward slashes
 }
 
 export type LauncherMode = "--ensure" | "--restart" | "--stop";
@@ -40,8 +43,9 @@ function stateDir(): string {
  *  --stop spawned from onunload survives Obsidian quitting. */
 export function runLauncher(host: RemoteHost, mode: LauncherMode): boolean {
 	try {
-		const child = spawn(host.pythonCmd || "python", [`${host.claudeDir}/${LAUNCHER}`, mode],
-			{ cwd: host.claudeDir, detached: true, stdio: "ignore", windowsHide: true });
+		const child = spawn(host.pythonCmd || "python", [`${host.pluginDir}/${LAUNCHER}`, mode],
+			{ cwd: host.pluginDir, detached: true, stdio: "ignore", windowsHide: true,
+			  env: { ...process.env, VAULT_PATH: host.vaultPath } });
 		child.unref();
 		return true;
 	} catch (e) {
@@ -58,6 +62,8 @@ interface OpBody {
 	seq?: string;
 	rows?: number;
 	uuid?: string;
+	profile?: string;
+	cwd?: string;
 }
 
 export class ControlSocket {
@@ -171,6 +177,14 @@ export class ControlSocket {
 			if (!b.uuid) return { ok: false, result: "bad uuid" };
 			if (this.panes().some(p => p.uuid === b.uuid)) return { ok: false, result: "already on the desk" };
 			ws.openResumedSeat(b.uuid);
+			return { ok: true, result: "ok" };
+		}
+		if (b.op === "new") {
+			// s948: "New seat" from the phone / the desktop sidebar. A fresh Claude seat in a new
+			// tab on the desk; it shows on the phone once it registers a session number.
+			const ws = app.plugins?.getPlugin?.("workspace-shell");
+			if (!ws || !ws.openNewSeat) return { ok: false, result: "workspace-shell not enabled" };
+			ws.openNewSeat(String(b.profile || "claude"), b.cwd ? String(b.cwd) : undefined, "tab");
 			return { ok: true, result: "ok" };
 		}
 		const f = this.find(String(b.handle || ""));
