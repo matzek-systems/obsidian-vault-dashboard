@@ -1,155 +1,134 @@
 # Vault Dashboard
 
-An Obsidian plugin for the vault system: the operator board (attention, threads, seats,
-overdue work), a Processes view, and the **remote app**, a phone-sized web app that shows
-the same board and lets you read and message your Claude seats from anywhere on your
-tailnet. The plugin ships to vault buyers through the vault update channel; this README
-is the setup guide for the remote app.
-
-## What the remote app is
-
-- A small Python server (`remote-server/` inside this plugin's folder) that the plugin
-  starts when Obsidian loads and stops when it unloads. It listens on `127.0.0.1:8378`.
-- Tailscale puts an HTTPS front door on it: `https://<your-pc>.<your-tailnet>.ts.net`.
-  Only devices signed in to **your** Tailscale account can reach it. Nothing is public.
-- On the phone it installs as a home-screen app (PWA) with push notifications when a
-  seat needs you.
-- Desktop browsers get a sidebar layout (seats list, New seat, Board / Processes /
-  Settings); phones get the tab bar.
-
-There is no login inside the app. The tailnet **is** the login, so never expose the port
-with `tailscale funnel` or any other public proxy.
-
-## Requirements (the PC that runs Obsidian)
-
-| Item | Notes |
-|---|---|
-| Windows 10/11 | The launcher uses `pythonw.exe` and the Tailscale Windows paths. |
-| Obsidian with **vault-dashboard 3.1.0+** and **workspace-shell** | workspace-shell provides the seats (Claude terminals in Obsidian tabs); the remote app reads and drives those. |
-| Python 3.10+ on PATH | `python --version` in a terminal must work. |
-| Python packages | `pip install psutil pywebpush cryptography pillow` |
-| Tailscale | Desktop app on the PC, mobile app on the phone, same account. |
-
-Optional: `ffmpeg` on PATH plus a dictation worker enables voice messages. Without them
-the microphone button reports that voice is not installed and everything else works.
+The dashboard plugin for the vault system, and the **remote app** that comes with it: a
+phone app (and a desktop page) that shows your board and lets you read and message your
+Claude seats from anywhere, over your own Tailscale network. Nothing is public and there
+is no login inside the app: being on your tailnet is the login.
 
 ## Setup
+
+You need the PC that runs Obsidian, your phone, and about fifteen minutes.
 
 ### 1. Tailscale
 
 1. Install Tailscale on the PC and sign in. Install it on your phone and sign in to the
    **same** account.
-2. In the Tailscale admin console (login.tailscale.com), open **DNS** and make sure
-   **MagicDNS** is on and **HTTPS Certificates** is enabled. The app needs both: MagicDNS
-   gives the PC a name, and HTTPS is required for push notifications and the home-screen
-   install.
-3. Recommended: in the PC's Tailscale tray app, turn on **Run unattended**, so the
-   backend comes back after a reboot even before you sign in to Windows.
+2. Open the Tailscale admin console at login.tailscale.com, go to **DNS**, and turn on
+   **MagicDNS** and **HTTPS Certificates**. Both are required: MagicDNS gives the PC a
+   name, HTTPS is what push notifications and the home-screen install need.
+3. On the PC, open the Tailscale tray app and turn on **Run unattended**, so the
+   connection comes back after a reboot without you signing in first.
 
-### 2. Python packages
+### 2. The PC
 
-```
-pip install psutil pywebpush cryptography pillow
-```
+1. Make sure Python 3.10 or newer is installed and `python --version` works in a
+   terminal.
+2. Install the packages the server uses:
 
-### 3. Turn the plugin on
+   ```
+   pip install psutil pywebpush cryptography pillow
+   ```
 
-Enable **Vault Dashboard** in Obsidian's Community plugins. In its settings:
+3. In Obsidian, enable **Vault Dashboard** under Community plugins. Keep **workspace-shell**
+   enabled too: it provides the seats the app talks to.
+4. That is it for the server. The plugin starts it when Obsidian loads, stops it when
+   Obsidian closes, and on first start registers the HTTPS front door with Tailscale
+   (`tailscale serve --bg 8378`). The first certificate can take up to a minute.
 
-- **Remote server** is on by default. Turning it off stops the server.
-- **Python command** is `python` by default. Set it to a full path if your Python is not
-  on PATH.
-
-When the plugin loads it starts the server about two seconds later. The first start also
-runs `tailscale serve --bg 8378` for you, which registers the HTTPS front door. The first
-certificate can take up to a minute to issue.
-
-### 4. Check it
-
-Open a terminal in the plugin folder
-(`<your vault>/.obsidian/plugins/vault-dashboard/remote-server`) and run:
+To confirm, open a terminal in
+`<your vault>/.obsidian/plugins/vault-dashboard/remote-server` and run:
 
 ```
 python launch.py --status
 ```
 
-You should see `remote-app RUNNING`, your `https://...ts.net` URL, `tailscale
-backend=Running`, and `front door proxy -> 127.0.0.1:8378`. If the backend is not
-Running, open the Tailscale tray app; `python launch.py --ensure` starts it for you when
-it can.
+You want to see `remote-app RUNNING`, an `https://...ts.net` address, `tailscale
+backend=Running` and `front door proxy -> 127.0.0.1:8378`. That address is the app.
 
-### 5. The phone
+### 3. The phone
 
-1. Open the URL from step 4 in Safari (iPhone) or Chrome (Android) while the phone is on
-   Tailscale.
-2. iPhone: Share, then **Add to Home Screen**. Open the app from the icon from now on.
-   Push notifications only work from the installed app, not from the Safari tab.
-3. In the app, open **Settings** and turn on notifications. Pick when you want to be
-   pushed (only when away from the PC is the default).
+1. With the phone on Tailscale, open the address from the status check in Safari
+   (iPhone) or Chrome (Android).
+2. iPhone: tap Share, then **Add to Home Screen**. From now on open it from the icon;
+   push notifications only work from the installed app, not from a Safari tab.
+3. In the app, open **Settings** and turn on notifications. The default is to notify
+   you only when you are away from the PC.
 
-### 6. Desktop browser
+### 4. Desktop browser
 
-The same URL works in any browser on a tailnet device. At 900px and wider you get the
-sidebar layout.
+The same address works in any browser on a device that is on your tailnet. From 900px
+wide you get the sidebar layout: seats on the left, the conversation in the middle.
 
-## Using it
+## How to use it
 
 - **Board**: what needs you, overdue work, your seats, live threads.
-- **Seats**: every Claude seat open on the desk. Tap one to read its transcript and
-  message it. **Back** returns to Seats. **+ New seat** opens a fresh Claude seat in a new
-  Obsidian tab on the PC; it appears in the list once it has a session number.
-- **Not on the desk** (folded under Seats): live transcripts whose tab was closed. Resume
-  reopens one in a seat.
-- **Processes**: the PC's background processes, with Launch / Restart where a launcher
-  exists. The remote app's own row has Restart.
-- **Settings**: notifications, the Tailscale state, the server's path and vault.
+- **Seats**: every Claude seat open in Obsidian. Tap one to read its conversation and
+  message it. Return sends; Shift+Return is a new line. **Back** takes you to Seats.
+- **+ New seat**: opens a fresh Claude seat in a new Obsidian tab on the PC. It shows in
+  the list once it has a session number.
+- **Not on the desk** (folded under Seats): live conversations whose tab was closed.
+  Resume reopens one in a seat.
+- **…** in the message bar: add a photo, send Escape to the seat, confirm a prompt with
+  Enter, read replies aloud.
+- **Processes**: the PC's background processes, with Launch and Restart where they exist.
+  The remote app's own row has Restart.
+- **Settings**: notifications, the Tailscale state, where the server and the vault are.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| Phone shows the connecting screen forever | Phone not on Tailscale, or the PC's Tailscale backend is down. Check the phone's Tailscale app, then `python launch.py --status` on the PC. |
-| `tailscale backend=NoState` after a reboot | Open the Tailscale tray app (or enable Run unattended). `python launch.py --ensure` also starts it. |
-| `NO serve config` in status | `python launch.py --ensure` re-adds the proxy. Or run `tailscale serve --bg 8378` yourself. |
-| Server not running after a plugin reload | `python launch.py --restart`. Errors go to `remote-server/serve-err.log`. |
-| Seats page empty, seats exist in Obsidian | workspace-shell is not enabled, or the plugin's control socket is off. Reload the Vault Dashboard plugin. |
-| Push never arrives | Notifications need the installed home-screen app and the HTTPS front door. Re-enable in Settings after reinstalling the app. |
-| Voice button says not installed | Voice is optional. It needs `ffmpeg` on PATH and a local dictation worker. |
+| The phone shows the connecting screen forever | The phone is not on Tailscale, or the PC's Tailscale is down. Check the phone's Tailscale app, then `python launch.py --status` on the PC. |
+| Status says `tailscale backend=NoState` after a reboot | Open the Tailscale tray app, or turn on Run unattended. `python launch.py --ensure` also starts it. |
+| Status says `NO serve config` | `python launch.py --ensure` re-adds the front door. |
+| Server not running after a plugin reload | `python launch.py --restart`. Errors are in `remote-server/serve-err.log`. |
+| Seats page is empty but seats exist in Obsidian | workspace-shell is off, or the plugin's control socket is not up. Reload the Vault Dashboard plugin. |
+| Push never arrives | Notifications need the installed home-screen app and the HTTPS front door. Turn them on again in Settings after reinstalling the app. |
+| The mic says voice is not installed | Voice is optional. It needs `ffmpeg` and a local dictation worker on the PC. |
 
-## Dependencies, in full
+Keep the app tailnet-only. Never expose port 8378 with `tailscale funnel` or another
+public proxy: its routes type straight into live Claude seats.
 
-The server renders what the vault's dashboard layer derives and runs that layer itself
-(`tools/dashboard/dashboard_data.py`) on every refresh, so it depends on the vault system,
-two Obsidian plugins, four programs and four Python packages. The complete map, with what
-each piece is for and what degrades without it, is `remote-server/README.md` (it ships in
-the installed plugin folder). The short version:
+---
 
-| Needed | Why |
+## Reference
+
+### Requirements at a glance
+
+| Item | Notes |
 |---|---|
-| The vault system (`00_System/AI/Claude/tools/dashboard/`, `session-registry.json`, `Roadmaps/`) | The data. Ships in the system update channel. |
-| vault-dashboard + workspace-shell | Lifecycle and control socket; the seats themselves. |
-| `python`, `tailscale`, `git`, `claude` | Runtime, front door, the generator's repo reads, session mining. |
-| `psutil`, `pywebpush` (+ `cryptography`), `pillow` | Process control (required), push (optional), icon fallback (optional). |
+| Windows 10 or 11 | The launcher uses `pythonw.exe` and the Tailscale Windows paths. |
+| Obsidian with vault-dashboard 3.1.0+ and workspace-shell | workspace-shell provides the seats. |
+| Python 3.10+ | Plus `psutil`, `pywebpush`, `cryptography`, `pillow`. |
+| Tailscale | Both devices, same account, MagicDNS and HTTPS certificates on. |
+| The vault system | The server renders the vault's dashboard data and runs its generator (`tools/dashboard/`); `git` and the `claude` CLI are used by that generator and are part of every vault-system install. |
 
-Optional and absent on a buyer install by design: `node` + `tools/render-preview.mjs`
-(the `/desk` render), `ffmpeg` + `tools/dictation` (voice), `tools/graph_client.py`
-(Outlook week). Each degrades to a message, never a crash.
+Optional, and absent on a buyer install by design: `node` with `tools/render-preview.mjs`
+(the `/desk` render), `ffmpeg` with `tools/dictation` (voice), `tools/graph_client.py`
+(the Outlook week). Each degrades to a message.
 
-## Where things live
+### Dependencies in full
+
+`remote-server/README.md` is the complete map: every vault file the server reads or
+runs, both plugins, every program and package, and what happens without each. It ships in
+the installed plugin folder.
+
+### Where things live
 
 - Server code: `<vault>/.obsidian/plugins/vault-dashboard/remote-server/`
-- Runtime state (never in the vault): `%LOCALAPPDATA%\vault-remote\`
-  (push subscriptions, VAPID key, notification prefs, the plugin's control token, logs)
-- Data the app renders: `<vault>/00_System/AI/Claude/System Operations/state/dashboard-data.json`,
-  generated by `tools/dashboard/dashboard_data.py` from your roadmaps and session transcripts.
+- Runtime state, never in the vault: `%LOCALAPPDATA%\vault-remote\` (push subscriptions,
+  VAPID key, notification preferences, the plugin's control token, logs)
+- The data the app renders:
+  `<vault>/00_System/AI/Claude/System Operations/state/dashboard-data.json`, generated by
+  `tools/dashboard/dashboard_data.py` from your roadmaps and session transcripts.
 
-## Building from source
+### Building from source
 
 ```
 npm install
 VAULT_PATH="C:/path/to/your vault" npm run build
 ```
 
-The build writes `main.js`, `manifest.json`, `styles.css` and copies `remote-server/`
-into `<VAULT_PATH>/.obsidian/plugins/vault-dashboard/`. Reload the plugin in Obsidian to
-pick it up; the phone server restarts with it.
+The build writes `main.js`, `manifest.json` and `styles.css` and copies `remote-server/`
+into `<VAULT_PATH>/.obsidian/plugins/vault-dashboard/`. Reload the plugin in Obsidian; the
+phone server restarts with it.
