@@ -292,8 +292,28 @@ COMPOSER_JS = """
         if(chat){var d=document.createElement('div');d.className='msg k-you pend';d.innerHTML=esc(t)+'<span class="ts">sent · waiting for the seat to pick it up</span>';
           if(live&&live.parentNode){chat.insertBefore(d,live);}else{chat.appendChild(d);}pend.push(d);window.scrollTo(0,document.body.scrollHeight);}
         setTimeout(poll,1200);}else{toast('failed: '+j.msg,true);}});return false;};
-  ta.addEventListener('input',function(){ta.style.height='auto';ta.style.height=Math.min(120,ta.scrollHeight)+'px';});
-  ta.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();document.getElementById('cf').requestSubmit();}});
+  // s948 (phone, round 3): 4 lines on the phone (6 hid the transcript's tail under the bar + keyboard),
+  // 8 on the desktop grid. Enter sends; Shift+Enter is a newline. iOS can deliver the return key as a
+  // keydown with key 'Unidentified' (autocorrect/predictive composition), so beforeinput's
+  // insertLineBreak is the second door to send through; shift state is tracked from keydown.
+  var MAXH=window.matchMedia('(min-width:900px)').matches?200:96, shiftDown=false;
+  function grow(){ta.style.height='auto';ta.style.height=Math.min(MAXH,ta.scrollHeight)+'px';}
+  function sendNow(){document.getElementById('cf').requestSubmit();}
+  ta.addEventListener('input',grow);
+  ta.addEventListener('keydown',function(e){shiftDown=!!e.shiftKey;if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendNow();}});
+  ta.addEventListener('keyup',function(e){shiftDown=!!e.shiftKey;});
+  ta.addEventListener('beforeinput',function(e){if((e.inputType==='insertLineBreak'||e.inputType==='insertParagraph')&&!shiftDown){e.preventDefault();sendNow();}});
+  // The bar's real height is the page's bottom room (--cb); the page only follows to the bottom when
+  // the reader was there and is not typing (a scroll under an open iOS keyboard fights Safari's own).
+  var comp=document.querySelector('.composer');
+  if(comp&&window.ResizeObserver){new ResizeObserver(function(){var was=near();
+    document.documentElement.style.setProperty('--cb',(comp.offsetHeight+12)+'px');
+    if(was&&document.activeElement!==ta){window.scrollTo(0,document.body.scrollHeight);}}).observe(comp);}
+  // iOS lays fixed elements against the layout viewport, which the keyboard does not shrink: the bar
+  // would sit behind the keyboard. Pin it to the visual viewport's bottom edge instead.
+  var vv=window.visualViewport;
+  if(comp&&vv){var pin=function(){var off=Math.max(0,Math.round(window.innerHeight-vv.height-vv.offsetTop));comp.style.bottom=off+'px';};
+    vv.addEventListener('resize',pin);vv.addEventListener('scroll',pin);pin();}
   var fb=document.getElementById('fb');
   if(fb){fb.onclick=function(){post('focus').then(function(j){toast(j.ok?'focused on desk':'focus failed: '+j.msg,!j.ok);});};}
 })();
@@ -324,12 +344,6 @@ def composer(base: str, mode: str, placeholder: str, open_link: str = "") -> str
             '<button type="button" class="mrow" id="entbtn"><span class="kb">Enter</span> Confirm a prompt on the seat</button>'
             '<button type="button" class="mrow" id="spkbtn"><span class="kb">Aa</span> <span id="spklbl">Read replies aloud: off</span></button></div>'
             '<input type="file" id="photof" accept="image/*" hidden>'
-            # s948 (phone): the textarea grows to 120px, the bottom padding was a fixed 84px, so the
-            # last lines of the transcript hid behind the composer. --cb tracks the bar's real height.
-            '<script>(function(){var c=document.querySelector(".composer");if(!c||!window.ResizeObserver){return;}'
-            'new ResizeObserver(function(){var near=(window.innerHeight+window.scrollY)>=(document.body.scrollHeight-200);'
-            'document.documentElement.style.setProperty("--cb",(c.offsetHeight+12)+"px");'
-            'if(near){window.scrollTo(0,document.body.scrollHeight);}}).observe(c);})();</script>'
             '<span id="cst" class="toast"></span></div>'
             + COMPOSER_JS.replace("@BASE@", base).replace("@MODE@", mode))
 
