@@ -142,7 +142,8 @@ The server does not hold data. It renders what the vault's dashboard layer deriv
 | Vault path (under `00_System/AI/Claude/`) | Who uses it | Required? |
 |---|---|---|
 | `tools/dashboard/dashboard_data.py` | `serve_tailnet.refresh()` executes it (`python dashboard_data.py`) to regenerate the data file; it is the data source, not a viewer detail. | **Yes.** Without it the app shows stale or no data. |
-| `tools/dashboard/seat_state.py` (+ `threads.py`, `arcs.py`, `deltas.py`, `triage.py`, `v5.py`, `arc_ledger.py`, `actors.py`, `actors.json`, `repos.json`) | Imported by the generator; `seat_state` also directly by the server for live seat state. | **Yes** (they ship with `tools/dashboard/`). |
+| `tools/dashboard/seat_state.py` (+ `threads.py`, `arcs.py`, `deltas.py`, `triage.py`, `v5.py`, `arc_ledger.py`, `actors.py`) | Imported by the generator; `seat_state` also directly by the server for live seat state. | **Yes** (they ship with `tools/dashboard/`). |
+| `tools/dashboard/actors.json`, `repos.json` | Names that route board rows to THEM / ASK; your dev repos per lane for repo motion. | Optional, operator-local: not shipped. The generator runs with empty defaults; add your own to get those two features. |
 | `tools/win_console.py` | Keeps child processes windowless under `pythonw` (DL-457). | Soft: `try` import, silently skipped. |
 | `tools/registry_lock.py` | The arc ledger's registry writes. | Yes, via the generator. |
 | `tools/wi_calendar.py` | Leverage scores and the Q2 pool on the board. | Yes, via the generator. |
