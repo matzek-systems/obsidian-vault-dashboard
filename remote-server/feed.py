@@ -63,6 +63,41 @@ _EM2 = re.compile(r"(?<!\w)_(?!\s)([^_\n]+?)(?<!\s)_(?!\w)")
 _LINK = re.compile(r"\[([^\]\n]+)\]\((https?://[^)\s]+)\)")
 _HEAD = re.compile(r"^(#{1,6})\s+(.*)$")
 _BULLET = re.compile(r"^(\s*)[-*]\s+(.*)$")
+_TSEP = re.compile(r"^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$")   # | --- | --- |
+
+
+def _cells(ln: str) -> list[str]:
+    ln = ln.strip().replace("\\|", "\x01")
+    if ln.startswith("|"):
+        ln = ln[1:]
+    if ln.endswith("|"):
+        ln = ln[:-1]
+    return [c.strip().replace("\x01", "|") for c in ln.split("|")]
+
+
+def _tables(lines: list[str]) -> list[str]:
+    """A pipe table (header row, separator row, body rows) becomes one <table> line; the
+    bubble is pre-wrap, so the rows must not stay as newline-separated text (s948, phone)."""
+    out, i = [], 0
+    while i < len(lines):
+        ln = lines[i]
+        if ln.lstrip().startswith("|") and i + 1 < len(lines) and _TSEP.match(lines[i + 1]):
+            head = _cells(ln)
+            j = i + 2
+            rows = []
+            while j < len(lines) and lines[j].lstrip().startswith("|"):
+                rows.append(_cells(lines[j]))
+                j += 1
+            t = "<table class=\"md\"><thead><tr>" + "".join(f"<th>{c}</th>" for c in head) + "</tr></thead><tbody>"
+            for r in rows:
+                r = (r + [""] * len(head))[:len(head)]
+                t += "<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>"
+            out.append(t + "</tbody></table>")
+            i = j
+            continue
+        out.append(ln)
+        i += 1
+    return out
 
 
 def _esc(s: str) -> str:
@@ -91,7 +126,7 @@ def _inline(s: str) -> str:
             if m:
                 ln = f"{m.group(1)}\u2022 {m.group(2)}"
         lines.append(ln)
-    s = "\n".join(lines)
+    s = "\n".join(_tables(lines))
     return re.sub("\x00(\\d+)\x00", lambda m: codes[int(m.group(1))], s)
 
 

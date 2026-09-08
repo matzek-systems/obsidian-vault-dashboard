@@ -86,6 +86,9 @@ body.kbd .nav{display:none}
 .msg strong.hd{display:block;margin-top:6px}.msg code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:14px;background:var(--chip);padding:1px 5px;border-radius:5px}
 .msg pre.code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:13px;line-height:1.35;background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:8px 10px;overflow-x:auto;white-space:pre;margin:6px 0}
 .msg a{color:var(--accent);text-decoration:underline}.msg.k-you a{color:#fff}
+.msg table.md{display:block;overflow-x:auto;max-width:100%;border-collapse:collapse;margin:6px 0;font-size:14px;line-height:1.35;white-space:normal;-webkit-overflow-scrolling:touch}
+.msg table.md th,.msg table.md td{border:1px solid var(--line);padding:5px 9px;text-align:left;vertical-align:top;min-width:64px}
+.msg table.md th{background:var(--chip);font-weight:600;white-space:nowrap}.msg table.md td{max-width:320px}
 .msg.k-live{align-self:stretch;display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink2);padding:4px 12px;font-family:ui-monospace,"SF Mono",Menlo,monospace}
 .msg.k-live .dot{flex:0 0 8px;width:8px;height:8px;border-radius:50%;background:var(--work);animation:pulse 1.2s ease-in-out infinite}
 .msg.k-live.waiting .dot{background:var(--wait);animation:none}.msg.k-live .d{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -150,7 +153,7 @@ details.meta{margin:10px 12px 0}details.meta summary{padding:10px 14px;font-weig
  .sb-nav a{padding:8px 8px;border-radius:9px;font-size:14px;font-weight:600;color:var(--ink2)}
  .sb-nav a.on{color:var(--accent);background:var(--chip)}.sb-nav a:hover{background:var(--chip)}
  .sb-gen{color:var(--ink2);font-size:12px;padding:0 8px 4px}
- .main{width:100%;max-width:900px;margin:0 auto;padding:0 20px 140px;min-width:0}
+ .main{width:100%;max-width:900px;margin:0 auto;padding:0 20px calc(var(--cb,84px) + 56px);min-width:0}
  .nav,body.kbd .nav{display:none}
  .top{padding-left:4px;padding-right:4px}.top .gen{display:none}
  .band,.chat,details.meta{margin-left:0;margin-right:0}
@@ -311,7 +314,7 @@ def composer(base: str, mode: str, placeholder: str, open_link: str = "") -> str
     # Send button; no status row: state is a live line in the stream, transient messages toast.
     # Same evening, second pass: Esc next to the field was "inconveniently placed", so the photo
     # upload and Escape fold into one "..." menu; the dots light up while the seat works.
-    return ('<style>.nav{display:none}.composer{bottom:0}body{padding-bottom:84px}</style>'
+    return ('<style>.nav{display:none}.composer{bottom:0}body{padding-bottom:var(--cb,84px)}</style>'
             '<div class="composer">'
             f'<form id="cf" class="cform"><textarea id="ct" rows="1" enterkeyhint="send" placeholder="{h(placeholder)}"></textarea>'
             f'<button type="button" class="ibtn mic" id="micb" aria-label="Hold to talk" title="Hold to talk">{MIC_SVG}</button>'
@@ -321,6 +324,12 @@ def composer(base: str, mode: str, placeholder: str, open_link: str = "") -> str
             '<button type="button" class="mrow" id="entbtn"><span class="kb">Enter</span> Confirm a prompt on the seat</button>'
             '<button type="button" class="mrow" id="spkbtn"><span class="kb">Aa</span> <span id="spklbl">Read replies aloud: off</span></button></div>'
             '<input type="file" id="photof" accept="image/*" hidden>'
+            # s948 (phone): the textarea grows to 120px, the bottom padding was a fixed 84px, so the
+            # last lines of the transcript hid behind the composer. --cb tracks the bar's real height.
+            '<script>(function(){var c=document.querySelector(".composer");if(!c||!window.ResizeObserver){return;}'
+            'new ResizeObserver(function(){var near=(window.innerHeight+window.scrollY)>=(document.body.scrollHeight-200);'
+            'document.documentElement.style.setProperty("--cb",(c.offsetHeight+12)+"px");'
+            'if(near){window.scrollTo(0,document.body.scrollHeight);}}).observe(c);})();</script>'
             '<span id="cst" class="toast"></span></div>'
             + COMPOSER_JS.replace("@BASE@", base).replace("@MODE@", mode))
 
