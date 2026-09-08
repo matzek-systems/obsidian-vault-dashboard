@@ -27,19 +27,29 @@ Under Community plugins, enable **Vault Dashboard** and keep **workspace-shell**
 it provides the seats the app talks to. The plugin starts the server when Obsidian loads
 and stops it when Obsidian closes. There is nothing to run by hand.
 
+Two version floors, both checked by the block in the next step: **Vault Dashboard 3.1.0**
+(the first version that carries this server) and **system updates v1.10.0** (the first
+release that carries `tools/dashboard/`, the generator that builds the board and the
+threads the app renders). Older than either and the app has nothing to show.
+
 ### 3. Your AI: the PC
 
 Open a Claude seat in your vault and paste this:
 
 ```
 Set up the remote app's server on this PC.
-1. Confirm Python 3.10 or newer is on PATH. If it is not, stop and tell me.
-2. pip install psutil pywebpush cryptography pillow
-3. Confirm the tailscale CLI is on PATH and `tailscale status` shows the backend Running.
+1. Versions. The vault's .obsidian/plugins/vault-dashboard/manifest.json must say 3.1.0
+   or newer: if not, `git pull` in the vault and tell me to restart Obsidian.
+   00_System/AI/Claude/tools/system-data.json installed_version must be v1.10.0 or
+   newer: if not, run `python tools/apply-update.py --apply` from 00_System/AI/Claude
+   and show me anything it held for review.
+2. Confirm Python 3.10 or newer is on PATH. If it is not, stop and tell me.
+3. pip install psutil pywebpush cryptography pillow
+4. Confirm the tailscale CLI is on PATH and `tailscale status` shows the backend Running.
    If it is not, tell me exactly what to click.
-4. From <vault>/.obsidian/plugins/vault-dashboard/remote-server run
+5. From <vault>/.obsidian/plugins/vault-dashboard/remote-server run
    `python launch.py --ensure`, then `python launch.py --status`.
-5. Give me the https://...ts.net address from the status output. If anything is not
+6. Give me the https://...ts.net address from the status output. If anything is not
    RUNNING, fix it or tell me precisely what is wrong.
 ```
 
@@ -65,11 +75,15 @@ wide you get the sidebar layout: seats on the left, the conversation in the midd
 After a plugin update, or a reboot that left the app down, paste this into a seat:
 
 ```
-Check the remote app. From <vault>/.obsidian/plugins/vault-dashboard/remote-server run
-`python launch.py --status`. If the server is not RUNNING, the tailscale backend is not
-Running, or it says NO serve config, run `python launch.py --ensure` and check status
-again. Make sure psutil, pywebpush, cryptography and pillow are installed and current.
-Report the address and anything you could not fix.
+Check the remote app. First versions: .obsidian/plugins/vault-dashboard/manifest.json
+3.1.0 or newer (else `git pull` in the vault, then I restart Obsidian) and
+tools/system-data.json installed_version v1.10.0 or newer (else
+`python tools/apply-update.py --apply` from 00_System/AI/Claude). Then from
+<vault>/.obsidian/plugins/vault-dashboard/remote-server run `python launch.py --status`.
+If the server is not RUNNING, the tailscale backend is not Running, or it says NO serve
+config, run `python launch.py --ensure` and check status again. Make sure psutil,
+pywebpush, cryptography and pillow are installed and current. Report the address and
+anything you could not fix.
 ```
 
 ## How to use it
@@ -116,7 +130,8 @@ touches. Nothing here is a setup step.
 | Item | Notes |
 |---|---|
 | Windows 10 or 11 | The launcher uses `pythonw.exe` and the Tailscale Windows paths. |
-| Obsidian with vault-dashboard 3.1.0+ and workspace-shell | workspace-shell provides the seats. |
+| Obsidian with vault-dashboard 3.1.0+ and workspace-shell | 3.1.0 is the first version carrying this server; workspace-shell provides the seats. |
+| System updates v1.10.0+ | The first release carrying `tools/dashboard/`: the generator, the threads, seat state. `python tools/apply-update.py` from `00_System/AI/Claude` brings it in. |
 | Python 3.10+ | Plus `psutil`, `pywebpush`, `cryptography`, `pillow`. |
 | Tailscale | Both devices, same account, MagicDNS and HTTPS certificates on. |
 | The vault system | The server renders the vault's dashboard data and runs its generator (`tools/dashboard/`); `git` and the `claude` CLI are used by that generator and are part of every vault-system install. |
