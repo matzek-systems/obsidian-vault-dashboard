@@ -59,6 +59,13 @@ body.kbd .nav{display:none}
 .kv .k{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:4px}
 .kv .v{font-size:17px;white-space:pre-wrap;word-break:break-word}
 .kv .v.q{font-size:19px;font-weight:600;color:var(--wait)}
+.checklist{white-space:normal}
+.chk{display:flex;gap:9px;align-items:flex-start;padding:5px 0;line-height:1.35;border-top:1px solid var(--line)}
+.chk:first-child{border-top:0}
+.chk .box{font-size:18px;color:var(--ink2);flex:none;line-height:1.25}
+.chk.done .box{color:var(--work)}
+.chk.done .ctxt{color:var(--ink2);text-decoration:line-through}
+.chk .ctxt{font-size:16px;word-break:break-word}
 .chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .chain a,.chain .s{border:1px solid var(--line);border-radius:7px;padding:2px 8px;font-size:15px;font-family:ui-monospace,"SF Mono",Menlo,monospace}
 .chain a.live{border-color:var(--work);color:var(--work);font-weight:700}
@@ -417,6 +424,46 @@ def roadmap_file(lane) -> str:
     return f"{ROADMAPS_DIR}/{lane} Roadmap.md" if lane else ""
 
 
+_TASK_RE = re.compile(r"^\s*- \[( |x|X)\]\s*(.+)$")   # same shape as dashboard_data CHECK
+_HDR_RE = re.compile(r"^#{2,3} ")                     # next '## ' or '### ' ends a WI block
+
+
+def wi_tasks(lane, wid):
+    """Parse a WI's checklist lines from its roadmap block: [(done, text), ...].
+
+    The JSON carries only tasks_done/tasks_total counts (operator, session 954:
+    the WI page showed '10 of 19' with no checkboxes), so read the actual task
+    lines from the roadmap. Prefer the lane's file; fall back to scanning every
+    roadmap when the lane is unknown. Block boundary = next '##'/'###' heading,
+    matching the count parser.
+    """
+    roadmaps = vaultpath.CLAUDE_DIR / "Roadmaps"
+    files = []
+    f = roadmaps / f"{lane} Roadmap.md"
+    if lane and f.exists():
+        files.append(f)
+    if not files:
+        files = sorted(roadmaps.glob("*.md"))
+    hdr = re.compile(r"^### +" + re.escape(str(wid)) + r"\b")
+    for path in files:
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        start = next((i for i, ln in enumerate(lines) if hdr.match(ln)), None)
+        if start is None:
+            continue
+        tasks = []
+        for ln in lines[start + 1:]:
+            if _HDR_RE.match(ln):
+                break
+            m = _TASK_RE.match(ln)
+            if m:
+                tasks.append((m.group(1) in ("x", "X"), m.group(2).strip()))
+        return tasks
+    return []
+
+
 def vault_rel(p):
     """Vault-relative path for an absolute path inside the vault, else None."""
     return vaultpath.vault_rel(p)
@@ -522,8 +569,10 @@ def sidebar(d, active, current_n=None) -> str:
 
 def _shell(title, body, d, active, back=None, extra="", current_n=None) -> bytes:
     nav = "".join(f'<a href="{href}" class="{"on" if key == active else ""}">{label}</a>' for key, href, label in NAV)
-    top = (f'<a class="back" href="{h(back)}">&#8249; Back</a>' if back else "") + f"<h1>{h(title)}</h1>" + \
-          f'<span class="gen">{gen_time(d)}</span>'
+    # No header timestamp on the phone: the OS status-bar clock sits directly
+    # above it, so it was redundant (operator, session 954). The desktop sidebar
+    # keeps its own sb-gen time.
+    top = (f'<a class="back" href="{h(back)}">&#8249; Back</a>' if back else "") + f"<h1>{h(title)}</h1>"
     # s931: hide the bottom nav whenever a textarea/input has focus (operator: "bottom bar
     # should be hidden when typing"). Composer views already hide nav outright; this covers
     # every other view with a field.
@@ -666,8 +715,9 @@ def home(d) -> bytes:
     older = [t for t in threads if not _active(t)]
     over = overdue_wis(d)
     b = []
-    b.append(f'<div class="band"><h2>Needs you <span class="n">{len(att)}</span></h2><div class="card">'
-             + ("".join(attention_row(r) for r in att) or '<div class="empty">Nothing waiting on you.</div>') + "</div></div>")
+    # "Needs you" band removed (operator, session 954): the Seats band below covers
+    # the same attention (waiting/working seats), so it was a duplicate surface.
+    # `att` still feeds server-side push; only the visual band is gone.
     if over:
         b.append(f'<div class="band"><h2>Overdue <span class="n">{len(over)}</span></h2><div class="card">'
                  + "".join(overdue_row(w) for w in over) + "</div></div>")
@@ -852,8 +902,23 @@ def wi(d, wid) -> bytes:
         kv.append(f'<div class="kv"><div class="k">{h(found.get("status"))}{due_txt}</div>'
                   f'<div class="v">{h(found.get("title"))}</div></div>')
         if found.get("tasks_total") is not None:
-            kv.append(f'<div class="kv"><div class="k">Tasks</div><div class="v">{h(found.get("tasks_done"))} of {h(found.get("tasks_total"))}'
-                      + (f' · next: {h(nxt)}' if nxt else "") + "</div></div>")
+            # Real checkboxes, not just a count (operator, session 954: the WI page
+            # showed "10 of 19" then a plain list, no boxes). Read the task lines
+            # from the roadmap; fall back to the bare count + next-line if the block
+            # can't be read (unknown lane, file gone).
+            tasks = wi_tasks(lane, wid)
+            head = f'{h(found.get("tasks_done"))} of {h(found.get("tasks_total"))}'
+            if tasks:
+                rows = "".join(
+                    f'<div class="chk{" done" if done else ""}">'
+                    f'<span class="box">{"&#9745;" if done else "&#9744;"}</span>'
+                    f'<span class="ctxt">{h(text)}</span></div>'
+                    for done, text in tasks)
+                kv.append(f'<div class="kv"><div class="k">Tasks · {head}</div>'
+                          f'<div class="v checklist">{rows}</div></div>')
+            else:
+                kv.append(f'<div class="kv"><div class="k">Tasks</div><div class="v">{head}'
+                          + (f' · next: {h(nxt)}' if nxt else "") + "</div></div>")
     refs = [t for t in d.get("threads") or [] if wid in (t.get("wis") or [])]
     if refs:
         kv.append('<div class="kv"><div class="k">Threads</div><div class="v">' + "".join(
