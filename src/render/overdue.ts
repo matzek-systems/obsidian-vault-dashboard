@@ -37,11 +37,14 @@ export function renderOverdue(data: Any, tab: string | null, idx: Map<string, An
 		const lane = w.lane ? `<span class="thr-lane">${esc(w.lane === "_System" ? "System" : w.lane)}</span>` : "";
 		const dim = tab && w.lane && w.lane !== tab ? " dim" : "";
 		const text = w.next || w.next_task || w.title || "";
-		const tip = [w.title, w.due ? `due ${w.due}` : "", w.tasks_total != null ? `${w.tasks_done ?? 0}/${w.tasks_total} tasks` : ""].filter(Boolean).join("\n");
+		// No native `title=` here: the `.tid` chip already carries data-id, which
+		// WiHover turns into the rich WI card. A native title on the same element
+		// (and on .attn-txt) rendered a second OS tooltip on top of that card —
+		// two overlays at once, neither readable (operator report, session 954).
 		return `<div class="attn-row rule${dim}" data-kind="overdue">`
 			+ `<i class="attn-k">!</i>`
-			+ `<span class="tid c-${esc(w.status || "")}" data-id="${esc(w.id)}" data-act="open" title="${esc(tip)}">${esc(w.id)}</span>`
-			+ `<span class="attn-txt" title="${esc(tip)}">${esc(text)}</span>${lane}`
+			+ `<span class="tid c-${esc(w.status || "")}" data-id="${esc(w.id)}" data-act="open">${esc(w.id)}</span>`
+			+ `<span class="attn-txt">${esc(text)}</span>${lane}`
 			+ `<span class="attn-since over">${-w.due_in}d</span></div>`;
 	}).join("");
 	const more = rows.length > CAP ? `<div class="attn-more">+${rows.length - CAP} more</div>` : "";
