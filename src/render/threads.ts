@@ -27,7 +27,7 @@
 // The fields come from the per-lane WI lists already in the JSON (wiIndex);
 // the thread rows themselves carry only id + status + task counts.
 
-import { Any, esc, actTxt } from "./common";
+import { Any, esc, actTxt, sendBtn } from "./common";
 
 export const EVENT_LABEL: Record<string, string> = {
 	shipped: "shipped",
@@ -248,7 +248,8 @@ export function renderThreadRow(r: Any, showLane: boolean, idx: Map<string, Any>
 		? `<span class="thr-lbl new">new thread</span><span class="thr-focus">${esc(r.label || "")}</span>`
 		: `<span class="thr-lbl" data-arc="${esc(r.id)}">${esc(r.label || r.id)}</span>`;
 	const age = r.age_days != null ? `<span class="thr-age${r.age_days >= 10 ? " old" : ""}">${esc(r.age_days)}d</span>` : "";
-	const btns = `<button class="thr-btn" data-act="pickup" title="copy the pickup prompt">⧉</button>`
+	const btns = sendBtn()
+		+ `<button class="thr-btn" data-act="pickup" title="copy the pickup prompt">⧉</button>`
 		+ (isNew ? "" : `<button class="thr-btn" data-act="note" title="add / edit a note">✎</button>`)
 		+ (isNew ? "" : `<button class="thr-btn" data-act="close" title="close this thread">✕</button>`);
 	return `<div class="thr-row${live ? " live" : ""}${isNew ? " new" : ""}" data-thr="${esc(r.id)}" data-pickup="${esc(r.pickup || "")}">`

@@ -17,7 +17,7 @@
 // the item is presented as do-or-kill"): the top row of each surface carries
 // the pill when its neglect bump sits at the +3 cap.
 
-import { Any, esc, laneOf } from "./common";
+import { Any, esc, laneOf, contPrompt, sendBtn } from "./common";
 
 const DO_NOW_CAP = 5;
 
@@ -57,7 +57,7 @@ function surfaceRow(r: Any, tab: string | null, top: boolean): string {
 		+ rankBadge(r)
 		+ `<span class="tid" data-id="${esc(r.id)}" data-act="open">${esc(r.id)}</span>`
 		+ `<span class="attn-txt">${esc(text)}</span>${dok}${laneChip}`
-		+ `<span class="sf-meta">${metaBits(r)}</span></div>`;
+		+ `<span class="sf-meta">${metaBits(r)}</span>${sendBtn(contPrompt(r.id))}</div>`;
 }
 
 export function renderSurfaces(data: Any, tab: string | null): string {

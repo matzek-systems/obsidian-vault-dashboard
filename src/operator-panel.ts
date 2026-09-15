@@ -19,7 +19,7 @@
 // by last activity in Python; the plugin never reorders. Everything shown is
 // derived from disk (DL-668).
 
-import { ItemView, WorkspaceLeaf, Notice, TFile, TAbstractFile } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, TFile, TAbstractFile, Menu } from "obsidian";
 import { execFile, spawn } from "child_process";
 import * as fs from "fs";
 import type DashboardPlugin from "./main";
@@ -31,6 +31,7 @@ import { renderHeader } from "./render/header";
 import { renderThreadTabs, renderThreadBoard, renderClosed, renderFoot, wiIndex } from "./render/threads";
 import { renderOverdue, overdueRows } from "./render/overdue";
 import { renderSurfaces } from "./render/surfaces";
+import { listSeats, refusal, typeInto } from "./seat-send";
 
 export const VIEW_TYPE = "vault-dashboard";
 
@@ -282,6 +283,7 @@ export class DashboardView extends ItemView {
 		if (act === "refresh") { this.regenAt = 0; void this.regen("manual"); }
 		else if (act === "tab") { this.setTab(t.dataset.lane || null); }
 		else if (act === "pickup" && row) { void this.copy(row.dataset.pickup || ""); }
+		else if (act === "send") { void this.sendMenu(e, t.dataset.send || row?.dataset.pickup || ""); }
 		else if (act === "close" && row) { void this.closeThread(row.dataset.thr || ""); }
 		else if (act === "reopen" && row) { void this.reopenThread(row.dataset.thr || ""); }
 		else if (act === "mine") { this.mine(); }
@@ -337,6 +339,47 @@ export class DashboardView extends ItemView {
 		if (!text) return;
 		try { await navigator.clipboard.writeText(text); new Notice("pickup prompt copied — paste into a seat"); }
 		catch (_) { new Notice(`clipboard unavailable — ${text}`); }
+	}
+
+	/** Seat picker for send-to-session: every open workspace-shell seat, labeled from
+	 *  the registry + the thread board's seat rows; a seat that can't take the text
+	 *  stays in the list, disabled, with the reason. */
+	private async sendMenu(e: MouseEvent, text: string): Promise<void> {
+		if (!text) return;
+		const seats = listSeats(this.app);
+		const menu = new Menu();
+		if (!seats.length) {
+			menu.addItem((i) => i.setTitle("no open seat on the desk").setDisabled(true));
+			menu.showAtMouseEvent(e);
+			return;
+		}
+		let reg: Any = null;
+		try { reg = JSON.parse(await this.app.vault.adapter.read(REGISTRY_REL)); } catch (_) { /* unlabeled seats still send */ }
+		const byUuid = new Map<string, [string, Any]>();
+		for (const [num, s] of Object.entries((reg?.sessions || {}) as Record<string, Any>)) {
+			if (s && s.uuid) byUuid.set(s.uuid, [num, s]);
+		}
+		const board = new Map<string, Any>();
+		for (const s of this.data?.threads_seats || []) board.set(String(s.n), s);
+		const rows = seats.map((seat) => {
+			const hit = seat.uuid ? byUuid.get(seat.uuid) : undefined;
+			const num = hit ? hit[0] : null;
+			const b = num ? board.get(num) : null;
+			const focus = String(b?.focus || hit?.[1]?.focus || seat.pane.seatLabel?.() || "").trim();
+			const label = `${num ? `s${num}` : "no session yet"}${focus ? ` · ${focus.slice(0, 48)}` : ""}${b?.state ? ` · ${b.state}` : ""}`;
+			return { seat, num: Number(num || 0), label, why: refusal(seat.state) };
+		});
+		rows.sort((a, b) => Number(!!a.why) - Number(!!b.why) || b.num - a.num);
+		for (const r of rows) {
+			menu.addItem((i) => {
+				i.setTitle(r.why ? `${r.label} — ${r.why}` : r.label).setDisabled(!!r.why);
+				if (!r.why) i.onClick(() => {
+					const res = typeInto(this.app, r.seat, text);
+					new Notice(res.ok ? `typed into ${r.num ? `s${r.num}` : "the seat"} — review, then Enter` : `not sent: ${res.why}`);
+				});
+			});
+		}
+		menu.showAtMouseEvent(e);
 	}
 
 	private async closeThread(id: string): Promise<void> {

@@ -817,7 +817,8 @@
 .op-panel .thr-age { color: var(--text-faint); }
 .op-panel .thr-age.old { color: var(--color-yellow); }
 .op-panel .thr-btn { opacity: 0; background: none; border: 0; color: var(--text-faint); cursor: pointer; padding: 0 2px; font-size: 12px; line-height: 1; font-family: var(--font-text); }
-.op-panel .thr-row:hover .thr-btn, .op-panel .thr-crow:hover .thr-btn, .op-panel .thr-btn.mine { opacity: 1; }
+.op-panel .thr-row:hover .thr-btn, .op-panel .thr-crow:hover .thr-btn, .op-panel .attn-row:hover .thr-btn, .op-panel .thr-btn.mine { opacity: 1; }
+.op-panel .attn-row .thr-btn.send { flex: none; }
 .op-panel .thr-btn:hover { color: var(--interactive-accent); }
 .op-panel .thr-btn.mine { font-size: 11px; color: var(--interactive-accent); padding: 0; }
 

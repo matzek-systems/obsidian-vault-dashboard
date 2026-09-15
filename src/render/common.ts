@@ -64,6 +64,12 @@ export function contPrompt(id: string): string {
 	return `Continue ${id} — read its detail section in the Roadmap, check the latest session state, and pick up the next unchecked task.`;
 }
 
+/** ➜ send-to-session (src/seat-send.ts). A thread row carries its prompt as
+ *  data-pickup; a WI row passes the prompt here. */
+export function sendBtn(prompt?: string): string {
+	return `<button class="thr-btn send" data-act="send"${prompt ? ` data-send="${esc(prompt)}"` : ""} title="type into a seat (no Enter)">➜</button>`;
+}
+
 export function seatBadges(seats: Any[]): string {
 	return (seats || []).map((s) =>
 		`<span class="seat ${esc(s.tier)}">s${s.n} · ${s.user_min != null ? "typed " + actTxt(s.user_min) : (s.active_min == null ? "?" : actTxt(s.active_min))}</span>`

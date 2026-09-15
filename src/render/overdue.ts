@@ -14,7 +14,7 @@
 // has one, else the title; the title sits in the tooltip. Capped at 6 rows
 // plus "+N more". Renders nothing when nothing is overdue.
 
-import { Any, esc } from "./common";
+import { Any, esc, contPrompt, sendBtn } from "./common";
 
 const CAP = 6;
 const TERMINAL = new Set(["done", "killed", "superseded", "dormant", "deferred"]);
@@ -45,7 +45,7 @@ export function renderOverdue(data: Any, tab: string | null, idx: Map<string, An
 			+ `<i class="attn-k">!</i>`
 			+ `<span class="tid c-${esc(w.status || "")}" data-id="${esc(w.id)}" data-act="open">${esc(w.id)}</span>`
 			+ `<span class="attn-txt">${esc(text)}</span>${lane}`
-			+ `<span class="attn-since over">${-w.due_in}d</span></div>`;
+			+ `<span class="attn-since over">${-w.due_in}d</span>${sendBtn(contPrompt(w.id))}</div>`;
 	}).join("");
 	const more = rows.length > CAP ? `<div class="attn-more">+${rows.length - CAP} more</div>` : "";
 	return `<div class="op-attn"><div class="attn-head">overdue <span class="n">${rows.length}</span></div>${items}${more}</div>`;

@@ -514,6 +514,60 @@ def overdue_row(w) -> str:
             f'<span style="color:var(--wait);font-weight:700">{days}d overdue</span></div></a>')
 
 
+DO_NOW_CAP = 5
+
+
+def surface_row(r) -> str:
+    """One SYS-518 ranking-surface row (Big rocks / Do now), the desktop panel's
+    surfaces.ts row in phone form: rank + id + short title, the WI's next step
+    (the until-fact when the score is undetermined), lane, effort, overdue or
+    start-now. Taps through to the WI page, which carries Push to a seat."""
+    lane = re.sub(r"\s*Roadmap$", "", str(r.get("lane") or "")).lstrip("_") or None
+    text = f"until: {r['until']}" if r.get("undetermined") and r.get("until") else (r.get("next") or r.get("title") or "")
+    rank = "?" if r.get("undetermined") else r.get("rank")
+    bits = []
+    if r.get("effort") is not None:
+        bits.append(f"<span>e{h(r['effort'])}</span>")
+    if r.get("cost"):
+        bits.append(f"<span>{h(r['cost'])}</span>")
+    if (r.get("overdue_days") or 0) > 0:
+        bits.append(f'<span style="color:var(--wait);font-weight:700">{h(r["overdue_days"])}d overdue</span>')
+    elif r.get("past_start_by"):
+        bits.append('<span style="color:var(--wait);font-weight:700">start now</span>')
+    return (f'<a class="row" href="/wi/{h(r.get("id"))}"><div class="t"><b>{h(rank)}</b> <span class="seat">{h(r.get("id"))}</span> {h(wi_short(r.get("title")))}</div>'
+            f'<div class="x">{h(text)}</div><div class="m">{chip(lane)}{"".join(bits)}</div></a>')
+
+
+def _fold(label, rows) -> str:
+    return ('<details class="older"><summary style="padding:12px 14px;color:var(--ink2);font-weight:600;cursor:pointer;border-top:1px solid var(--line)">'
+            f'{h(label)} <span class="n q" style="background:var(--idle)">{len(rows)}</span></summary>'
+            + "".join(surface_row(r) for r in rows) + "</details>")
+
+
+def surfaces_bands(d) -> list:
+    """Big rocks + Do now from data.surfaces (absent on the legacy scoring model or pre-flip
+    data). Do now shows the operator-hands top 5; the rest and the seat-runnable rows (the
+    nightly run's queue) fold."""
+    s = d.get("surfaces") or {}
+    if not s or s.get("error"):
+        return []
+    out = []
+    rocks = s.get("big_rocks") or []
+    if rocks:
+        out.append('<div class="band"><h2>Big rocks</h2><div class="card">' + "".join(surface_row(r) for r in rocks) + "</div></div>")
+    rows = s.get("do_now") or []
+    hands = [r for r in rows if (r.get("actor") or {}).get("who") != "seat"]
+    seat = [r for r in rows if (r.get("actor") or {}).get("who") == "seat"]
+    if rows:
+        card = "".join(surface_row(r) for r in hands[:DO_NOW_CAP])
+        if len(hands) > DO_NOW_CAP:
+            card += _fold("more", hands[DO_NOW_CAP:])
+        if seat:
+            card += _fold("seat-runnable", seat)
+        out.append(f'<div class="band"><h2>Do now <span class="n q">{len(hands)}</span></h2><div class="card">{card}</div></div>')
+    return out
+
+
 def live_by_n(d) -> dict:
     """Seats with a transcript on disk. Registry rows never stamped closed but with
     no JSONL (ghosts: 412, 395, 394...) have no active_min and are not seats."""
@@ -721,6 +775,7 @@ def home(d) -> bytes:
     if over:
         b.append(f'<div class="band"><h2>Overdue <span class="n">{len(over)}</span></h2><div class="card">'
                  + "".join(overdue_row(w) for w in over) + "</div></div>")
+    b.extend(surfaces_bands(d))
     # Same rows, same partition as the Seats tab (session 948: the board showed every live
     # transcript while the Seats tab showed only desk panes; the operator read that as two
     # different sets of seats). seats_body() is the one source for both.
