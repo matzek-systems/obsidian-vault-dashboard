@@ -73,6 +73,7 @@ except Exception:
 HERE = Path(__file__).resolve().parent
 CLAUDE_DIR = vaultpath.CLAUDE_DIR
 GEN = vaultpath.DASHBOARD / "dashboard_data.py"
+CAL_HIDE = vaultpath.DASHBOARD / "calendar_hide.py"
 DATA = vaultpath.STATE / "dashboard-data.json"
 PROC = vaultpath.STATE / "process-status.json"
 UPLOAD_DIR = vaultpath.VAULT / "01_Inbox/phone-uploads"   # s931: photos from the phone land here (Obsidian-synced)
@@ -496,6 +497,28 @@ def _maybe_regen(d: dict):
             pass
 
 
+_gen_lock = threading.Lock()
+_gen_again = False
+
+
+def _regen_serial():
+    """Regenerate after a phone calendar hide/restore. Runs never overlap: a tap
+    landing mid-run queues one more pass, so the last change always reaches the
+    JSON (two overlapping runs could let the older one write last)."""
+    global _gen_again
+    _gen_again = True
+    while _gen_again and _gen_lock.acquire(blocking=False):
+        try:
+            while _gen_again:
+                _gen_again = False
+                try:
+                    subprocess.run([sys.executable, str(GEN)], capture_output=True, timeout=150)
+                except Exception:
+                    pass
+        finally:
+            _gen_lock.release()
+
+
 def _title(r: dict) -> str:
     label = r.get("label") or (f"seat {r.get('seat')}" if r.get("seat") else "Vault")
     return {"question": f"{label} asks", "artifact": f"{label} finished",
@@ -785,6 +808,23 @@ class H(BaseHTTPRequestHandler):
             else:
                 ok, msg = seat_bridge.send(handle, body.get("text", ""))
             self._send(json.dumps({"ok": ok, "msg": ("done" if ok else msg)}).encode(), "application/json")
+            return
+        if self.path in ("/calendar/hide", "/calendar/restore"):   # s975: dashboard-only hide, never Outlook
+            body = self._json_body()
+            if self.path == "/calendar/hide":
+                args = ["--hide", str(body.get("key") or ""), "--date", str(body.get("date") or ""),
+                        "--label", str(body.get("label") or "")[:80]]
+            else:
+                args = ["--restore"] + [str(x) for x in (body.get("dates") or [])][:7]
+            try:
+                r = subprocess.run([sys.executable, str(CAL_HIDE)] + args, capture_output=True, timeout=20,
+                                   encoding="utf-8", errors="replace")
+                ok, msg = r.returncode == 0, (r.stdout or r.stderr).strip()[:160]
+            except Exception as e:
+                ok, msg = False, e.__class__.__name__
+            if ok:
+                threading.Thread(target=_regen_serial, daemon=True).start()
+            self._send(json.dumps({"ok": ok, "msg": msg}).encode(), "application/json")
             return
         if self.path == "/seats/new":                   # s948: a fresh Claude seat on the desk
             body = self._json_body()

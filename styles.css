@@ -987,3 +987,15 @@ body.theme-dark .op-panel .tb.flip { color: var(--color-green); }
 .op-panel .cal-sub.wknd .cal-subhead, .op-panel .cal-day.wknd .cal-date { color: var(--text-faint); }
 .op-panel .cal-sub .cal-it { flex-wrap: wrap; row-gap: 0; }
 .op-panel .cal-sub .cal-txt { flex-basis: 100%; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 11px; color: var(--text-muted); }
+/* ✕ = hide from the dashboard only. Hover-revealed where there is hover; a
+   faint always-on mark on touch, where hover never happens. */
+.op-panel .cal-it { position: relative; }
+.op-panel .cal-x { flex: none; margin-left: auto; padding: 0 3px; border: 0; background: none; box-shadow: none; height: auto; font-size: 10px; line-height: 1.4; color: var(--text-faint); cursor: pointer; opacity: 0; }
+.op-panel .cal-it:hover .cal-x, .op-panel .cal-x:focus-visible { opacity: 1; }
+.op-panel .cal-x:hover { color: var(--text-error, var(--color-red)); background: none; }
+@media (hover: none) { .op-panel .cal-x { opacity: .55; } }
+.op-panel .cal-sub .cal-x { position: absolute; top: 1px; right: 0; }
+.op-panel .cal-carry { flex: none; font-size: 9.5px; letter-spacing: .04em; padding: 0 4px; border-radius: 3px; color: var(--text-muted); border: 1px dashed var(--background-modifier-border); }
+.op-panel .cal-restore { margin-left: auto; padding: 0 4px; border: 0; background: none; box-shadow: none; height: auto; font-size: 10px; letter-spacing: 0; text-transform: none; color: var(--text-faint); cursor: pointer; }
+.op-panel .cal-restore:hover { color: var(--text-accent); background: none; }
+.op-panel .cal-subhead { display: flex; align-items: baseline; gap: 4px; }

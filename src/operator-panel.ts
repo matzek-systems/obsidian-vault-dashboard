@@ -40,6 +40,7 @@ const CLAUDE = "00_System/AI/Claude";
 const ROADMAPS_DIR = `${CLAUDE}/Roadmaps`;
 const GENERATOR = `${CLAUDE}/tools/dashboard/dashboard_data.py`;
 const LEDGER_CLI = `${CLAUDE}/tools/dashboard/arc_ledger.py`;
+const CAL_HIDE_CLI = `${CLAUDE}/tools/dashboard/calendar_hide.py`;
 const DATA_REL = `${CLAUDE}/System Operations/state/dashboard-data.json`;
 const REGISTRY_REL = `${CLAUDE}/System Operations/session-registry.json`;
 const LEDGER_REL = `${CLAUDE}/System Operations/state/session-focus.json`;
@@ -306,6 +307,32 @@ export class DashboardView extends ItemView {
 		else if (act === "note-save" && row) { void this.saveNote(row); }
 		else if (act === "note-cancel" && row) { this.cancelNote(row); }
 		else if (act === "open") { this.wiHover?.hide(); void this.openRoadmap(t.dataset.id || ""); }
+		else if (act === "cal-hide") { void this.calHide(t); }
+		else if (act === "cal-restore") { void this.calRestore(t.dataset.dates || ""); }
+	}
+
+	// ------------------------------------------------------------ calendar
+
+	/** ✕ on a calendar item: dashboard-only hide via calendar_hide.py. Outlook and
+	 *  the roadmap are never touched. The row goes at once; the regen confirms. */
+	private async calHide(btn: HTMLElement): Promise<void> {
+		const key = btn.dataset.key || "", date = btn.dataset.date || "";
+		if (!key || !date) return;
+		this.wiHover?.hide();
+		btn.closest(".cal-it")?.remove();
+		const res = await this.runPy(CAL_HIDE_CLI, ["--hide", key, "--date", date, "--label", btn.dataset.label || ""]);
+		if (!res.ok) new Notice(`hide failed: ${(res.stderr || res.stdout).slice(0, 200)}`);
+		this.regenAt = 0;
+		void this.regen("cal-hide");
+	}
+
+	private async calRestore(dates: string): Promise<void> {
+		const list = dates.split(",").filter(Boolean);
+		if (!list.length) return;
+		const res = await this.runPy(CAL_HIDE_CLI, ["--restore", ...list]);
+		if (!res.ok) { new Notice(`restore failed: ${(res.stderr || res.stdout).slice(0, 200)}`); return; }
+		this.regenAt = 0;
+		void this.regen("cal-restore");
 	}
 
 	// ------------------------------------------------------------ notes

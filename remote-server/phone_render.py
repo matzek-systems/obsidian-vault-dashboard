@@ -86,6 +86,12 @@ body.kbd .nav{display:none}
 .cal-sub .sh{font-size:14px;color:var(--ink2);margin-bottom:3px}.cal-sub.wk .sh{color:var(--idle)}
 .cal-sub .cal-it{flex-wrap:wrap;gap:4px;font-size:14px}
 .cal-sub .cal-it .tx{flex-basis:100%;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:var(--ink2)}
+.cal-it{position:relative}.cal-a{display:flex;gap:8px;align-items:baseline;flex:1;min-width:0;color:inherit;text-decoration:none}
+.cal-sub .cal-a{flex-wrap:wrap;gap:4px}.cal-sub .cal-a .tx{flex-basis:100%;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:var(--ink2)}
+.cal-x{flex:none;margin-left:auto;min-width:30px;min-height:30px;border:0;background:none;color:var(--idle);font-size:14px;padding:0}
+.cal-sub .cal-x{position:absolute;top:-4px;right:-6px;min-width:26px;min-height:26px;font-size:12px}
+.cal-cy{flex:none;font-size:11px;padding:0 5px;border:1px dashed var(--line);border-radius:4px;color:var(--ink2)}
+.cal-sub .sh{display:flex;gap:4px;align-items:baseline}.cal-rs{margin-left:auto;border:0;background:none;color:var(--idle);font-size:12px;letter-spacing:0;text-transform:none;padding:0}
 .reply textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--ground);color:var(--ink);resize:vertical;margin-top:4px}
 .btn:disabled{opacity:.45}
 .wis{display:flex;flex-wrap:wrap;gap:6px}
@@ -528,20 +534,58 @@ def overdue_row(w) -> str:
             f'<span style="color:var(--wait);font-weight:700">{days}d overdue</span></div></a>')
 
 
+def _cal_x(key, date, label) -> str:
+    """Hide-from-the-dashboard button (POST /calendar/hide); Outlook never changes."""
+    if not key:
+        return ""
+    return (f'<button type="button" class="cal-x" data-key="{h(key)}" data-date="{h(date)}" data-label="{h((label or "")[:80])}"'
+            ' aria-label="hide from the dashboard">&#x2715;</button>')
+
+
 def _cal_items(day, compact) -> str:
     """One day's explicit items: WIs due / starting that day (tap -> WI page),
-    then Outlook appointments. Same order and rules as the desktop calendar.ts."""
+    then Outlook appointments. Same order and rules as the desktop calendar.ts,
+    each with the dashboard-only hide button."""
     out = []
     for w in day.get("wis") or []:
         kind = "start" if w.get("kind") == "start" else "due"
-        out.append(f'<a class="cal-it" href="/wi/{h(w.get("id"))}"><span class="cal-k {kind}">{kind}</span>'
-                   f'<span class="seat">{h(w.get("id"))}</span><span class="tx">{h(wi_short(w.get("title")))}</span></a>')
+        out.append(f'<div class="cal-it"><a class="cal-a" href="/wi/{h(w.get("id"))}"><span class="cal-k {kind}">{kind}</span>'
+                   f'<span class="seat">{h(w.get("id"))}</span><span class="tx">{h(wi_short(w.get("title")))}</span></a>'
+                   f'{_cal_x(w.get("key"), day.get("date"), w.get("id"))}</div>')
     for e in day.get("events") or []:
         when = "all day" if e.get("all_day") else h(e.get("start") or "")
-        out.append(f'<div class="cal-it"><span class="cal-w">{when}</span><span class="tx">{h(e.get("subject"))}</span></div>')
+        carry = '<span class="cal-cy">yesterday</span>' if e.get("carry") else ""
+        out.append(f'<div class="cal-it"><span class="cal-w">{when}</span>{carry}<span class="tx">{h(e.get("subject"))}</span>'
+                   f'{_cal_x(e.get("key"), e.get("date"), e.get("subject"))}</div>')
     if not out:
         return f'<div class="cal-none">{"&mdash;" if compact else "nothing dated"}</div>'
     return "".join(out)
+
+
+def _cal_restore(day, compact=False) -> str:
+    n = int(day.get("hidden") or 0)
+    if not n:
+        return ""
+    dates = ",".join(day.get("hidden_dates") or [day.get("date") or ""])
+    text = f"&#x21BA; {n}" if compact else f"{n} hidden &#x21BA;"
+    return f'<button type="button" class="cal-rs" data-dates="{h(dates)}" aria-label="show {n} hidden again">{text}</button>'
+
+
+CAL_JS = """
+<script>
+document.addEventListener('click',function(e){
+  var x=e.target.closest('.cal-x'), rs=e.target.closest('.cal-rs');
+  if(!x&&!rs){return;}
+  e.preventDefault();
+  var url=x?'/calendar/hide':'/calendar/restore';
+  var body=x?{key:x.getAttribute('data-key'),date:x.getAttribute('data-date'),label:x.getAttribute('data-label')}
+            :{dates:(rs.getAttribute('data-dates')||'').split(',').filter(Boolean)};
+  var row=x?x.closest('.cal-it'):null; if(row){row.style.display='none';} if(rs){rs.disabled=true;rs.textContent='restoring…';}
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();})
+    .then(function(j){if(!j.ok){if(row){row.style.display='';}alert('Calendar: '+j.msg);}else if(rs){setTimeout(function(){location.reload();},4000);}})
+    .catch(function(){if(row){row.style.display='';}});
+});
+</script>"""
 
 
 def calendar_band(d) -> str:
@@ -557,13 +601,13 @@ def calendar_band(d) -> str:
         return f'{h(day.get("dow"))} {h(day.get("day"))}'
     body = ""
     for day, name, cls in ((days[0], "Today", "today"), (days[1], "Tomorrow", "")):
-        body += (f'<div class="cal-day {cls}"><div class="cal-h"><b>{name}</b><span class="d">{label(day)}</span></div>'
+        body += (f'<div class="cal-day {cls}"><div class="cal-h"><b>{name}</b><span class="d">{label(day)}</span>{_cal_restore(day)}</div>'
                  f'{_cal_items(day, False)}</div>')
-    subs = "".join(f'<div class="cal-sub{" wk" if day.get("weekend") else ""}"><div class="sh">{label(day)}</div>{_cal_items(day, True)}</div>'
+    subs = "".join(f'<div class="cal-sub{" wk" if day.get("weekend") else ""}"><div class="sh">{label(day)}{_cal_restore(day, True)}</div>{_cal_items(day, True)}</div>'
                    for day in days[2:5])
     body += f'<div class="cal-day"><div class="cal-h"><b>Next</b></div><div class="cal-split">{subs}</div></div>'
     err = f' <span class="chip" style="color:var(--wait)">outlook unavailable</span>' if cal.get("error") else ""
-    return f'<div class="band"><h2>Calendar{err}</h2><div class="card">{body}</div></div>'
+    return f'<div class="band"><h2>Calendar{err}</h2><div class="card">{body}</div></div>{CAL_JS}'
 
 
 DO_NOW_CAP = 5
