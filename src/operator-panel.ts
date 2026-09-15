@@ -31,6 +31,7 @@ import { renderHeader } from "./render/header";
 import { renderThreadTabs, renderThreadBoard, renderClosed, renderFoot, wiIndex } from "./render/threads";
 import { renderOverdue, overdueRows } from "./render/overdue";
 import { renderSurfaces } from "./render/surfaces";
+import { renderCalendar, calendarSig } from "./render/calendar";
 import { listSeats, refusal, typeInto } from "./seat-send";
 
 export const VIEW_TYPE = "vault-dashboard";
@@ -86,6 +87,7 @@ export class DashboardView extends ItemView {
 		el.addClass("vault-dashboard", "op-panel");
 		el.innerHTML = `<div class="op-wrap">`
 			+ `<div class="op-top"><span class="op-gen"></span><button class="op-btn" data-act="refresh" title="regenerate now">↻</button></div>`
+			+ `<div class="op-cal-wrap"></div>`
 			+ `<div class="op-tabs"></div>`
 			+ `<div class="op-board"></div>`
 			+ `<div class="op-surf-wrap"></div>`
@@ -149,6 +151,15 @@ export class DashboardView extends ItemView {
 	/** mtime signature over data.watch (registry, ledger, live JSONLs). A moved
 	 *  mtime means something a row derives from changed -> regenerate. */
 	private poll(): void {
+		// Midnight: the calendar's "today" is a date, and nothing in the watch
+		// list moves when the day rolls over -- regenerate on the first poll of
+		// a new local day.
+		const calDay = this.data?.calendar?.days?.[0]?.date;
+		if (calDay) {
+			const n = new Date();
+			const local = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+			if (local !== calDay) void this.regen("date");
+		}
 		const paths: string[] = this.data?.watch || [];
 		if (!paths.length) return;
 		let sig = "";
@@ -221,13 +232,14 @@ export class DashboardView extends ItemView {
 		// and repaints. A forced repaint (tab switch, ↻) still wins.
 		if (this.editingArc && !force) return;
 		const el = this.contentEl;
+		const cal = el.querySelector(".op-cal-wrap") as HTMLElement | null;
 		const board = el.querySelector(".op-board") as HTMLElement | null;
 		const tabs = el.querySelector(".op-tabs") as HTMLElement | null;
 		const surf = el.querySelector(".op-surf-wrap") as HTMLElement | null;
 		const attn = el.querySelector(".op-attn-wrap") as HTMLElement | null;
 		const closed = el.querySelector(".op-closed") as HTMLElement | null;
 		const foot = el.querySelector(".op-stats") as HTMLElement | null;
-		if (!board || !tabs || !surf || !attn || !closed || !foot) return;
+		if (!cal || !board || !tabs || !surf || !attn || !closed || !foot) return;
 		this.paintHeader();
 		if (!this.data) { board.innerHTML = `<div class="empty">no data — ↻ to generate</div>`; return; }
 		const schema = this.data.schema || 0;
@@ -242,8 +254,11 @@ export class DashboardView extends ItemView {
 		// bump, a score edit) -- fingerprint them like the overdue strip.
 		const sf = this.data.surfaces;
 		const sfSig = sf ? [...(sf.big_rocks || []), ...(sf.do_now || [])].map((r: Any) => `${r.id}:${r.rank}:${r.effort}`).join(",") : "";
-		const hash = `${this.data.threads_hash || ""}|${this.tab || ""}|${order.join(",")}|${(this.data.threads_unmined || []).length}|${odSig}|${sfSig}`;
+		// The calendar changes with the date and with Outlook, neither of which a
+		// thread or a WI status covers -- fingerprint it too.
+		const hash = `${this.data.threads_hash || ""}|${this.tab || ""}|${order.join(",")}|${(this.data.threads_unmined || []).length}|${odSig}|${sfSig}|${calendarSig(this.data)}`;
 		if (!force && hash === this.lastHash) { this.tickLive(); return; }
+		cal.innerHTML = renderCalendar(this.data, this.tab);
 		tabs.innerHTML = renderThreadTabs(this.data, this.tab, order);
 		board.innerHTML = renderThreadBoard(this.data, this.tab);
 		surf.innerHTML = renderSurfaces(this.data, this.tab);

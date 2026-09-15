@@ -72,6 +72,20 @@ body.kbd .nav{display:none}
 .chain .ar{color:var(--ink2)}
 .note{background:var(--note);color:var(--ink);padding:10px 14px;font-size:16px}
 .empty{padding:14px;color:var(--ink2);font-size:16px}
+.cal-day{padding:10px 14px;border-top:1px solid var(--line)}.cal-day:first-child{border-top:0}
+.cal-h{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:4px;display:flex;gap:8px}
+.cal-h b{color:var(--ink)}.cal-day.today .cal-h b{color:var(--accent)}.cal-h .d{letter-spacing:0;text-transform:none}
+.cal-it{display:flex;gap:8px;align-items:baseline;padding:3px 0;font-size:16px;line-height:1.3}
+.cal-it .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-k{flex:none;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border-radius:4px;background:#2a1a1a;color:var(--bad)}
+.cal-k.start{background:#2a2114;color:var(--wait)}
+.cal-w{flex:none;font-size:14px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.cal-none{color:var(--idle);font-size:15px;font-style:italic}
+.cal-split{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.cal-sub{min-width:0;padding:0 8px}.cal-sub:first-child{padding-left:0}.cal-sub+.cal-sub{border-left:1px solid var(--line)}
+.cal-sub .sh{font-size:14px;color:var(--ink2);margin-bottom:3px}.cal-sub.wk .sh{color:var(--idle)}
+.cal-sub .cal-it{flex-wrap:wrap;gap:4px;font-size:14px}
+.cal-sub .cal-it .tx{flex-basis:100%;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:var(--ink2)}
 .reply textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--ground);color:var(--ink);resize:vertical;margin-top:4px}
 .btn:disabled{opacity:.45}
 .wis{display:flex;flex-wrap:wrap;gap:6px}
@@ -514,6 +528,44 @@ def overdue_row(w) -> str:
             f'<span style="color:var(--wait);font-weight:700">{days}d overdue</span></div></a>')
 
 
+def _cal_items(day, compact) -> str:
+    """One day's explicit items: WIs due / starting that day (tap -> WI page),
+    then Outlook appointments. Same order and rules as the desktop calendar.ts."""
+    out = []
+    for w in day.get("wis") or []:
+        kind = "start" if w.get("kind") == "start" else "due"
+        out.append(f'<a class="cal-it" href="/wi/{h(w.get("id"))}"><span class="cal-k {kind}">{kind}</span>'
+                   f'<span class="seat">{h(w.get("id"))}</span><span class="tx">{h(wi_short(w.get("title")))}</span></a>')
+    for e in day.get("events") or []:
+        when = "all day" if e.get("all_day") else h(e.get("start") or "")
+        out.append(f'<div class="cal-it"><span class="cal-w">{when}</span><span class="tx">{h(e.get("subject"))}</span></div>')
+    if not out:
+        return f'<div class="cal-none">{"&mdash;" if compact else "nothing dated"}</div>'
+    return "".join(out)
+
+
+def calendar_band(d) -> str:
+    """The calendar area (SYS-485, operator layout s975): today, tomorrow, and a
+    `next` block split into the three days after -- explicit dates only (Outlook,
+    `due:`, `start_by:`), no derived plan. Empty string when the block is absent."""
+    cal = d.get("calendar") or {}
+    days = cal.get("days") or []
+    if len(days) < 5:
+        return ""
+
+    def label(day):
+        return f'{h(day.get("dow"))} {h(day.get("day"))}'
+    body = ""
+    for day, name, cls in ((days[0], "Today", "today"), (days[1], "Tomorrow", "")):
+        body += (f'<div class="cal-day {cls}"><div class="cal-h"><b>{name}</b><span class="d">{label(day)}</span></div>'
+                 f'{_cal_items(day, False)}</div>')
+    subs = "".join(f'<div class="cal-sub{" wk" if day.get("weekend") else ""}"><div class="sh">{label(day)}</div>{_cal_items(day, True)}</div>'
+                   for day in days[2:5])
+    body += f'<div class="cal-day"><div class="cal-h"><b>Next</b></div><div class="cal-split">{subs}</div></div>'
+    err = f' <span class="chip" style="color:var(--wait)">outlook unavailable</span>' if cal.get("error") else ""
+    return f'<div class="band"><h2>Calendar{err}</h2><div class="card">{body}</div></div>'
+
+
 DO_NOW_CAP = 5
 
 
@@ -772,6 +824,9 @@ def home(d) -> bytes:
     # "Needs you" band removed (operator, session 954): the Seats band below covers
     # the same attention (waiting/working seats), so it was a duplicate surface.
     # `att` still feeds server-side push; only the visual band is gone.
+    cal = calendar_band(d)                       # top of the board, like the desktop panel (s975)
+    if cal:
+        b.append(cal)
     if over:
         b.append(f'<div class="band"><h2>Overdue <span class="n">{len(over)}</span></h2><div class="card">'
                  + "".join(overdue_row(w) for w in over) + "</div></div>")

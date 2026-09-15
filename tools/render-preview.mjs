@@ -136,6 +136,7 @@ async function main() {
 	const genLine = schema < 5 ? `regenerate (schema ${schema}, need 5)` : R.renderHeader(data, null);
 	const overdueHtml = schema < 5 || typeof R.renderOverdue !== "function" ? "" : R.renderOverdue(data, tab, R.wiIndex(data));
 	const surfHtml = schema < 5 || typeof R.renderSurfaces !== "function" ? "" : R.renderSurfaces(data, tab);
+	const calHtml = schema < 5 || typeof R.renderCalendar !== "function" ? "" : R.renderCalendar(data, tab);
 	const tabsHtml = schema < 5 ? "" : R.renderThreadTabs(data, tab, []);
 	const boardHtml = schema < 5 ? "" : R.renderThreadBoard(data, tab);
 	const closedHtml = schema < 5 ? "" : R.renderClosed(data, tab);
@@ -166,6 +167,7 @@ ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
   <div class="vault-dashboard op-panel" style="width:${width}px">
     <div class="op-wrap">
       <div class="op-top"><span class="op-gen">${genLine}</span><button class="op-btn">↻</button></div>
+      <div class="op-cal-wrap">${calHtml}</div>
       <div class="op-tabs">${tabsHtml}</div>
       <div class="op-board">${boardHtml}</div>
       <div class="op-surf-wrap">${surfHtml}</div>
