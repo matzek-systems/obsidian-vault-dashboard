@@ -929,3 +929,24 @@ body.theme-dark .op-panel .tb.flip { color: var(--color-green); }
 .op-panel .thr-note-btns .thr-btn { opacity: 1; border: 1px solid var(--background-modifier-border); border-radius: 4px; padding: 1px 10px; font-size: 11px; }
 .op-panel .thr-btn.note-save { color: var(--text-on-accent); background: var(--interactive-accent); border-color: var(--interactive-accent); }
 .op-panel .thr-btn.note-save:hover { background: var(--interactive-accent-hover); color: var(--text-on-accent); }
+
+/* ── SYS-518 ranking surfaces (session 975) ─────────────────────────
+   Big rocks + Do now, from data.surfaces (s954 model). Reuses the overdue
+   strip's row idiom (.op-attn / .attn-row / .attn-txt); only the rank badge,
+   effort/cost chips and the seat-runnable fold are new. */
+.op-panel .op-surf .attn-head .n { background: color-mix(in srgb, var(--interactive-accent) 18%, transparent); color: var(--interactive-accent); }
+.op-panel .op-surf .attn-head + .attn-head,
+.op-panel .op-surf .attn-row + .attn-head,
+.op-panel .op-surf .sf-seat + .attn-head,
+.op-panel .op-surf .attn-more + .attn-head { margin-top: 8px; }
+.op-panel .sf-rank { flex: none; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 4px; font-style: normal; font-weight: 700; font-size: 10.5px; font-variant-numeric: tabular-nums; background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); color: var(--interactive-accent); }
+.op-panel .sf-rank.client { background: color-mix(in srgb, var(--color-purple) 14%, transparent); color: var(--color-purple); }
+.op-panel .sf-rank.undet { background: var(--background-modifier-border); color: var(--text-muted); }
+.op-panel .sf-meta { flex: none; display: flex; align-items: baseline; gap: 6px; }
+.op-panel .sf-eff { font-size: 10px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.op-panel .sf-cost { font-size: 10px; font-weight: 600; color: var(--color-yellow); }
+.op-panel .sf-start { font-size: 10px; font-weight: 600; color: var(--color-orange, var(--color-yellow)); }
+.op-panel .sf-seat { margin: 2px 0 0 25px; color: var(--text-faint); font-size: 11px; }
+.op-panel .sf-seat summary { cursor: pointer; letter-spacing: .1em; text-transform: uppercase; font-size: 10px; font-weight: 600; user-select: none; }
+.op-panel .sf-seat summary .n { letter-spacing: 0; text-transform: none; font-weight: 500; margin-left: 2px; }
+.op-panel .sf-row .pill { flex: none; white-space: nowrap; }

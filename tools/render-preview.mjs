@@ -135,6 +135,7 @@ async function main() {
 	const tab = laneArg || null;
 	const genLine = schema < 5 ? `regenerate (schema ${schema}, need 5)` : R.renderHeader(data, null);
 	const overdueHtml = schema < 5 || typeof R.renderOverdue !== "function" ? "" : R.renderOverdue(data, tab, R.wiIndex(data));
+	const surfHtml = schema < 5 || typeof R.renderSurfaces !== "function" ? "" : R.renderSurfaces(data, tab);
 	const tabsHtml = schema < 5 ? "" : R.renderThreadTabs(data, tab, []);
 	const boardHtml = schema < 5 ? "" : R.renderThreadBoard(data, tab);
 	const closedHtml = schema < 5 ? "" : R.renderClosed(data, tab);
@@ -167,6 +168,7 @@ ${hover ? `<script>${arcHoverJs.replace(/<\/script>/g, "<\\/script>")}</script>
       <div class="op-top"><span class="op-gen">${genLine}</span><button class="op-btn">↻</button></div>
       <div class="op-tabs">${tabsHtml}</div>
       <div class="op-board">${boardHtml}</div>
+      <div class="op-surf-wrap">${surfHtml}</div>
       <div class="op-attn-wrap">${overdueHtml}</div>
       <div class="op-closed">${closedHtml}</div>
       <footer class="op-foot"><span class="op-stats">${footHtml}</span></footer>
