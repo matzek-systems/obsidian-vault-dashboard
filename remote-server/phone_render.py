@@ -72,6 +72,10 @@ body.kbd .nav{display:none}
 .chain .ar{color:var(--ink2)}
 .note{background:var(--note);color:var(--ink);padding:10px 14px;font-size:16px}
 .empty{padding:14px;color:var(--ink2);font-size:16px}
+.thr-g{padding:10px 14px 2px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);border-top:1px solid var(--line)}
+.thr-g:first-child{border-top:0}
+.thr-g+.row{border-top:0}
+.thr-g .g-cold{color:var(--idle);text-transform:none;letter-spacing:0;font-size:11px}
 .cal-day{padding:10px 14px;border-top:1px solid var(--line)}.cal-day:first-child{border-top:0}
 .cal-h{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:4px;display:flex;gap:8px}
 .cal-h b{color:var(--ink)}.cal-day.today .cal-h b{color:var(--accent)}.cal-h .d{letter-spacing:0;text-transform:none}
@@ -430,7 +434,7 @@ import vaultpath
 
 VAULT_NAME = vaultpath.VAULT_NAME
 ROADMAPS_DIR = "00_System/AI/Claude/Roadmaps"
-ACTIVE_WINDOW = 20
+ACTIVE_DAYS = 10  # day-based active window (s984): session numbers stall when mining lags; days don't
 _TERMINAL = {"done", "killed", "superseded", "dormant", "deferred"}
 
 
@@ -516,13 +520,6 @@ def overdue_wis(d) -> list:
             if isinstance(w.get("due_in"), (int, float)) and w["due_in"] < 0 and w.get("status") not in _TERMINAL]
     rows.sort(key=lambda w: (w["due_in"], str(w.get("id"))))
     return rows
-
-
-def latest_session_n(d) -> int:
-    ns = [s.get("n") or 0 for s in d.get("threads_seats") or []]
-    for t in d.get("threads") or []:
-        ns += [c.get("n") or 0 for c in t.get("chain") or []]
-    return max(ns) if ns else 0
 
 
 def overdue_row(w) -> str:
@@ -861,11 +858,12 @@ def home(d) -> bytes:
                if t.get("open", True) and t.get("kind") != "new"]
     threads.sort(key=lambda t: t.get("activity") or "", reverse=True)   # most recent activity first
     threads.sort(key=lambda t: 0 if t.get("live") else 1)               # live seats on top (stable)
-    # active window (s931): live seat, or last session within ACTIVE_WINDOW of the newest seat
-    floor = latest_session_n(d) - ACTIVE_WINDOW
-
+    # active window: a live seat, or mined activity within ACTIVE_DAYS (day-based since s984)
     def _active(t):
-        return bool(t.get("live")) or max([c.get("n") or 0 for c in t.get("chain") or []] or [0]) >= floor
+        if t.get("live"):
+            return True
+        age = t.get("age_days")
+        return age is not None and age <= ACTIVE_DAYS
     active = [t for t in threads if _active(t)]
     older = [t for t in threads if not _active(t)]
     over = overdue_wis(d)
@@ -884,7 +882,28 @@ def home(d) -> bytes:
     # transcript while the Seats tab showed only desk panes; the operator read that as two
     # different sets of seats). seats_body() is the one source for both.
     b.append(seats_body(d, getattr(_ctx, "panes", None), title="Seats"))
-    tcard = "".join(thread_row(t, live) for t in active) or f'<div class="empty">Nothing touched in the last {ACTIVE_WINDOW} sessions.</div>'
+    # Spine grouping (s984): active rows render under their Threads.md thread, in spine
+    # order, unclaimed last. Row order within a group keeps the live-first/activity sort.
+    spine = d.get("threads_spine") or []
+    spine_names = {b.get("name") for b in spine if b.get("name")}
+    if active and spine_names:
+        by = {}
+        for t in active:
+            key = t.get("thread") if t.get("thread") in spine_names else None
+            by.setdefault(key, []).append(t)
+        parts = []
+        for blk in spine:
+            rows = by.get(blk.get("name"))
+            if not rows:
+                continue
+            cold = ' <span class="g-cold">cold</span>' if blk.get("cold") else ""
+            parts.append(f'<div class="thr-g">{h(blk.get("name"))}{cold}</div>' + "".join(thread_row(t, live) for t in rows))
+        if by.get(None):
+            parts.append('<div class="thr-g">unclaimed</div>' + "".join(thread_row(t, live) for t in by[None]))
+        tcard = "".join(parts)
+    else:
+        tcard = "".join(thread_row(t, live) for t in active)
+    tcard = tcard or f'<div class="empty">Nothing mined in the last {ACTIVE_DAYS} days.</div>'
     if older:
         tcard += ('<details class="older"><summary style="padding:12px 14px;color:var(--ink2);font-weight:600;cursor:pointer;border-top:1px solid var(--line)">'
                   f'older <span class="n q" style="background:var(--idle)">{len(older)}</span></summary>'

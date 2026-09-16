@@ -147,8 +147,13 @@ function liveChip(e: Any): string {
 	const why = e.join === "probable" ? "probable: joined by lane, unconfirmed until close"
 		: e.join === "new" ? "no open thread in this lane yet"
 		: "declared: shares a WI with this thread";
+	// W3 divergence (s984): the seat's tail activity sits under another thread's
+	// footprint — say so in words next to the chip, placement unchanged.
+	const working = e.working
+		? `<em class="thr-working" title="this seat's recent file activity sits under ${esc(e.working)}">working ${esc(e.working)}</em>`
+		: "";
 	return `<span class="thr-s live ${esc(e.tier || "")} ${esc(e.join || "")}" data-sess="${esc(e.n)}" title="${esc(why)}">`
-		+ `<i class="thr-dot"></i>${esc(e.n)}<em class="thr-typed" data-live="${esc(e.n)}">${esc(liveTail(e))}</em></span>`;
+		+ `<i class="thr-dot"></i>${esc(e.n)}<em class="thr-typed" data-live="${esc(e.n)}">${esc(liveTail(e))}</em></span>${working}`;
 }
 
 function chainHtml(r: Any): string {
@@ -249,9 +254,13 @@ export function renderThreadRow(r: Any, showLane: boolean, idx: Map<string, Any>
 	const isNew = r.kind === "new";
 	const live = (r.live || []).length > 0;
 	const lane = showLane && r.lane ? `<span class="thr-lane">${esc(r.lane === "_System" ? "System" : r.lane)}</span>` : "";
+	const stream = r.stream ? `<span class="thr-stream" title="stream (Threads.md)">${esc(r.stream)}</span>` : "";
+	const recur = r.recurring
+		? `<span class="thr-recur" title="3+ sessions inside 10 days outside every declared thread">recurring — declare a thread?</span>`
+		: "";
 	const label = isNew
 		? `<span class="thr-lbl new">new thread</span><span class="thr-focus">${esc(r.label || "")}</span>`
-		: `<span class="thr-lbl" data-arc="${esc(r.id)}">${esc(r.label || r.id)}</span>`;
+		: `<span class="thr-lbl" data-arc="${esc(r.id)}">${esc(r.label || r.id)}</span>${stream}${recur}`;
 	const age = r.age_days != null ? `<span class="thr-age${r.age_days >= 10 ? " old" : ""}">${esc(r.age_days)}d</span>` : "";
 	const btns = sendBtn()
 		+ `<button class="thr-btn" data-act="pickup" title="copy the pickup prompt">⧉</button>`
@@ -266,11 +275,12 @@ export function renderThreadRow(r: Any, showLane: boolean, idx: Map<string, Any>
 		+ `</div>`;
 }
 
-/** ACTIVE window (session 931, operator ruling: "an active threads area that
- *  has maybe last 20 sessions of work, and then overdue items is optimal").
- *  A thread is ACTIVE when a live seat sits on it, or its chain's last session
- *  is within ACTIVE_WINDOW sessions of the newest live seat. Everything else
- *  folds into an "older N" details block — still there, no longer ambient. */
+/** ACTIVE window. Day-based since s984 (W4: a window counted in session NUMBERS
+ *  shrank to ~5.7 real days at ~3.5 sessions/day and buried date-ranked work).
+ *  A row is ACTIVE when a live seat sits on it or its last touch is within
+ *  ACTIVE_DAYS. Everything else folds — still there, no longer ambient.
+ *  ACTIVE_WINDOW/latestSessionN stay exported for the schema<spine fallback. */
+export const ACTIVE_DAYS = 10;
 export const ACTIVE_WINDOW = 20;
 
 export function latestSessionN(data: Any): number {
@@ -280,32 +290,113 @@ export function latestSessionN(data: Any): number {
 	return n;
 }
 
-/** Live seats whose work joins no open thread, one line each (session 975).
- *  They used to render as full three-line thread rows: a "new thread" label naming
- *  the board's own join failure, and a "not yet mined" line that is true of every
- *  live session and can only stop being true at close. The fact worth space is the
- *  seat itself -- this is the only surface that shows a live session with no thread --
- *  so the row keeps the session chip, the lane, the focus, its WI chips and the two
- *  buttons that work without an arc id (send, pickup), on one line. */
+function rowActive(r: Any): boolean {
+	return (r.live || []).length > 0 || (r.age_days != null && r.age_days <= ACTIVE_DAYS);
+}
+
+/** One live seat as a single line (session 975; the shape renderSeatStrip used
+ *  inline before the spine sections needed it too). */
+function seatLine(r: Any, showLane: boolean, idx: Map<string, Any>): string {
+	const e = (r.live || [])[0] || { n: String(r.id || "").replace("seat:", ""), join: "new" };
+	const lane = showLane && r.lane ? `<span class="thr-lane">${esc(r.lane === "_System" ? "System" : r.lane)}</span>` : "";
+	const decl = r.declared_thread
+		? `<em class="thr-working" title="the seat's declared WI belongs to ${esc(r.declared_thread)}; placement follows its real file activity">declared ${esc(r.declared_thread)}</em>`
+		: "";
+	return `<div class="thr-srow" data-thr="${esc(r.id)}" data-pickup="${esc(r.pickup || "")}">`
+		+ liveChip(e) + lane
+		+ `<span class="thr-focus">${esc(r.label || "")}</span>${decl}`
+		+ `<span class="thr-smeta">${wiChips(r, idx)}${sendBtn()}`
+		+ `<button class="thr-btn" data-act="pickup" title="copy the pickup prompt">⧉</button></span></div>`;
+}
+
+/** Live seats whose work joins no open thread, one line each (session 975). */
 export function renderSeatStrip(rows: Any[], showLane: boolean, idx: Map<string, Any>): string {
 	if (!rows.length) return "";
-	const lines = rows.map((r) => {
-		const e = (r.live || [])[0] || { n: String(r.id || "").replace("seat:", ""), join: "new" };
-		const lane = showLane && r.lane ? `<span class="thr-lane">${esc(r.lane === "_System" ? "System" : r.lane)}</span>` : "";
-		return `<div class="thr-srow" data-thr="${esc(r.id)}" data-pickup="${esc(r.pickup || "")}">`
-			+ liveChip(e) + lane
-			+ `<span class="thr-focus">${esc(r.label || "")}</span>`
-			+ `<span class="thr-smeta">${wiChips(r, idx)}${sendBtn()}`
-			+ `<button class="thr-btn" data-act="pickup" title="copy the pickup prompt">⧉</button></span></div>`;
-	}).join("");
+	const lines = rows.map((r) => seatLine(r, showLane, idx)).join("");
 	return `<div class="thr-seats"><div class="thr-seats-h">live · no thread <span class="n">${rows.length}</span></div>${lines}</div>`;
+}
+
+/** A single-session arc as one line (s984): label · last event · age. Confetti
+ *  earns a line, not three. ✕ still works so a one-off can be ruled closed. */
+function renderMiniRow(r: Any, idx: Map<string, Any>): string {
+	const l = r.last || {};
+	const ev = l.type ? `<b class="thr-ev ${esc(l.type)}">${esc(EVENT_LABEL[l.type] || l.type)}</b>` : "";
+	const recur = r.recurring
+		? `<span class="thr-recur" title="3+ sessions inside 10 days outside every declared thread">recurring</span>` : "";
+	const age = r.age_days != null ? `<span class="thr-age${r.age_days >= 10 ? " old" : ""}">${esc(r.age_days)}d</span>` : "";
+	return `<div class="thr-mini" data-thr="${esc(r.id)}" data-pickup="${esc(r.pickup || "")}">`
+		+ `<span class="thr-lbl" data-arc="${esc(r.id)}">${esc(r.label || r.id)}</span>${recur}`
+		+ `<span class="thr-mtxt">${ev}${esc(l.text || "")}</span>`
+		+ `<span class="thr-smeta">${age}${sendBtn()}`
+		+ `<button class="thr-btn" data-act="pickup" title="copy the pickup prompt">⧉</button>`
+		+ `<button class="thr-btn" data-act="close" title="close this thread">✕</button></span></div>`;
+}
+
+const laneEq = (a: Any, b: Any) =>
+	String(a || "").replace(/^_/, "").toLowerCase() === String(b || "").replace(/^_/, "").toLowerCase();
+
+/** One spine section: header (name · lane · focus · next · cold) + full rows for
+ *  moving streams, mini lines for one-offs, a fold for the quiet rest, and the
+ *  section's own live-but-arcless seats. */
+function renderSection(block: Any, rows: Any[], seats: Any[], showLane: boolean, idx: Map<string, Any>): string {
+	const full = rows.filter((r) => !r.single && rowActive(r));
+	const mini = rows.filter((r) => r.single && rowActive(r));
+	const fold = rows.filter((r) => !rowActive(r));
+	const liveN = rows.reduce((s, r) => s + (r.live || []).length, 0) + seats.length;
+	const cold = block.cold
+		? `<span class="thr-cold" title="no live seat and nothing mined for ${esc(block.newest_age_days ?? "7+")}d">cold${block.newest_age_days != null ? ` ${esc(block.newest_age_days)}d` : ""}</span>`
+		: "";
+	const next = block.next ? `<span class="thr-next" title="declared next in Threads.md">next: ${esc(block.next)}</span>` : "";
+	const head = `<div class="thr-sec-h"><span class="thr-sec-name">${esc(block.name)}</span>`
+		+ (showLane && block.lane ? `<span class="thr-lane">${esc(block.lane)}</span>` : "")
+		+ (block.focus ? `<span class="thr-sec-focus">${esc(block.focus)}</span>` : "")
+		+ `${next}${cold}`
+		+ (liveN ? `<span class="thr-sec-live"><i class="thr-dot"></i>${liveN}</span>` : "")
+		+ `</div>`;
+	const foldHtml = fold.length
+		? `<details class="thr-older"><summary>quiet <span class="n">${fold.length}</span></summary>${fold.map((r) => (r.single ? renderMiniRow(r, idx) : renderThreadRow(r, false, idx))).join("")}</details>`
+		: "";
+	return `<div class="thr-sec${block.cold ? " cold" : ""}">${head}`
+		+ full.map((r) => renderThreadRow(r, false, idx)).join("")
+		+ mini.map((r) => renderMiniRow(r, idx)).join("")
+		+ seats.map((r) => seatLine(r, false, idx)).join("")
+		+ foldHtml + `</div>`;
 }
 
 export function renderThreadBoard(data: Any, tab: string | null): string {
 	if (data?.threads_error) return `<div class="empty">threads: ${esc(data.threads_error)}</div>`;
+	const spine: Any[] = data?.threads_spine || [];
 	const rows = rowsForTab(data, tab);
-	if (!rows.length) return `<div class="empty">no open threads${tab ? ` in ${esc(tab)}` : ""}</div>`;
 	const idx = wiIndex(data);
+
+	if (spine.length) {
+		// Thread → stream → work (s984): sections in Threads.md order. Rows carry a
+		// `thread` stamp from the generator; unclaimed work and threadless live seats
+		// keep their own surfaces at the bottom — grouped, never hidden.
+		const parts: string[] = [];
+		for (const b of spine) {
+			if (tab && !laneEq(b.lane, tab)) {
+				const hasRows = rows.some((r) => r.thread === b.name);
+				if (!hasRows) continue;
+			}
+			const secRows = rows.filter((r) => r.kind !== "new" && r.thread === b.name);
+			const secSeats = rows.filter((r) => r.kind === "new" && r.thread === b.name);
+			if (!secRows.length && !secSeats.length && tab) continue;
+			parts.push(renderSection(b, secRows, secSeats, !tab, idx));
+		}
+		const claimed = new Set(spine.map((b: Any) => b.name));
+		const loose = rows.filter((r) => r.kind !== "new" && (!r.thread || !claimed.has(r.thread)));
+		const looseSeats = rows.filter((r) => r.kind === "new" && (!r.thread || !claimed.has(r.thread)));
+		if (loose.length) {
+			const block = { name: "unclaimed", lane: null, focus: null, next: null, cold: false, newest_age_days: null };
+			parts.push(renderSection(block, loose, [], !tab, idx));
+		}
+		const body = parts.join("") + renderSeatStrip(looseSeats, !tab, idx);
+		return body || `<div class="empty">no open threads${tab ? ` in ${esc(tab)}` : ""}</div>`;
+	}
+
+	// No spine (Threads.md absent/empty): the flat pre-s984 board, unchanged.
+	if (!rows.length) return `<div class="empty">no open threads${tab ? ` in ${esc(tab)}` : ""}</div>`;
 	const floor = latestSessionN(data) - ACTIVE_WINDOW;
 	const seatRows = rows.filter((r) => r.kind === "new");
 	const active: Any[] = [], older: Any[] = [];
