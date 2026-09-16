@@ -853,7 +853,12 @@ def home(d) -> bytes:
     att = d.get("attention") or []
     live = live_by_n(d)
     seats = sorted(live.values(), key=lambda s: ({"waiting": 0, "working": 1}.get(s.get("state"), 2), s.get("user_min") or 0))
-    threads = [t for t in d.get("threads") or [] if t.get("open", True)]
+    # A `new` row is a live seat whose work joins no open arc. The Seats band below
+    # renders every one of them already -- with state, where, and a tap-through that
+    # can push -- so on the phone they are dropped here instead of mirroring the
+    # desktop's seat strip (s975: one surface per fact).
+    threads = [t for t in d.get("threads") or []
+               if t.get("open", True) and t.get("kind") != "new"]
     threads.sort(key=lambda t: t.get("activity") or "", reverse=True)   # most recent activity first
     threads.sort(key=lambda t: 0 if t.get("live") else 1)               # live seats on top (stable)
     # active window (s931): live seat, or last session within ACTIVE_WINDOW of the newest seat

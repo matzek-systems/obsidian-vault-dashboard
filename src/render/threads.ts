@@ -143,6 +143,14 @@ function liveTail(e: Any): string {
 	return "live";
 }
 
+function liveChip(e: Any): string {
+	const why = e.join === "probable" ? "probable: joined by lane, unconfirmed until close"
+		: e.join === "new" ? "no open thread in this lane yet"
+		: "declared: shares a WI with this thread";
+	return `<span class="thr-s live ${esc(e.tier || "")} ${esc(e.join || "")}" data-sess="${esc(e.n)}" title="${esc(why)}">`
+		+ `<i class="thr-dot"></i>${esc(e.n)}<em class="thr-typed" data-live="${esc(e.n)}">${esc(liveTail(e))}</em></span>`;
+}
+
 function chainHtml(r: Any): string {
 	const nodes: string[] = [];
 	for (const c of r.chain || []) {
@@ -150,10 +158,7 @@ function chainHtml(r: Any): string {
 		const cls = evs.length ? ` ev-${esc(evs[evs.length - 1])}` : "";
 		nodes.push(`<span class="thr-s${cls}${c.dead ? " dead" : ""}" data-sess="${esc(c.n)}">${esc(c.n)}</span>`);
 	}
-	for (const e of r.live || []) {
-		nodes.push(`<span class="thr-s live ${esc(e.tier || "")} ${esc(e.join || "")}" data-sess="${esc(e.n)}" title="${esc(e.join === "probable" ? "probable: joined by lane, unconfirmed until close" : e.join === "new" ? "no open thread in this lane yet" : "declared: shares a WI with this thread")}">`
-			+ `<i class="thr-dot"></i>${esc(e.n)}<em class="thr-typed" data-live="${esc(e.n)}">${esc(liveTail(e))}</em></span>`);
-	}
+	for (const e of r.live || []) nodes.push(liveChip(e));
 	return nodes.join(`<span class="thr-arrow">→</span>`);
 }
 
@@ -275,24 +280,48 @@ export function latestSessionN(data: Any): number {
 	return n;
 }
 
+/** Live seats whose work joins no open thread, one line each (session 975).
+ *  They used to render as full three-line thread rows: a "new thread" label naming
+ *  the board's own join failure, and a "not yet mined" line that is true of every
+ *  live session and can only stop being true at close. The fact worth space is the
+ *  seat itself -- this is the only surface that shows a live session with no thread --
+ *  so the row keeps the session chip, the lane, the focus, its WI chips and the two
+ *  buttons that work without an arc id (send, pickup), on one line. */
+export function renderSeatStrip(rows: Any[], showLane: boolean, idx: Map<string, Any>): string {
+	if (!rows.length) return "";
+	const lines = rows.map((r) => {
+		const e = (r.live || [])[0] || { n: String(r.id || "").replace("seat:", ""), join: "new" };
+		const lane = showLane && r.lane ? `<span class="thr-lane">${esc(r.lane === "_System" ? "System" : r.lane)}</span>` : "";
+		return `<div class="thr-srow" data-thr="${esc(r.id)}" data-pickup="${esc(r.pickup || "")}">`
+			+ liveChip(e) + lane
+			+ `<span class="thr-focus">${esc(r.label || "")}</span>`
+			+ `<span class="thr-smeta">${wiChips(r, idx)}${sendBtn()}`
+			+ `<button class="thr-btn" data-act="pickup" title="copy the pickup prompt">⧉</button></span></div>`;
+	}).join("");
+	return `<div class="thr-seats"><div class="thr-seats-h">live · no thread <span class="n">${rows.length}</span></div>${lines}</div>`;
+}
+
 export function renderThreadBoard(data: Any, tab: string | null): string {
 	if (data?.threads_error) return `<div class="empty">threads: ${esc(data.threads_error)}</div>`;
 	const rows = rowsForTab(data, tab);
 	if (!rows.length) return `<div class="empty">no open threads${tab ? ` in ${esc(tab)}` : ""}</div>`;
 	const idx = wiIndex(data);
 	const floor = latestSessionN(data) - ACTIVE_WINDOW;
+	const seatRows = rows.filter((r) => r.kind === "new");
 	const active: Any[] = [], older: Any[] = [];
 	for (const r of rows) {
+		if (r.kind === "new") continue;                       // -> the seat strip below
 		const lastN = Math.max(0, ...(r.chain || []).map((c: Any) => c.n || 0));
 		((r.live || []).length || lastN >= floor ? active : older).push(r);
 	}
 	const activeHtml = active.length
 		? active.map((r) => renderThreadRow(r, !tab, idx)).join("")
+		: seatRows.length ? ""
 		: `<div class="empty">nothing touched in the last ${ACTIVE_WINDOW} sessions${tab ? ` in ${esc(tab)}` : ""}</div>`;
 	const olderHtml = older.length
 		? `<details class="thr-older"><summary>older <span class="n">${older.length}</span></summary>${older.map((r) => renderThreadRow(r, !tab, idx)).join("")}</details>`
 		: "";
-	return activeHtml + olderHtml;
+	return activeHtml + renderSeatStrip(seatRows, !tab, idx) + olderHtml;
 }
 
 export function renderClosed(data: Any, tab: string | null): string {
