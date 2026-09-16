@@ -133,6 +133,7 @@ async function main() {
 
 	const schema = data.schema || 0;
 	const tab = laneArg || null;
+	if (typeof R.registerLanes === "function") R.registerLanes(data); // prefix→lane map, same as the panel's paint
 	const genLine = schema < 5 ? `regenerate (schema ${schema}, need 5)` : R.renderHeader(data, null);
 	const overdueHtml = schema < 5 || typeof R.renderOverdue !== "function" ? "" : R.renderOverdue(data, tab, R.wiIndex(data));
 	const surfHtml = schema < 5 || typeof R.renderSurfaces !== "function" ? "" : R.renderSurfaces(data, tab);

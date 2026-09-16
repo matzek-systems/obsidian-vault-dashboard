@@ -53,11 +53,32 @@ export function dueBadge(w: Any): string {
 	return `<span class="due ${d <= 3 ? "soon" : ""}">due ${d === 0 ? "today" : `in ${d}d`}</span>`;
 }
 
+/** WI-prefix → lane name, derived from the loaded data (registerLanes).
+ *  Never a hardcoded roster: lane names are operator content, and the built
+ *  main.js is a published release asset — the roster is exactly what the
+ *  release leak gate refuses (s984). A prefix from a lane absent in the data
+ *  (a closed lane) falls back to the bare prefix. */
+let PREFIX_LANE: Record<string, string> = {};
+
+export function registerLanes(data: Any): void {
+	const map: Record<string, string> = {};
+	for (const L of data?.lanes || []) {
+		const name = String(L?.lane || "").replace(" Roadmap", "");
+		if (!name) continue;
+		for (const key of ["wis", "now", "next", "waiting"]) {
+			for (const w of (L && L[key]) || []) {
+				const m = /^([A-Z]+)-/.exec(String(w?.id || ""));
+				if (m && !map[m[1]]) map[m[1]] = name;
+			}
+		}
+	}
+	PREFIX_LANE = map;
+}
+
 export function laneOf(w: Any): string {
 	if (w.lane) return String(w.lane).replace(" Roadmap", "");
 	const m = /^([A-Z]+)-/.exec(String(w.id || ""));
-	const map: Record<string, string> = { SYS: "_System", SOMA: "SomaGuard", MM: "MatzekMedia", WI: "PKM", CH: "ContentHoarder", JANE: "Jane", LD: "Lawndash", LWP: "Local Web Pitch", WCMC: "WCMC" };
-	return m ? (map[m[1]] || m[1]) : "";
+	return m ? (PREFIX_LANE[m[1]] || m[1]) : "";
 }
 
 export function contPrompt(id: string): string {

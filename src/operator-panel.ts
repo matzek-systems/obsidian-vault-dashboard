@@ -26,7 +26,7 @@ import type DashboardPlugin from "./main";
 import { WiIndex, WiHover } from "./wi-card";
 import { SessionHover } from "./session-hover";
 import { ArcHover } from "./arc-hover";
-import { Any, actTxt } from "./render/common";
+import { Any, actTxt, registerLanes } from "./render/common";
 import { renderHeader } from "./render/header";
 import { renderThreadTabs, renderThreadBoard, renderClosed, renderFoot, wiIndex } from "./render/threads";
 import { renderOverdue, overdueRows } from "./render/overdue";
@@ -246,6 +246,7 @@ export class DashboardView extends ItemView {
 		const schema = this.data.schema || 0;
 		if (schema < MIN_SCHEMA) { board.innerHTML = `<div class="empty">regenerate (schema ${schema}, need ${MIN_SCHEMA})</div>`; return; }
 		const order: string[] = this.plugin.settings.tabs || [];
+		registerLanes(this.data); // prefix→lane map for laneOf, derived, never a hardcoded roster
 		// The overdue strip reads due_in off lanes[].wis, which threads_hash does
 		// not cover -- fold a fingerprint of it in so a pure due-date change (no
 		// WI status flip) still repaints the strip.
