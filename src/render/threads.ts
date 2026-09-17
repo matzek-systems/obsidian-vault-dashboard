@@ -354,7 +354,7 @@ function renderSection(block: Any, rows: Any[], seats: Any[], showLane: boolean,
 		: "";
 	const next = block.next ? `<span class="thr-next" title="declared next in Threads.md">next: ${esc(block.next)}</span>` : "";
 	// A section named after its lane (the s984 area shape) skips the lane chip —
-	// "SomaGuard · SomaGuard" says nothing twice.
+	// "Sales · Sales" says nothing twice.
 	const laneChip = showLane && block.lane && !laneEq(String(block.name), String(block.lane));
 	const head = `<div class="thr-sec-h"><span class="thr-sec-name">${esc(block.name)}</span>`
 		+ (laneChip ? `<span class="thr-lane">${esc(block.lane)}</span>` : "")
