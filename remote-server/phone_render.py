@@ -858,14 +858,18 @@ def home(d) -> bytes:
                if t.get("open", True) and t.get("kind") != "new"]
     threads.sort(key=lambda t: t.get("activity") or "", reverse=True)   # most recent activity first
     threads.sort(key=lambda t: 0 if t.get("live") else 1)               # live seats on top (stable)
+    # s988, matching the desktop rulings: a waiting_on_* row never ages off and renders
+    # even as a single; non-waiting singles don't render; the older fold is gone (rows
+    # outside the window simply don't show -- the data stays in the JSON).
+    def _waiting(t):
+        return str((t.get("last") or {}).get("type") or "").startswith("waiting_on_")
     # active window: a live seat, or mined activity within ACTIVE_DAYS (day-based since s984)
     def _active(t):
         if t.get("live"):
             return True
         age = t.get("age_days")
         return age is not None and age <= ACTIVE_DAYS
-    active = [t for t in threads if _active(t)]
-    older = [t for t in threads if not _active(t)]
+    active = [t for t in threads if _waiting(t) or (not t.get("single") and _active(t))]
     over = overdue_wis(d)
     b = []
     # "Needs you" band removed (operator, session 954): the Seats band below covers
@@ -904,10 +908,6 @@ def home(d) -> bytes:
     else:
         tcard = "".join(thread_row(t, live) for t in active)
     tcard = tcard or f'<div class="empty">Nothing mined in the last {ACTIVE_DAYS} days.</div>'
-    if older:
-        tcard += ('<details class="older"><summary style="padding:12px 14px;color:var(--ink2);font-weight:600;cursor:pointer;border-top:1px solid var(--line)">'
-                  f'older <span class="n q" style="background:var(--idle)">{len(older)}</span></summary>'
-                  + "".join(thread_row(t, live) for t in older) + "</details>")
     b.append(f'<div class="band"><h2>Threads <span class="n q">{len(active)}</span></h2><div class="card">' + tcard + "</div></div>")
     return _shell("Vault", "".join(b), d, "home")
 
