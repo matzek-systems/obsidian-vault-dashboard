@@ -356,14 +356,19 @@ function renderSection(block: Any, rows: Any[], seats: Any[], showLane: boolean,
 		+ `${next}${cold}`
 		+ (liveN ? `<span class="thr-sec-live"><i class="thr-dot"></i>${liveN}</span>` : "")
 		+ `</div>`;
+	// Singles fold under their own dropdown, same idiom as quiet (operator, s984:
+	// "single session threads under drop down similar to quiet"). A single can
+	// never carry a live seat (that's the flag's definition), so folding is safe.
+	const miniHtml = mini.length
+		? `<details class="thr-older"><summary>one-off <span class="n">${mini.length}</span></summary>${mini.map((r) => renderMiniRow(r, idx)).join("")}</details>`
+		: "";
 	const foldHtml = fold.length
 		? `<details class="thr-older"><summary>quiet <span class="n">${fold.length}</span></summary>${fold.map((r) => (r.single ? renderMiniRow(r, idx) : renderThreadRow(r, false, idx))).join("")}</details>`
 		: "";
 	return `<div class="thr-sec${block.cold ? " cold" : ""}">${head}`
 		+ full.map((r) => renderThreadRow(r, false, idx)).join("")
-		+ mini.map((r) => renderMiniRow(r, idx)).join("")
 		+ seats.map((r) => seatLine(r, false, idx)).join("")
-		+ foldHtml + `</div>`;
+		+ miniHtml + foldHtml + `</div>`;
 }
 
 export function renderThreadBoard(data: Any, tab: string | null): string {
