@@ -232,7 +232,9 @@ function wiChips(r: Any, idx: Map<string, Any>): string {
 	const out: { html: string; flag: boolean }[] = [];
 	const push = (id: string, status: string) => {
 		const x = chipExtra(idx.get(id));
-		const html = `<span class="tid c-${esc(status)}" data-id="${esc(id)}" data-act="open"${x.title ? ` title="${esc(x.title)}"` : ""}>${esc(id)}${x.badge}</span>`;
+		// No native title= next to data-id: the WiHover card is the one popup (the badge
+		// tips ride into it via data-tip) — a co-located title double-fires (s954/s988).
+		const html = `<span class="tid c-${esc(status)}" data-id="${esc(id)}" data-act="open"${x.title ? ` data-tip="${esc(x.title)}"` : ""}>${esc(id)}${x.badge}</span>`;
 		out.push({ html, flag: x.flag });
 	};
 	for (const w of rows) {
@@ -339,9 +341,13 @@ const laneEq = (a: Any, b: Any) =>
  *  moving streams, mini lines for one-offs, a fold for the quiet rest, and the
  *  section's own live-but-arcless seats. */
 function renderSection(block: Any, rows: Any[], seats: Any[], showLane: boolean, idx: Map<string, Any>): string {
-	const full = rows.filter((r) => !r.single && rowActive(r));
-	const mini = rows.filter((r) => r.single && rowActive(r));
-	const fold = rows.filter((r) => !rowActive(r));
+	// One-off + quiet folds removed (operator, s988: "could honestly be removed with no
+	// downside") — with one carve-out, the same ruling that keeps arm-4 visible: a thread
+	// whose last mined event is waiting_on_* never ages off and renders full even as a
+	// single. Everything else outside ACTIVE_DAYS (or single) simply doesn't render here;
+	// the data stays in the JSON and the phone renderer is untouched.
+	const waiting = (r: Any) => String((r.last || {}).type || "").startsWith("waiting_on_");
+	const full = rows.filter((r) => waiting(r) || (!r.single && rowActive(r)));
 	const liveN = rows.reduce((s, r) => s + (r.live || []).length, 0) + seats.length;
 	const cold = block.cold
 		? `<span class="thr-cold" title="no live seat and nothing mined for ${esc(block.newest_age_days ?? "7+")}d">cold${block.newest_age_days != null ? ` ${esc(block.newest_age_days)}d` : ""}</span>`
@@ -356,19 +362,10 @@ function renderSection(block: Any, rows: Any[], seats: Any[], showLane: boolean,
 		+ `${next}${cold}`
 		+ (liveN ? `<span class="thr-sec-live"><i class="thr-dot"></i>${liveN}</span>` : "")
 		+ `</div>`;
-	// Singles fold under their own dropdown, same idiom as quiet (operator, s984:
-	// "single session threads under drop down similar to quiet"). A single can
-	// never carry a live seat (that's the flag's definition), so folding is safe.
-	const miniHtml = mini.length
-		? `<details class="thr-older"><summary>one-off <span class="n">${mini.length}</span></summary>${mini.map((r) => renderMiniRow(r, idx)).join("")}</details>`
-		: "";
-	const foldHtml = fold.length
-		? `<details class="thr-older"><summary>quiet <span class="n">${fold.length}</span></summary>${fold.map((r) => (r.single ? renderMiniRow(r, idx) : renderThreadRow(r, false, idx))).join("")}</details>`
-		: "";
 	return `<div class="thr-sec${block.cold ? " cold" : ""}">${head}`
 		+ full.map((r) => renderThreadRow(r, false, idx)).join("")
 		+ seats.map((r) => seatLine(r, false, idx)).join("")
-		+ miniHtml + foldHtml + `</div>`;
+		+ `</div>`;
 }
 
 export function renderThreadBoard(data: Any, tab: string | null): string {

@@ -107,14 +107,13 @@ export class WiHover {
 
 	/** Delegated: hovering any descendant with data-id shows the card after a short delay. */
 	attach(root: HTMLElement): void {
+		this.index.lookup("");   // warm: kick the async index build before the first hover
 		root.addEventListener("mouseover", (e: MouseEvent) => {
 			const t = (e.target as HTMLElement).closest("[data-id]") as HTMLElement | null;
 			if (!t || t === this.cur) return;
 			this.cur = t;
 			this.hide();
-			const info = this.index.lookup(t.dataset.id || "");
-			if (!info) return;
-			this.timer = window.setTimeout(() => this.show(info, e), 160);
+			this.lookupShow(t, e, true);
 		});
 		root.addEventListener("mouseout", (e: MouseEvent) => {
 			const t = (e.target as HTMLElement).closest("[data-id]") as HTMLElement | null;
@@ -125,12 +124,38 @@ export class WiHover {
 		});
 	}
 
-	private show(info: WiInfo, event: MouseEvent): void {
+	/** Look up the hovered id and show a card. The index builds async, so a first-ever
+	 *  hover can race an empty map (the s988 "chips aren't hoverable" report): on a miss
+	 *  we retry once after the rebuild has had time to land, and only then fall back to
+	 *  a minimal card — every chip explains itself on hover, always. */
+	private lookupShow(t: HTMLElement, e: MouseEvent, retry: boolean): void {
+		const id = t.dataset.id || "";
+		const info = this.index.lookup(id);
+		if (info) { this.timer = window.setTimeout(() => this.show(info, e, t.dataset.tip), 160); return; }
+		if (retry) {
+			this.timer = window.setTimeout(() => { if (this.cur === t) this.lookupShow(t, e, false); }, 450);
+			return;
+		}
+		this.timer = window.setTimeout(() => this.showFallback(id, e, t.dataset.tip), 160);
+	}
+
+	private show(info: WiInfo, event: MouseEvent, tip?: string): void {
 		this.hide();
 		const statusLine = info.statusLine ? `<div class="op-wi-card-status">${esc(info.statusLine.replace(/`/g, ""))}</div>` : "";
+		const tipLine = tip ? `<div class="op-wi-card-tip">${esc(tip)}</div>` : "";
 		const body = info.body ? `<div class="op-wi-card-body">${esc(info.body.slice(0, 280))}</div>` : "";
-		const html = `<div class="op-wi-card-title">${esc(info.heading)}</div>${statusLine}${body}`
+		const html = `<div class="op-wi-card-title">${esc(info.heading)}</div>${statusLine}${tipLine}${body}`
 			+ `<div class="op-wi-card-foot"><span>${info.total > 0 ? `☑ ${info.done}/${info.total}` : ""}</span><span>${esc(info.fileBase)}</span></div>`;
+		this.cardEl = showCard(html, event);
+	}
+
+	/** No roadmap block for this id (folded into another WI, or never filed): still
+	 *  say what the chip is rather than showing nothing. */
+	private showFallback(id: string, event: MouseEvent, tip?: string): void {
+		this.hide();
+		const html = `<div class="op-wi-card-title">${esc(id)}</div>`
+			+ (tip ? `<div class="op-wi-card-tip">${esc(tip)}</div>` : "")
+			+ `<div class="op-wi-card-body">work item — no roadmap block found (folded into another WI, or never filed)</div>`;
 		this.cardEl = showCard(html, event);
 	}
 
