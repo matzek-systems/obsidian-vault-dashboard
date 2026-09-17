@@ -347,8 +347,11 @@ function renderSection(block: Any, rows: Any[], seats: Any[], showLane: boolean,
 		? `<span class="thr-cold" title="no live seat and nothing mined for ${esc(block.newest_age_days ?? "7+")}d">cold${block.newest_age_days != null ? ` ${esc(block.newest_age_days)}d` : ""}</span>`
 		: "";
 	const next = block.next ? `<span class="thr-next" title="declared next in Threads.md">next: ${esc(block.next)}</span>` : "";
+	// A section named after its lane (the s984 area shape) skips the lane chip —
+	// "SomaGuard · SomaGuard" says nothing twice.
+	const laneChip = showLane && block.lane && !laneEq(String(block.name), String(block.lane));
 	const head = `<div class="thr-sec-h"><span class="thr-sec-name">${esc(block.name)}</span>`
-		+ (showLane && block.lane ? `<span class="thr-lane">${esc(block.lane)}</span>` : "")
+		+ (laneChip ? `<span class="thr-lane">${esc(block.lane)}</span>` : "")
 		+ (block.focus ? `<span class="thr-sec-focus">${esc(block.focus)}</span>` : "")
 		+ `${next}${cold}`
 		+ (liveN ? `<span class="thr-sec-live"><i class="thr-dot"></i>${liveN}</span>` : "")
