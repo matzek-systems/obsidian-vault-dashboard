@@ -427,7 +427,7 @@ export function renderClosed(data: Any, tab: string | null): string {
 	const items = rows.map((r) => {
 		const c = r.closed || {};
 		const why = c.by === "operator" ? `closed${c.session ? ` s${esc(c.session)}` : ""}${c.reason ? `: ${esc(c.reason)}` : ""}`
-			: c.by === "wis" ? "WIs all terminal"
+			: c.by === "wis" ? "WIs all terminal/parked"
 			: `ledger: ${esc(c.reason || "closed")}`;
 		const reopen = c.by === "operator" ? `<button class="thr-btn" data-act="reopen" title="reopen this thread">↺</button>` : "";
 		return `<div class="thr-crow" data-thr="${esc(r.id)}"><span class="thr-lbl" data-arc="${esc(r.id)}">${esc(r.label || r.id)}</span>`

@@ -59,7 +59,7 @@ export class ArcHover {
 		const wisHtml = wiRows.length
 			? `<div class="op-sess-card-evs">${wiRows.map(wiRowLine).join("")}</div>`
 			: (a.wis && a.wis.length ? `<div class="op-wi-card-body">${esc(a.wis.join(", "))}</div>` : `<div class="op-wi-card-body">no WIs</div>`);
-		const closed = a.closed ? `<div class="op-wi-card-note">closed — ${esc(a.closed.by === "wis" ? "every WI on the thread is terminal" : (a.closed.reason || a.closed.by || "closed"))}</div>` : "";
+		const closed = a.closed ? `<div class="op-wi-card-note">closed — ${esc(a.closed.by === "wis" ? "every WI on the thread is terminal or parked" : (a.closed.reason || a.closed.by || "closed"))}</div>` : "";
 		const html = `<div class="op-wi-card-title">${esc(a.label)}</div>`
 			+ `<div class="op-wi-card-body">${esc(arcSpan(a))}${a.phase && a.phase !== "open" ? ` · ${esc(a.phase)}` : ""}</div>`
 			+ wisHtml
