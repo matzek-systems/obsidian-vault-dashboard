@@ -34,6 +34,17 @@ interface ProcessEntry {
 	launch?: string[] | null;
 	/** argv for a running row's restart (collector RESTART_COMMANDS); the phone server today. */
 	restart?: string[] | null;
+	/** Group rows only (SYS-544): the untracked python processes behind the row, largest first. */
+	children?: ProcessChild[] | null;
+}
+
+interface ProcessChild {
+	script: string;
+	pid: number;
+	ram_mb: number | null;
+	uptime_seconds: number | null;
+	/** "s1001" when the parent chain reaches a running Claude Code seat, else null. */
+	session: string | null;
 }
 
 interface ProcessStatusPayload {
@@ -408,6 +419,9 @@ class ProcessStatusView extends ItemView {
 	private timer: ReturnType<typeof setInterval> | null = null;
 	private panelEl: HTMLElement | null = null;
 	private sessEl: HTMLElement | null = null;
+	/** Open group rows, keyed by label minus its "(N)" count so a changing count
+	 *  doesn't collapse the group on the next 3s refresh. */
+	private expandedGroups = new Set<string>();
 
 	constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
 		super(leaf);
@@ -491,13 +505,30 @@ class ProcessStatusView extends ItemView {
 
 		for (const p of payload.processes) {
 			const isDup = p.label.includes("(dup)");
-			const rowCls = `dash-ps-row dash-ps-${p.status}${isDup ? " dash-ps-dup-row" : ""}`;
+			const kids = p.children || [];
+			const isGroup = kids.length > 0;
+			const groupKey = p.label.replace(/\s*\(\d+\)$/, "");
+			const open = isGroup && this.expandedGroups.has(groupKey);
+			const rowCls = `dash-ps-row dash-ps-${p.status}${isDup ? " dash-ps-dup-row" : ""}${isGroup ? " dash-ps-group" : ""}`;
 			const row = table.createDiv({ cls: rowCls });
 			const labelEl = row.createDiv({ cls: "dash-ps-label" });
-			const dot = labelEl.createSpan({ cls: `dash-ps-dot dash-ps-dot-${p.status}${isDup ? "-dup" : ""}` });
-			dot.textContent = "•";
+			if (isGroup) {
+				const chev = labelEl.createSpan({ cls: "dash-ps-chevron" });
+				setIcon(chev, open ? "chevron-down" : "chevron-right");
+				row.setAttr("role", "button");
+				row.setAttr("aria-expanded", String(open));
+				row.onclick = () => {
+					if (this.expandedGroups.has(groupKey)) this.expandedGroups.delete(groupKey);
+					else this.expandedGroups.add(groupKey);
+					void this.renderProcesses();
+				};
+			} else {
+				const dot = labelEl.createSpan({ cls: `dash-ps-dot dash-ps-dot-${p.status}${isDup ? "-dup" : ""}` });
+				dot.textContent = "•";
+			}
 			labelEl.createEl("span", { text: p.label });
-			if (p.instance_count && p.instance_count > 1 && !isDup) {
+			// A group's count is membership, not duplication: only real dup-prone rows get the red badge.
+			if (!isGroup && p.instance_count && p.instance_count > 1 && !isDup) {
 				labelEl.createEl("span", {
 					text: `×${p.instance_count}`,
 					cls: "dash-ps-instance-count",
@@ -522,19 +553,43 @@ class ProcessStatusView extends ItemView {
 				indicator.textContent = p.port_listening ? "●" : "○";
 			}
 
-			const upEl = row.createEl("span", {
+			row.createEl("span", {
 				text: this.formatUptime(p.uptime_seconds),
 				cls: "dash-ps-uptime",
 			});
-			if (p.status === "stopped" && p.launch && p.launch.length) {
-				const btn = upEl.createEl("button", { text: "Launch", cls: "dash-ps-launch" });
-				btn.title = `python ${p.launch.join(" ")}`;
-				btn.onclick = (ev) => { ev.stopPropagation(); this.launchProcess(p); };
+			// Launch / Restart get their own line under the row (SYS-544): inside the
+			// uptime cell they crowded the numbers and misaligned the column.
+			const canLaunch = p.status === "stopped" && !!p.launch?.length;
+			const canRestart = p.status === "running" && !!p.restart?.length;
+			if (canLaunch || canRestart) {
+				const actions = row.createDiv({ cls: "dash-ps-row-actions" });
+				if (canLaunch) {
+					const btn = actions.createEl("button", { text: "Launch", cls: "dash-ps-launch" });
+					btn.title = `python ${p.launch!.join(" ")}`;
+					btn.onclick = (ev) => { ev.stopPropagation(); this.launchProcess(p); };
+				}
+				if (canRestart) {
+					const btn = actions.createEl("button", { text: "Restart", cls: "dash-ps-launch" });
+					btn.title = `python ${p.restart!.join(" ")}`;
+					btn.onclick = (ev) => { ev.stopPropagation(); this.launchProcess({ ...p, launch: p.restart }); };
+				}
 			}
-			if (p.status === "running" && p.restart && p.restart.length) {
-				const btn = upEl.createEl("button", { text: "Restart", cls: "dash-ps-launch" });
-				btn.title = `python ${p.restart.join(" ")}`;
-				btn.onclick = (ev) => { ev.stopPropagation(); this.launchProcess({ ...p, launch: p.restart }); };
+
+			if (open) {
+				for (const c of kids) {
+					const crow = table.createDiv({ cls: "dash-ps-row dash-ps-running dash-ps-child" });
+					const cl = crow.createDiv({ cls: "dash-ps-label" });
+					cl.createEl("span", { text: c.script });
+					cl.title = c.script;
+					crow.createEl("span", { text: String(c.pid), cls: "dash-ps-pid" });
+					crow.createEl("span", {
+						text: c.ram_mb != null ? `${Math.round(c.ram_mb)} MB` : "—",
+						cls: `dash-ps-ram ${c.ram_mb != null ? this.ramSeverity(c.ram_mb, 300, 1000) : ""}`,
+					});
+					// The port column carries the owning session: children never listen.
+					crow.createEl("span", { text: c.session || "—", cls: "dash-ps-session" });
+					crow.createEl("span", { text: this.formatUptime(c.uptime_seconds), cls: "dash-ps-uptime" });
+				}
 			}
 		}
 	}

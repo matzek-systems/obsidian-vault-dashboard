@@ -93,15 +93,15 @@
 .dash-ps-table {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .dash-ps-row {
   display: grid;
-  grid-template-columns: minmax(160px, 1.4fr) 64px 80px 96px 56px;
+  grid-template-columns: minmax(160px, 1.4fr) 64px 72px 88px 72px;
   align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
+  gap: 4px 12px;
+  padding: 6px 10px;
   border-radius: 4px;
   font-size: 0.85em;
   font-variant-numeric: tabular-nums;
@@ -207,6 +207,34 @@
 }
 
 .dash-ps-dot-running-dup { color: var(--color-red); }
+
+/* Launch / Restart on their own line under the row (SYS-544) */
+.dash-ps-row-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+  padding-left: 18px;
+}
+.dash-ps-row-actions .dash-ps-launch { margin-left: 0; }
+
+/* Group rows (session scripts / mcp servers / other python) and their members */
+.dash-ps-group { cursor: pointer; }
+.dash-ps-group:hover { background: var(--background-modifier-hover); }
+.dash-ps-chevron {
+  display: inline-flex;
+  width: 12px;
+  color: var(--text-muted);
+}
+.dash-ps-chevron svg { width: 12px; height: 12px; }
+.dash-ps-child {
+  padding-left: 26px;
+  color: var(--text-muted);
+  font-size: 0.8em;
+}
+.dash-ps-session {
+  color: var(--text-accent);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── Sessions tracker (Process Status view) ───────────── */
 
