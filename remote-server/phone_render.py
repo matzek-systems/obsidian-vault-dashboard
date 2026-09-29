@@ -207,7 +207,11 @@ COMPOSER_JS = """
   var micb=document.getElementById('micb'), spkb=document.getElementById('spkbtn'), spkl=document.getElementById('spklbl');
   function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
   function toast(m,long){st.textContent=m;st.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){st.classList.remove('on');},long?5000:2000);}
-  function near(){return (window.innerHeight+window.scrollY)>=(document.body.scrollHeight-200);}
+  // s1010: measure the VISIBLE bottom. innerHeight ignores the iOS keyboard, so with it up a reader
+  // ~a keyboard-height above the end counted as "near" and every poll snapped them down.
+  function near(){var v=window.visualViewport,vis=v?(v.offsetTop+v.height):window.innerHeight;
+    var cb=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cb'))||0;
+    return (window.scrollY+vis-cb)>=(document.body.scrollHeight-cb-60);}
   function add(e){var d=document.createElement('div');d.className='msg k-'+e.k+(e.cmd?' cmd':'');
     if(e.k==='you'&&pend.length){var pe=pend.shift();if(pe&&pe.parentNode){pe.remove();}}   /* the transcript's copy replaces the echo */
     if(e.k==='result'&&e['for']&&asks[e['for']]){var a=asks[e['for']];if(a.classList.contains('done')){return;}a.classList.add('done');a.querySelectorAll('button').forEach(function(x){x.disabled=true;});
@@ -260,10 +264,11 @@ COMPOSER_JS = """
   function poll(){ if(document.visibilityState!=='visible'){return;}
     if(MODE==='chat'){
       fetch(BASE+'/feed'+(off===null?'':'?since='+off)).then(function(r){return r.json();}).then(function(j){
-        var was=near()||off===null;(j.entries||[]).forEach(add);off=j.offset;setLive(j.state,j.detail);seen=true;
-        if(was){window.scrollTo(0,document.body.scrollHeight);}}).catch(function(){});
+        var first=off===null,was=near()||first,h0=document.body.scrollHeight;(j.entries||[]).forEach(add);off=j.offset;setLive(j.state,j.detail);seen=true;
+        if(was&&(first||document.body.scrollHeight!==h0)){window.scrollTo(0,document.body.scrollHeight);}}).catch(function(){});
     }else{
-      fetch(BASE+'/screen').then(function(r){return r.text();}).then(function(t){var was=near();scr.textContent=t;if(was){window.scrollTo(0,document.body.scrollHeight);}}).catch(function(){});
+      fetch(BASE+'/screen').then(function(r){var sn=r.headers.get('X-Seat-N');
+        if(sn&&/^\d+$/.test(sn)){location.replace('/seat/'+sn);}return r.text();}).then(function(t){if(scr.textContent===t){return;}var was=near();scr.textContent=t;if(was){window.scrollTo(0,document.body.scrollHeight);}}).catch(function(){});
     }}
   poll();setInterval(poll,2500);
   function post(k,body){return fetch(BASE+'/'+k,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();});}

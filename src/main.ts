@@ -16,7 +16,7 @@ const ROADMAPS_FOLDER = "00_System/AI/Claude/Roadmaps";
 const SYSTEM_HOME = "00_System/AI/Claude/00_Home.md";
 const SESSION_RAM_FOLDER = "00_System/AI/Claude/Scratchpad";
 const PROCESS_STATUS_FILE = "00_System/AI/Claude/System Operations/state/process-status.json";
-const PROCESS_STATUS_REFRESH_MS = 3000;
+const PROCESS_STATUS_REFRESH_MS = 5000;
 const SESSION_REGISTRY_FILE = "00_System/AI/Claude/System Operations/session-registry.json";
 
 interface ProcessEntry {
